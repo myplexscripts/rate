@@ -284,6 +284,18 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   background:#000;
   display:block;
 }
+#trailerSpinner {
+  display:none;
+  width:46px; height:46px;
+  margin:0 auto;
+  border:3px solid rgba(255,255,255,0.25);
+  border-top-color:#fff;
+  border-radius:50%;
+  animation:trailerSpin 0.8s linear infinite;
+}
+@keyframes trailerSpin { to { transform:rotate(360deg); } }
+#trailerOverlay.loading #trailerSpinner { display:block; }
+#trailerOverlay.loading #trailerVideo { display:none; }
 #trailerClose {
   position:absolute; top:-44px; right:0;
   width:32px; height:32px;
@@ -474,6 +486,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   <div id="trailerBox">
     <button id="trailerClose" onclick="closeTrailer()"><i class='bx bx-x'></i></button>
     <video id="trailerVideo" controls playsinline></video>
+    <div id="trailerSpinner"></div>
   </div>
 </div>
 
@@ -700,54 +713,24 @@ function setInfo(item) {
   const trailerBtn = document.getElementById('btnTrailer');
   trailerBtn.classList.add('hidden');
   loadTrailer(item).then(trailer => {
-    if (infoItem === item) trailerBtn.classList.toggle('hidden', !(trailer && trailer.sources.length));
+    if (infoItem === item) trailerBtn.classList.toggle('hidden', !(trailer && trailer.url));
   });
 }
 
 // ── Trailer ───────────────────────────────────────────────
-// Trailer source files are often containers/codecs browsers can't direct-play
-// (e.g. MKV), so stream them through Plex's universal HLS transcoder instead —
-// the same approach Plex Web uses, and natively playable in Safari/iOS.
-function trailerStreamUrl(ratingKey) {
-  const sessionId = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
-  const params = new URLSearchParams({
-    path: `/library/metadata/${ratingKey}`,
-    mediaIndex: '0',
-    partIndex: '0',
-    protocol: 'hls',
-    fastSeek: '1',
-    directPlay: '0',
-    directStream: '1',
-    directStreamAudio: '1',
-    subtitleSize: '100',
-    audioBoost: '100',
-    location: 'lan',
-    autoAdjustQuality: '0',
-    'X-Plex-Session-Identifier': sessionId,
-    'X-Plex-Token': cfg.token,
-    'X-Plex-Client-Identifier': clientId,
-    'X-Plex-Product': PLEX_PRODUCT,
-    'X-Plex-Platform': 'Safari',
-    'X-Plex-Device': 'Web'
-  });
-  return `${cfg.url}/video/:/transcode/universal/start.m3u8?${params.toString()}`;
-}
-
+// Loading the Plex stream URL directly into <video src> gets blocked by
+// the browser's Opaque Response Blocking (the cross-origin PMS endpoints
+// don't send the headers a <video> load needs). So — exactly like the
+// posters — we fetch the file ourselves with an authenticated request and
+// hand the video element a same-origin blob URL instead.
 async function loadTrailer(item) {
   if (item._trailer !== undefined) return item._trailer;
   try {
     const d = await plexGet(`/library/metadata/${item.ratingKey}/extras`);
     const extras = (d.MediaContainer.Metadata || []);
     const clip = extras.find(e => e.subtype === 'trailer');
-    if (!clip) { item._trailer = null; return null; }
-    const part = clip.Media && clip.Media[0] && clip.Media[0].Part && clip.Media[0].Part[0];
-    item._trailer = {
-      sources: [
-        trailerStreamUrl(clip.ratingKey),
-        part ? `${cfg.url}${part.key}?X-Plex-Token=${cfg.token}` : null
-      ].filter(Boolean)
-    };
-    console.info('[trailer] found clip', clip.ratingKey, 'sources:', item._trailer.sources);
+    const part = clip && clip.Media && clip.Media[0] && clip.Media[0].Part && clip.Media[0].Part[0];
+    item._trailer = part ? { url: `${cfg.url}${part.key}?X-Plex-Token=${cfg.token}` } : null;
   } catch (e) {
     console.warn('[trailer] lookup failed', e);
     item._trailer = null;
@@ -755,40 +738,33 @@ async function loadTrailer(item) {
   return item._trailer;
 }
 
-const MEDIA_ERR = { 1: 'aborted', 2: 'network', 3: 'decode', 4: 'unsupported' };
-
-function openTrailer() {
+async function openTrailer() {
   const item = queue[0];
-  if (!item || !item._trailer || !item._trailer.sources.length) return;
+  if (!item || !item._trailer) return;
+  const overlay = document.getElementById('trailerOverlay');
   const video = document.getElementById('trailerVideo');
-  const sources = item._trailer.sources;
-  let i = 0;
-  let lastErr = '';
-  const tryNext = () => {
-    if (i >= sources.length) {
-      closeTrailer();
-      toast(lastErr ? `Trailer unavailable (${lastErr})` : 'Trailer unavailable');
-      return;
-    }
-    const src = sources[i++];
-    console.info('[trailer] trying source', src);
-    video.src = src;
+  overlay.classList.add('on', 'loading');
+  try {
+    const resp = await fetch(item._trailer.url, { headers: H() });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const blob = await resp.blob();
+    const obj = URL.createObjectURL(blob);
+    video._objUrl = obj;
+    video.src = obj;
+    overlay.classList.remove('loading');
     video.play().catch(err => console.warn('[trailer] play() rejected', err));
-  };
-  video.onerror = () => {
-    const code = video.error && video.error.code;
-    lastErr = MEDIA_ERR[code] || ('code ' + code);
-    console.warn('[trailer] source failed:', lastErr, video.error);
-    tryNext();
-  };
-  document.getElementById('trailerOverlay').classList.add('on');
-  tryNext();
+  } catch (e) {
+    console.warn('[trailer] fetch failed', e);
+    closeTrailer();
+    toast('Trailer unavailable');
+  }
 }
 function closeTrailer() {
+  const overlay = document.getElementById('trailerOverlay');
   const video = document.getElementById('trailerVideo');
-  video.onerror = null;
-  document.getElementById('trailerOverlay').classList.remove('on');
+  overlay.classList.remove('on', 'loading');
   video.pause();
+  if (video._objUrl) { URL.revokeObjectURL(video._objUrl); video._objUrl = null; }
   video.removeAttribute('src');
   video.load();
 }
