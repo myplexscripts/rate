@@ -279,9 +279,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 /* TOAST — centred, never overflows */
 #toast {
   position:fixed;
-  bottom:calc(var(--safe-bottom) + 26px);
+  top:50%;
   left:50%;
-  transform:translateX(-50%) translateY(8px);
+  transform:translateX(-50%) translateY(-4px);
   max-width:90vw;
   background:rgba(35,35,35,0.95);
   border:1px solid rgba(255,251,248,0.1);
@@ -291,7 +291,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   font-size:0.78rem; font-weight:600;
   text-align:center;
   opacity:0; pointer-events:none;
-  transition:opacity 0.2s, transform 0.2s, bottom 0.2s;
+  transition:opacity 0.2s, transform 0.2s;
   z-index:999;
 }
 #toast.on { opacity:1; transform:translateX(-50%) translateY(0); }
@@ -564,6 +564,7 @@ async function loadItems() {
   setState('load');
   hideStage();
   hist = [];
+  ratedCount = 0;
   try {
     const sd = await plexGet('/library/sections');
     const libs = (sd.MediaContainer.Directory || []).filter(d => d.type === 'movie' || d.type === 'show');
@@ -828,7 +829,7 @@ function advance(dir) {
 
   setTimeout(() => {
     if (p0) p0.remove();
-    hist.push(queue.shift());
+    hist.push({ item: queue.shift(), dir });
     if (hist.length > 30) hist.shift();
     document.getElementById('btnBack').disabled = hist.length === 0;
     updateProgress();
@@ -854,9 +855,52 @@ function closeSummaryFromOverlay(e) {
 
 function goBack() {
   if (!hist.length || busy) return;
+  busy = true;
   clearTimeout(ratingTimer);
-  queue.unshift(hist.pop());
-  rebuild();
+
+  const { item, dir } = hist.pop();
+  queue.unshift(item);
+
+  const stack = document.getElementById('posterStack');
+  const p0 = stack.querySelector('.poster.p0');
+  const p1 = stack.querySelector('.poster.p1');
+  const p2 = stack.querySelector('.poster.p2');
+
+  if (p2) p2.remove();
+  if (p1) p1.className = 'poster p2';
+  if (p0) p0.className = 'poster p1';
+
+  // Returning poster re-enters from the side it originally exited toward
+  const img = document.createElement('img');
+  img.className = 'poster p0';
+  img.style.transition = 'none';
+  img.style.zIndex = 5;
+  const x = dir === 'left' ? '-130%' : '130%';
+  const rot = dir === 'left' ? '-18deg' : '18deg';
+  img.style.transform = `translate(-50%,-50%) translateX(${x}) rotate(${rot})`;
+  img.style.opacity = '0';
+  stack.appendChild(img);
+  loadPoster(item, img, true);
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      img.style.transition = 'transform 0.4s cubic-bezier(0.4,0,0.6,1), opacity 0.4s ease';
+      img.style.transform = 'translate(-50%,-50%) scale(1)';
+      img.style.opacity = '1';
+    });
+  });
+
+  setInfo(item);
+  resetRating();
+  document.getElementById('btnBack').disabled = hist.length === 0;
+  updateProgress();
+  preloadAhead();
+
+  setTimeout(() => {
+    img.removeAttribute('style');
+    img.className = 'poster p0';
+    busy = false;
+  }, 420);
 }
 
 // ── Shuffle ───────────────────────────────────────────────
@@ -908,8 +952,8 @@ function hideStage() {
 const RING_CIRC = 2 * Math.PI * 15.5;
 function updateProgress() {
   const total = chronological.length;
-  const remaining = queue.length;
-  const frac = total ? (total - remaining) / total : 0;
+  const remaining = Math.max(total - ratedCount, 0);
+  const frac = total ? ratedCount / total : 0;
   const bar = document.querySelector('#progress .ring-bar');
   bar.style.strokeDasharray = RING_CIRC;
   bar.style.strokeDashoffset = RING_CIRC * (1 - frac);
@@ -930,7 +974,9 @@ function toast(msg, isCelebrate) {
   const actions = document.getElementById('actions');
   const rect = actions.getBoundingClientRect();
   if (rect.height) {
-    t.style.bottom = (window.innerHeight - rect.top + 14) + 'px';
+    const top = Math.min(rect.bottom + 18, window.innerHeight - 70);
+    t.style.top = top + 'px';
+    t.style.bottom = 'auto';
   }
   t.textContent = msg;
   t.classList.toggle('celebrate', !!isCelebrate);
