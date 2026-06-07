@@ -242,6 +242,33 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   letter-spacing:0.01em;
 }
 #summaryGenres.hidden { display:none; }
+#summaryYear {
+  font-size:0.78rem; font-weight:600;
+  color:rgba(255,251,248,0.5);
+  margin-top:-8px; margin-bottom:12px;
+}
+#summaryCast {
+  display:flex; gap:14px; margin-top:18px;
+  overflow-x:auto;
+}
+#summaryCast.hidden { display:none; }
+#summaryCast .castMember {
+  display:flex; flex-direction:column; align-items:center;
+  width:64px; flex-shrink:0; text-align:center;
+}
+#summaryCast .castPhoto {
+  width:56px; height:56px; border-radius:50%;
+  object-fit:cover; background:rgba(255,251,248,0.1);
+  border:1px solid rgba(255,251,248,0.13);
+}
+#summaryCast .castName {
+  font-size:0.65rem; font-weight:600;
+  color:var(--text);
+  margin-top:6px;
+  line-height:1.25;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  overflow:hidden;
+}
 #summaryClose {
   position:absolute; top:16px; right:16px;
   width:32px; height:32px;
@@ -254,75 +281,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 }
 #summaryClose:hover { background:rgba(255,251,248,0.2); }
 #summaryClose i { font-size:1.3rem; }
-
-/* TRAILER */
-#btnTrailer {
-  display:inline-flex; align-items:center; gap:5px;
-  margin-top:10px;
-  background:rgba(255,251,248,0.07);
-  border:1px solid rgba(255,251,248,0.13);
-  color:var(--text);
-  border-radius:50px;
-  padding:6px 15px 6px 11px;
-  font-family:'Circular',sans-serif;
-  font-size:0.7rem; font-weight:600;
-  letter-spacing:0.01em;
-  cursor:pointer;
-  transition:background 0.15s, opacity 0.2s;
-}
-#btnTrailer i { font-size:1.05rem; }
-#btnTrailer:active { transform:scale(0.96); }
-#btnTrailer.hidden { display:none; }
-
-#trailerOverlay {
-  position:fixed; inset:0;
-  z-index:500;
-  display:flex; align-items:center; justify-content:center;
-  padding:24px;
-  background:rgba(0,0,0,0.75);
-  backdrop-filter:blur(4px);
-  opacity:0; pointer-events:none;
-  transition:opacity 0.2s;
-}
-#trailerOverlay.on { opacity:1; pointer-events:all; }
-#trailerBox {
-  position:relative;
-  width:100%; max-width:520px;
-  transform:scale(0.94);
-  transition:transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
-}
-#trailerOverlay.on #trailerBox { transform:scale(1); }
-#trailerVideo {
-  width:100%;
-  aspect-ratio:16/9;
-  border-radius:14px;
-  background:#000;
-  display:block;
-}
-#trailerSpinner {
-  display:none;
-  width:46px; height:46px;
-  margin:0 auto;
-  border:3px solid rgba(255,255,255,0.25);
-  border-top-color:#fff;
-  border-radius:50%;
-  animation:trailerSpin 0.8s linear infinite;
-}
-@keyframes trailerSpin { to { transform:rotate(360deg); } }
-#trailerOverlay.loading #trailerSpinner { display:block; }
-#trailerOverlay.loading #trailerVideo { display:none; }
-#trailerClose {
-  position:absolute; top:-44px; right:0;
-  width:32px; height:32px;
-  border:none; border-radius:50%;
-  background:rgba(255,251,248,0.12);
-  color:var(--text);
-  display:flex; align-items:center; justify-content:center;
-  cursor:pointer;
-  transition:background 0.15s;
-}
-#trailerClose:hover { background:rgba(255,251,248,0.22); }
-#trailerClose i { font-size:1.3rem; }
 
 /* STARS */
 #starRow {
@@ -459,9 +417,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     <div id="info">
       <div id="iTitle">—</div>
       <div id="iDate"></div>
-      <button id="btnTrailer" class="hidden" onclick="openTrailer()" title="Watch trailer">
-        <i class='bx bx-play-circle'></i> Trailer
-      </button>
       <div id="iSummary" onclick="openSummary()"></div>
     </div>
     <div id="starRow"></div>
@@ -493,18 +448,13 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   <div id="summaryBox">
     <button id="summaryClose" onclick="closeSummary()"><i class='bx bx-x'></i></button>
     <div id="summaryTitle"></div>
+    <div id="summaryYear"></div>
     <div id="summaryText"></div>
     <div id="summaryGenres" class="hidden"></div>
+    <div id="summaryCast" class="hidden"></div>
   </div>
 </div>
 
-<div id="trailerOverlay" onclick="closeTrailerFromOverlay(event)">
-  <div id="trailerBox">
-    <button id="trailerClose" onclick="closeTrailer()"><i class='bx bx-x'></i></button>
-    <video id="trailerVideo" controls playsinline></video>
-    <div id="trailerSpinner"></div>
-  </div>
-</div>
 
 <script>
 const PLEX_PRODUCT = 'Rate It';
@@ -725,67 +675,6 @@ function setInfo(item) {
   document.getElementById('iDate').textContent = item.lastViewedAt
     ? 'Watched ' + fmtDate(item.lastViewedAt * 1000) : '';
   document.getElementById('iSummary').textContent = item.summary || '';
-
-  const trailerBtn = document.getElementById('btnTrailer');
-  trailerBtn.classList.add('hidden');
-  loadTrailer(item).then(trailer => {
-    if (infoItem === item) trailerBtn.classList.toggle('hidden', !(trailer && trailer.url));
-  });
-}
-
-// ── Trailer ───────────────────────────────────────────────
-// Loading the Plex stream URL directly into <video src> gets blocked by
-// the browser's Opaque Response Blocking (the cross-origin PMS endpoints
-// don't send the headers a <video> load needs). So — exactly like the
-// posters — we fetch the file ourselves with an authenticated request and
-// hand the video element a same-origin blob URL instead.
-async function loadTrailer(item) {
-  if (item._trailer !== undefined) return item._trailer;
-  try {
-    const d = await plexGet(`/library/metadata/${item.ratingKey}/extras`);
-    const extras = (d.MediaContainer.Metadata || []);
-    const clip = extras.find(e => e.subtype === 'trailer');
-    const part = clip && clip.Media && clip.Media[0] && clip.Media[0].Part && clip.Media[0].Part[0];
-    item._trailer = part ? { url: `${cfg.url}${part.key}?X-Plex-Token=${cfg.token}` } : null;
-  } catch (e) {
-    console.warn('[trailer] lookup failed', e);
-    item._trailer = null;
-  }
-  return item._trailer;
-}
-
-async function openTrailer() {
-  const item = queue[0];
-  if (!item || !item._trailer) return;
-  const overlay = document.getElementById('trailerOverlay');
-  const video = document.getElementById('trailerVideo');
-  overlay.classList.add('on', 'loading');
-  try {
-    const resp = await fetch(item._trailer.url);
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const blob = await resp.blob();
-    const obj = URL.createObjectURL(blob);
-    video._objUrl = obj;
-    video.src = obj;
-    overlay.classList.remove('loading');
-    video.play().catch(err => console.warn('[trailer] play() rejected', err));
-  } catch (e) {
-    console.warn('[trailer] fetch failed', e);
-    closeTrailer();
-    toast('Trailer unavailable');
-  }
-}
-function closeTrailer() {
-  const overlay = document.getElementById('trailerOverlay');
-  const video = document.getElementById('trailerVideo');
-  overlay.classList.remove('on', 'loading');
-  video.pause();
-  if (video._objUrl) { URL.revokeObjectURL(video._objUrl); video._objUrl = null; }
-  video.removeAttribute('src');
-  video.load();
-}
-function closeTrailerFromOverlay(e) {
-  if (e.target === document.getElementById('trailerOverlay')) closeTrailer();
 }
 
 // Cache loaded poster blob URLs + extracted glow colours by ratingKey so
@@ -1006,31 +895,53 @@ function advance(dir) {
 }
 
 // ── Summary popup ─────────────────────────────────────────
-async function loadGenres(item) {
-  if (item._genres !== undefined) return item._genres;
+async function loadExtraInfo(item) {
+  if (item._extra !== undefined) return item._extra;
   try {
     const d = await plexGet(`/library/metadata/${item.ratingKey}`);
     const meta = (d.MediaContainer.Metadata || [])[0];
-    item._genres = (meta && meta.Genre || []).map(g => g.tag).slice(0, 2);
+    item._extra = {
+      year: (meta && meta.year) || null,
+      genres: (meta && meta.Genre || []).map(g => g.tag).slice(0, 2),
+      cast: (meta && meta.Role || []).slice(0, 6).map(r => ({
+        name: r.tag,
+        photo: r.thumb ? `${cfg.url}${r.thumb}?X-Plex-Token=${cfg.token}` : ''
+      }))
+    };
   } catch (e) {
-    item._genres = [];
+    item._extra = { year: null, genres: [], cast: [] };
   }
-  return item._genres;
+  return item._extra;
 }
 
 function openSummary() {
   const item = queue[0];
   if (!item || !item.summary) return;
   document.getElementById('summaryTitle').textContent = item.title || '';
+  document.getElementById('summaryYear').textContent = '';
   document.getElementById('summaryText').textContent = item.summary;
   const genresEl = document.getElementById('summaryGenres');
+  const castEl = document.getElementById('summaryCast');
   genresEl.innerHTML = '';
   genresEl.classList.add('hidden');
+  castEl.innerHTML = '';
+  castEl.classList.add('hidden');
   document.getElementById('summaryOverlay').classList.add('on');
-  loadGenres(item).then(genres => {
-    if (queue[0] !== item || !genres.length) return;
-    genresEl.innerHTML = genres.map(g => `<span class="genrePill">${g}</span>`).join('');
-    genresEl.classList.remove('hidden');
+  loadExtraInfo(item).then(extra => {
+    if (queue[0] !== item) return;
+    if (extra.year) document.getElementById('summaryYear').textContent = extra.year;
+    if (extra.genres.length) {
+      genresEl.innerHTML = extra.genres.map(g => `<span class="genrePill">${g}</span>`).join('');
+      genresEl.classList.remove('hidden');
+    }
+    if (extra.cast.length) {
+      castEl.innerHTML = extra.cast.map(c => `
+        <div class="castMember">
+          <img class="castPhoto" src="${c.photo}" loading="lazy">
+          <span class="castName">${c.name}</span>
+        </div>`).join('');
+      castEl.classList.remove('hidden');
+    }
   });
 }
 function closeSummary() {
