@@ -895,6 +895,21 @@ function advance(dir) {
 }
 
 // ── Summary popup ─────────────────────────────────────────
+const castPhotoCache = new Map();
+async function loadCastPhoto(url, img) {
+  const cached = castPhotoCache.get(url);
+  if (cached) { img.src = cached; return; }
+  try {
+    const resp = await fetch(url, { headers: H() });
+    const blob = await resp.blob();
+    const obj = URL.createObjectURL(blob);
+    castPhotoCache.set(url, obj);
+    img.src = obj;
+  } catch (e) {
+    img.src = url;
+  }
+}
+
 async function loadExtraInfo(item) {
   if (item._extra !== undefined) return item._extra;
   try {
@@ -937,10 +952,12 @@ function openSummary() {
     if (extra.cast.length) {
       castEl.innerHTML = extra.cast.map(c => `
         <div class="castMember">
-          <img class="castPhoto" src="${c.photo}" loading="lazy">
+          <img class="castPhoto" loading="lazy">
           <span class="castName">${c.name}</span>
         </div>`).join('');
       castEl.classList.remove('hidden');
+      const imgs = castEl.querySelectorAll('.castPhoto');
+      extra.cast.forEach((c, i) => { if (c.photo) loadCastPhoto(c.photo, imgs[i]); });
     }
   });
 }
