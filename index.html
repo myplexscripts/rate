@@ -899,13 +899,16 @@ const castPhotoCache = new Map();
 async function loadCastPhoto(url, img) {
   const cached = castPhotoCache.get(url);
   if (cached) { img.src = cached; return; }
+  if (!url.startsWith(cfg.url)) { img.src = url; return; }
   try {
     const resp = await fetch(url, { headers: H() });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const blob = await resp.blob();
     const obj = URL.createObjectURL(blob);
     castPhotoCache.set(url, obj);
     img.src = obj;
   } catch (e) {
+    console.warn('[cast] photo fetch failed', url, e);
     img.src = url;
   }
 }
@@ -920,7 +923,9 @@ async function loadExtraInfo(item) {
       genres: (meta && meta.Genre || []).map(g => g.tag).slice(0, 2),
       cast: (meta && meta.Role || []).slice(0, 6).map(r => ({
         name: r.tag,
-        photo: r.thumb ? `${cfg.url}${r.thumb}?X-Plex-Token=${cfg.token}` : ''
+        photo: r.thumb
+          ? (/^https?:\/\//.test(r.thumb) ? r.thumb : `${cfg.url}${r.thumb}?X-Plex-Token=${cfg.token}`)
+          : ''
       }))
     };
   } catch (e) {
