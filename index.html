@@ -273,6 +273,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 .act-btn:hover  { color:var(--text); }
 .act-btn:active { transform:scale(0.9); color:var(--text); }
 .act-btn:disabled { opacity:0.2; pointer-events:none; }
+.act-btn.active { color:#f74366; }
+.act-btn.active:hover { color:#f74366; }
 
 /* TOAST — centred, never overflows */
 #toast {
@@ -345,6 +347,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
       <button class="act-btn" id="btnBack" onclick="goBack()" disabled title="Back">
         <i class='bx bx-chevrons-left'></i>
       </button>
+      <button class="act-btn" id="btnShuffle" onclick="toggleShuffle()" title="Shuffle">
+        <i class='bx bx-shuffle'></i>
+      </button>
       <button class="act-btn" onclick="doSkip()" title="Skip">
         <i class='bx bx-chevrons-right'></i>
       </button>
@@ -385,6 +390,8 @@ const cfg = { url: localStorage.getItem(STORE_URL) || '', token: localStorage.ge
 
 let queue = [];
 let hist  = [];
+let chronological = [];
+let shuffled = false;
 let rating = 0;
 let ratingTimer = null;
 let busy = false;
@@ -530,7 +537,10 @@ async function loadItems() {
       }
     }
     all.sort((a, b) => (b.lastViewedAt || 0) - (a.lastViewedAt || 0));
-    queue = all.slice(0, cfg.max);
+    chronological = all.slice(0, cfg.max);
+    queue = chronological.slice();
+    shuffled = false;
+    document.getElementById('btnShuffle').classList.remove('active');
     if (!queue.length) { setState('done'); return; }
     rebuild();
     showStage();
@@ -585,8 +595,10 @@ async function loadPoster(item, img, isTop) {
 }
 
 function preloadAhead() {
-  const next = queue[3];
-  if (next) { const im = new Image(); im.src = posterUrl(next); }
+  for (let i = 3; i <= 4; i++) {
+    const item = queue[i];
+    if (item) { const im = new Image(); im.src = posterUrl(item); }
+  }
 }
 
 // ── Colour extraction ─────────────────────────────────────
@@ -751,6 +763,8 @@ function advance(dir) {
     stack.insertBefore(img, stack.firstChild);
     loadPoster(next, img, false);
   }
+  const after = queue[4];
+  if (after) { const im = new Image(); im.src = posterUrl(after); }
 
   if (queue[1]) setInfo(queue[1]);
   resetRating();
@@ -785,6 +799,35 @@ function goBack() {
   clearTimeout(ratingTimer);
   queue.unshift(hist.pop());
   rebuild();
+}
+
+// ── Shuffle ───────────────────────────────────────────────
+function shuffleArray(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function toggleShuffle() {
+  if (busy || queue.length < 2) return;
+  clearTimeout(ratingTimer);
+  shuffled = !shuffled;
+  document.getElementById('btnShuffle').classList.toggle('active', shuffled);
+
+  const [current, ...rest] = queue;
+  let reordered;
+  if (shuffled) {
+    reordered = shuffleArray(rest);
+  } else {
+    const restKeys = new Set(rest.map(it => it.ratingKey));
+    reordered = chronological.filter(it => restKeys.has(it.ratingKey));
+  }
+  queue = [current, ...reordered];
+  rebuild();
+  toast(shuffled ? 'Shuffle on' : 'Shuffle off');
 }
 
 // ── UI helpers ────────────────────────────────────────────
