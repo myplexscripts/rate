@@ -9,6 +9,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#191919">
 <title>Rate It</title>
+<link rel="icon" type="image/png" href="app-icon.png">
+<link rel="apple-touch-icon" href="app-icon.png">
 <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 <style>
@@ -17,7 +19,12 @@
 @font-face { font-family:'Circular'; src:url('https://dvdbsh.github.io/fonts/Circular/Circular-Bold.ttf') format('truetype'); font-weight:700; font-display:swap; }
 @font-face { font-family:'Circular'; src:url('https://dvdbsh.github.io/fonts/Circular/Circular-Black.ttf') format('truetype'); font-weight:900; font-display:swap; }
 
-@property --glow {
+@property --glow-left {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: rgba(40,40,60,1);
+}
+@property --glow-right {
   syntax: '<color>';
   inherits: false;
   initial-value: rgba(40,40,60,1);
@@ -60,10 +67,13 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   position:fixed; inset:0;
   z-index:0;
   pointer-events:none;
-  --glow: rgba(40,40,60,1);
-  background:linear-gradient(to bottom, var(--glow) 0%, transparent 65%);
+  --glow-left: rgba(40,40,60,1);
+  --glow-right: rgba(40,40,60,1);
+  background:linear-gradient(to right, var(--glow-left) 0%, var(--glow-right) 100%);
+  -webkit-mask-image:linear-gradient(to bottom, #000 0%, transparent 65%);
+  mask-image:linear-gradient(to bottom, #000 0%, transparent 65%);
   opacity:0.6;
-  transition:--glow 0.7s ease;
+  transition:--glow-left 0.7s ease, --glow-right 0.7s ease;
 }
 
 /* STATES */
@@ -563,7 +573,7 @@ async function loadPoster(item, img, isTop) {
     const blob = await resp.blob();
     const obj = URL.createObjectURL(blob);
     img.onload = async () => {
-      const c = await getDominantColor(img);
+      const c = await getEdgeColors(img);
       img._glow = c;
       if (isTop) setGlow(c);
       URL.revokeObjectURL(obj);
@@ -580,31 +590,45 @@ function preloadAhead() {
 }
 
 // ── Colour extraction ─────────────────────────────────────
-function getDominantColor(imgEl) {
+// Samples the dominant colour from the left 30% and right 30% of the
+// poster so the page glow can blend the two, mirroring the artwork.
+function getEdgeColors(imgEl) {
   return new Promise(resolve => {
     try {
+      const W = 100, H = 80;
       const canvas = document.createElement('canvas');
-      canvas.width = 60; canvas.height = 80;
+      canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext('2d');
-      ctx.drawImage(imgEl, 0, 0, 60, 80);
-      const data = ctx.getImageData(0, 0, 60, 80).data;
-      let best = null, bestScore = -1;
-      for (let i = 0; i < data.length; i += 32) {
-        const r = data[i], g = data[i+1], b = data[i+2];
-        const max = Math.max(r,g,b), min = Math.min(r,g,b);
-        const brightness = max / 255;
-        const sat = max === 0 ? 0 : (max - min) / max;
-        if (brightness < 0.12 || brightness > 0.95 || sat < 0.2) continue;
-        const score = sat * (1 - Math.abs(brightness - 0.55));
-        if (score > bestScore) { bestScore = score; best = [r, g, b]; }
-      }
-      resolve(best || [40, 40, 60]);
-    } catch { resolve([40, 40, 60]); }
+      ctx.drawImage(imgEl, 0, 0, W, H);
+      const data = ctx.getImageData(0, 0, W, H).data;
+      const edge = Math.round(W * 0.3);
+
+      const dominant = (xMin, xMax) => {
+        let best = null, bestScore = -1;
+        for (let y = 0; y < H; y++) {
+          for (let x = xMin; x < xMax; x++) {
+            const i = (y * W + x) * 4;
+            const r = data[i], g = data[i+1], b = data[i+2];
+            const max = Math.max(r,g,b), min = Math.min(r,g,b);
+            const brightness = max / 255;
+            const sat = max === 0 ? 0 : (max - min) / max;
+            if (brightness < 0.12 || brightness > 0.95 || sat < 0.2) continue;
+            const score = sat * (1 - Math.abs(brightness - 0.55));
+            if (score > bestScore) { bestScore = score; best = [r, g, b]; }
+          }
+        }
+        return best || [40, 40, 60];
+      };
+
+      resolve({ left: dominant(0, edge), right: dominant(W - edge, W) });
+    } catch { resolve({ left: [40, 40, 60], right: [40, 40, 60] }); }
   });
 }
 
-function setGlow([r, g, b]) {
-  document.getElementById('glowBg').style.setProperty('--glow', `rgb(${r},${g},${b})`);
+function setGlow({ left, right }) {
+  const bg = document.getElementById('glowBg');
+  bg.style.setProperty('--glow-left',  `rgb(${left[0]},${left[1]},${left[2]})`);
+  bg.style.setProperty('--glow-right', `rgb(${right[0]},${right[1]},${right[2]})`);
 }
 
 // ── Stars ─────────────────────────────────────────────────
