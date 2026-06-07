@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-touch-fullscreen" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#191919">
+<title>Rate It</title>
+<link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<style>
+@font-face { font-family:'Circular'; src:url('https://dvdbsh.github.io/fonts/Circular/Circular-Book.ttf') format('truetype'); font-weight:400; font-display:swap; }
+@font-face { font-family:'Circular'; src:url('https://dvdbsh.github.io/fonts/Circular/Circular-Medium.ttf') format('truetype'); font-weight:500; font-display:swap; }
+@font-face { font-family:'Circular'; src:url('https://dvdbsh.github.io/fonts/Circular/Circular-Bold.ttf') format('truetype'); font-weight:700; font-display:swap; }
+@font-face { font-family:'Circular'; src:url('https://dvdbsh.github.io/fonts/Circular/Circular-Black.ttf') format('truetype'); font-weight:900; font-display:swap; }
+
+@property --glow {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: rgba(40,40,60,1);
+}
+
+:root {
+  --bg: #191919;
+  --text: #fffbf8;
+  --muted: rgba(255,251,248,0.45);
+  --star: #ebaf00;
+  --star-off: rgba(255,251,248,0.22);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+*, *::before, *::after {
+  box-sizing:border-box; margin:0; padding:0;
+  -webkit-touch-callout:none;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+
+html, body {
+  width:100%; height:100%;
+  overflow:hidden;
+  position:fixed;
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Circular',-apple-system,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  overscroll-behavior:none;
+  touch-action:manipulation;
+}
+
+img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
+
+/* GRADIENT BG */
+#glowBg {
+  position:fixed; inset:0;
+  z-index:0;
+  pointer-events:none;
+  --glow: rgba(40,40,60,1);
+  background:linear-gradient(to bottom, var(--glow) 0%, transparent 65%);
+  opacity:0.6;
+  transition:--glow 0.7s ease;
+}
+
+/* STATES */
+.state {
+  position:fixed; inset:0;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:12px; text-align:center;
+  padding:48px 32px;
+  background:var(--bg);
+  z-index:200;
+  opacity:0; pointer-events:none;
+  transition:opacity 0.25s;
+}
+.state.on { opacity:1; pointer-events:all; }
+.state-title { font-weight:900; font-size:1.35rem; letter-spacing:-0.02em; }
+.state-sub { font-size:0.84rem; color:var(--muted); line-height:1.65; max-width:260px; }
+.state-btn {
+  margin-top:8px; padding:11px 26px;
+  background:rgba(255,251,248,0.08);
+  border:1px solid rgba(255,251,248,0.14);
+  color:var(--text); border-radius:50px;
+  font-family:'Circular',sans-serif;
+  font-weight:600; font-size:0.85rem; cursor:pointer;
+}
+.state-btn.primary {
+  background:var(--star);
+  border-color:var(--star);
+  color:#191919;
+}
+.spinner {
+  width:30px; height:30px;
+  border:2.5px solid rgba(255,251,248,0.1);
+  border-top-color:var(--star);
+  border-radius:50%;
+  animation:spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* STAGE */
+#stage {
+  position:fixed; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  z-index:1;
+  opacity:0; pointer-events:none;
+  transition:opacity 0.25s;
+}
+#stage.on { opacity:1; pointer-events:all; }
+
+/* CARD — vertically centred */
+#card {
+  position:relative; z-index:1;
+  width:100%; height:100%;
+  max-width:480px;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  padding:calc(var(--safe-top) + 20px) 24px calc(var(--safe-bottom) + 20px);
+  gap:0;
+}
+
+/* POSTER STACK */
+#posterStack {
+  position:relative;
+  width:100%;
+  height:42vh;
+  flex-shrink:1;
+  min-height:0;
+  margin-bottom:72px;
+}
+/* img sized to its own content (no letterbox box) so rounding shows on the real poster */
+.poster {
+  position:absolute;
+  left:50%; top:50%;
+  max-width:100%; max-height:100%;
+  width:auto; height:auto;
+  border-radius:18px;
+  transform-origin:center center;
+  transition:transform 0.38s cubic-bezier(0.4,0,0.2,1), opacity 0.38s ease, filter 0.38s ease;
+  will-change:transform, opacity;
+  box-shadow:0 18px 50px rgba(0,0,0,0.45);
+}
+.poster.p0 { z-index:3; transform:translate(-50%,-50%) scale(1);                    opacity:1;    filter:none; }
+.poster.p1 { z-index:2; transform:translate(-50%,-50%) translateY(30px) scale(0.94); opacity:0.5;  filter:brightness(0.55); }
+.poster.p2 { z-index:1; transform:translate(-50%,-50%) translateY(58px) scale(0.88); opacity:0.28; filter:brightness(0.4); }
+
+/* INFO */
+#info {
+  width:100%; text-align:center;
+  flex-shrink:0; margin-bottom:20px;
+}
+#iTitle {
+  font-weight:900;
+  font-size:clamp(1.3rem,5vw,1.7rem);
+  letter-spacing:-0.025em; line-height:1.1;
+  color:var(--text); margin-bottom:5px;
+}
+#iDate {
+  font-size:0.75rem; font-weight:500;
+  color:var(--muted); letter-spacing:0.01em;
+}
+#iSummary {
+  margin-top:10px;
+  font-size:0.78rem; font-weight:400;
+  color:var(--muted); line-height:1.55;
+  max-width:340px;
+  margin-left:auto; margin-right:auto;
+  display:-webkit-box;
+  -webkit-line-clamp:3;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+  cursor:pointer;
+  transition:color 0.15s;
+}
+#iSummary:hover { color:var(--text); }
+#iSummary:empty { display:none; }
+
+/* SUMMARY POPUP */
+#summaryOverlay {
+  position:fixed; inset:0;
+  z-index:500;
+  display:flex; align-items:center; justify-content:center;
+  padding:28px;
+  background:rgba(0,0,0,0.6);
+  backdrop-filter:blur(4px);
+  opacity:0; pointer-events:none;
+  transition:opacity 0.2s;
+}
+#summaryOverlay.on { opacity:1; pointer-events:all; }
+#summaryBox {
+  position:relative;
+  width:100%; max-width:420px;
+  max-height:70vh;
+  overflow-y:auto;
+  background:#222;
+  border:1px solid rgba(255,251,248,0.1);
+  border-radius:20px;
+  padding:26px 24px 24px;
+  transform:scale(0.94);
+  transition:transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
+  -webkit-overflow-scrolling:touch;
+  touch-action:pan-y;
+}
+#summaryOverlay.on #summaryBox { transform:scale(1); }
+#summaryTitle {
+  font-weight:900; font-size:1.2rem;
+  letter-spacing:-0.02em; margin-bottom:12px;
+  padding-right:36px;
+  color:var(--text);
+}
+#summaryText {
+  font-size:0.88rem; font-weight:400;
+  line-height:1.65; color:rgba(255,251,248,0.75);
+}
+#summaryClose {
+  position:absolute; top:16px; right:16px;
+  width:32px; height:32px;
+  border:none; border-radius:50%;
+  background:rgba(255,251,248,0.1);
+  color:var(--text);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer;
+  transition:background 0.15s;
+}
+#summaryClose:hover { background:rgba(255,251,248,0.2); }
+#summaryClose i { font-size:1.3rem; }
+
+/* STARS */
+#starRow {
+  display:flex; align-items:center; justify-content:center;
+  gap:4px; flex-shrink:0;
+  margin-bottom:24px;
+  touch-action:none; cursor:pointer;
+}
+.star {
+  font-size:2.5rem; line-height:1;
+  color:var(--star-off);
+  transition:color 0.12s, transform 0.18s cubic-bezier(0.34,1.56,0.64,1);
+}
+.star.lit { color:var(--star); transform:scale(1.15); }
+
+/* ACTIONS */
+#actions {
+  display:flex; align-items:center;
+  justify-content:space-between;
+  width:100%; flex-shrink:0;
+  padding:0 16px;
+}
+.act-btn {
+  background:none; border:none;
+  cursor:pointer; color:var(--muted);
+  display:flex; align-items:center; justify-content:center;
+  padding:10px; border-radius:50%;
+  transition:color 0.15s, transform 0.12s;
+  -webkit-tap-highlight-color:transparent;
+}
+.act-btn i { font-size:2rem; display:block; line-height:1; }
+.act-btn:hover  { color:var(--text); }
+.act-btn:active { transform:scale(0.9); color:var(--text); }
+.act-btn:disabled { opacity:0.2; pointer-events:none; }
+
+/* TOAST — centred, never overflows */
+#toast {
+  position:fixed;
+  bottom:calc(var(--safe-bottom) + 26px);
+  left:50%;
+  transform:translateX(-50%) translateY(8px);
+  max-width:90vw;
+  background:rgba(35,35,35,0.95);
+  border:1px solid rgba(255,251,248,0.1);
+  backdrop-filter:blur(16px);
+  color:var(--text);
+  padding:9px 20px; border-radius:50px;
+  font-size:0.78rem; font-weight:600;
+  text-align:center;
+  opacity:0; pointer-events:none;
+  transition:opacity 0.2s, transform 0.2s;
+  z-index:999;
+}
+#toast.on { opacity:1; transform:translateX(-50%) translateY(0); }
+#toast.celebrate {
+  background:var(--star);
+  color:#191919;
+  border-color:var(--star);
+  font-weight:900;
+  font-size:0.92rem;
+  padding:12px 26px;
+  box-shadow:0 8px 30px rgba(235,175,0,0.4);
+}
+</style>
+</head>
+<body>
+
+<div id="glowBg"></div>
+
+<div class="state" id="stAuth">
+  <div class="state-title">Rate It</div>
+  <div class="state-sub">Sign in with your Plex account to rate your watched movies and shows.</div>
+  <button class="state-btn primary" onclick="signIn()" id="btnSignIn">Sign in with Plex</button>
+</div>
+
+<div class="state" id="stLoad">
+  <div class="spinner"></div>
+  <div class="state-title" id="loadTitle">Loading</div>
+  <div class="state-sub" id="loadSub">Fetching your watched, unrated library from Plex.</div>
+</div>
+
+<div class="state" id="stErr">
+  <div class="state-title">Can't connect</div>
+  <div class="state-sub" id="errMsg">Check your Plex server.</div>
+  <button class="state-btn" onclick="signOut()">Sign out</button>
+</div>
+
+<div class="state" id="stDone">
+  <div class="state-title">All done</div>
+  <div class="state-sub">No more unrated watched items.</div>
+  <button class="state-btn" onclick="loadItems()">Refresh</button>
+</div>
+
+<div id="stage">
+  <div id="card">
+    <div id="posterStack"></div>
+    <div id="info">
+      <div id="iTitle">—</div>
+      <div id="iDate"></div>
+      <div id="iSummary" onclick="openSummary()"></div>
+    </div>
+    <div id="starRow"></div>
+    <div id="actions">
+      <button class="act-btn" id="btnBack" onclick="goBack()" disabled title="Back">
+        <i class='bx bx-chevrons-left'></i>
+      </button>
+      <button class="act-btn" onclick="doSkip()" title="Skip">
+        <i class='bx bx-chevrons-right'></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<div id="summaryOverlay" onclick="closeSummaryFromOverlay(event)">
+  <div id="summaryBox">
+    <button id="summaryClose" onclick="closeSummary()"><i class='bx bx-x'></i></button>
+    <div id="summaryTitle"></div>
+    <div id="summaryText"></div>
+  </div>
+</div>
+
+<script>
+const PLEX_PRODUCT = 'Rate It';
+const STORE_TOKEN = 'rateit_token';
+const STORE_URL   = 'rateit_url';
+const STORE_CLIENT= 'rateit_clientId';
+
+function getClientId() {
+  let id = localStorage.getItem(STORE_CLIENT);
+  if (!id) {
+    id = (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    }));
+    localStorage.setItem(STORE_CLIENT, id);
+  }
+  return id;
+}
+const clientId = getClientId();
+
+const cfg = { url: localStorage.getItem(STORE_URL) || '', token: localStorage.getItem(STORE_TOKEN) || '', max:200 };
+
+let queue = [];
+let hist  = [];
+let rating = 0;
+let ratingTimer = null;
+let busy = false;
+let ratedCount = 0;   // RATED items only (not skips)
+
+const H = () => ({ 'X-Plex-Token': cfg.token, 'Accept': 'application/json' });
+const plexHeaders = () => ({
+  'Accept': 'application/json',
+  'X-Plex-Product': PLEX_PRODUCT,
+  'X-Plex-Client-Identifier': clientId
+});
+const posterUrl = it => {
+  const k = it && (it.thumb || it.art);
+  return k ? `${cfg.url}${k}?X-Plex-Token=${cfg.token}&width=800` : '';
+};
+
+async function plexGet(path) {
+  const r = await fetch(cfg.url + path, { headers: H() });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+// ── Plex OAuth sign-in ────────────────────────────────────
+function signOut() {
+  localStorage.removeItem(STORE_TOKEN);
+  localStorage.removeItem(STORE_URL);
+  cfg.token = '';
+  cfg.url = '';
+  hideStage();
+  setState('auth');
+}
+
+async function signIn() {
+  const btn = document.getElementById('btnSignIn');
+  btn.disabled = true;
+  btn.textContent = 'Waiting for Plex…';
+  try {
+    const pinResp = await fetch('https://plex.tv/api/v2/pins?strong=true', {
+      method: 'POST',
+      headers: plexHeaders()
+    });
+    if (!pinResp.ok) throw new Error('Could not start sign-in');
+    const pin = await pinResp.json();
+
+    const authParams = new URLSearchParams({
+      clientID: clientId,
+      code: pin.code,
+      'context[device][product]': PLEX_PRODUCT
+    });
+    const authWindow = window.open(`https://app.plex.tv/auth#?${authParams.toString()}`, '_blank');
+
+    const token = await pollForToken(pin.id);
+    if (authWindow && !authWindow.closed) authWindow.close();
+    if (!token) throw new Error('Sign-in timed out');
+
+    cfg.token = token;
+    localStorage.setItem(STORE_TOKEN, token);
+
+    setState('load');
+    document.getElementById('loadTitle').textContent = 'Connecting';
+    document.getElementById('loadSub').textContent = 'Locating your Plex server…';
+
+    const url = await discoverServer(token);
+    if (!url) throw new Error('No Plex server found on your account');
+
+    cfg.url = url;
+    localStorage.setItem(STORE_URL, url);
+
+    document.getElementById('loadTitle').textContent = 'Loading';
+    document.getElementById('loadSub').textContent = 'Fetching your watched, unrated library from Plex.';
+    loadItems();
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = 'Sign in with Plex';
+    toast(e.message || 'Sign-in failed');
+  }
+}
+
+function pollForToken(pinId) {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const timeoutMs = 3 * 60 * 1000;
+    const tick = async () => {
+      if (Date.now() - start > timeoutMs) return resolve(null);
+      try {
+        const r = await fetch(`https://plex.tv/api/v2/pins/${pinId}`, {
+          headers: plexHeaders()
+        });
+        if (r.ok) {
+          const data = await r.json();
+          if (data.authToken) return resolve(data.authToken);
+        }
+      } catch {}
+      setTimeout(tick, 2000);
+    };
+    tick();
+  });
+}
+
+async function discoverServer(token) {
+  const r = await fetch('https://plex.tv/api/v2/resources?includeHttps=1&includeRelay=1', {
+    headers: { ...plexHeaders(), 'X-Plex-Token': token }
+  });
+  if (!r.ok) return null;
+  const resources = await r.json();
+  const servers = (resources || []).filter(d => (d.provides || '').split(',').includes('server'));
+
+  for (const server of servers) {
+    const conns = [...(server.connections || [])].sort((a, b) => {
+      const score = c => (c.local ? 2 : 0) + (c.relay ? -1 : 0);
+      return score(b) - score(a);
+    });
+    for (const conn of conns) {
+      const base = conn.uri;
+      try {
+        const test = await fetch(`${base}/identity`, {
+          headers: { 'X-Plex-Token': token, 'Accept': 'application/json' }
+        });
+        if (test.ok) return base;
+      } catch {}
+    }
+  }
+  return null;
+}
+
+async function loadItems() {
+  setState('load');
+  hideStage();
+  hist = [];
+  try {
+    const sd = await plexGet('/library/sections');
+    const libs = (sd.MediaContainer.Directory || []).filter(d => d.type === 'movie' || d.type === 'show');
+    const seen = new Set();
+    let all = [];
+    for (const lib of libs) {
+      const t = lib.type === 'movie' ? 1 : 2;
+      const d = await plexGet(`/library/sections/${lib.key}/all?type=${t}&viewCount%3E=0&sort=lastViewedAt%3Adesc&X-Plex-Container-Size=${cfg.max}&X-Plex-Container-Start=0`);
+      for (const m of (d.MediaContainer.Metadata || [])) {
+        if (!m.userRating && !seen.has(m.ratingKey)) {
+          seen.add(m.ratingKey);
+          all.push({ ...m, libType: lib.type });
+        }
+      }
+    }
+    all.sort((a, b) => (b.lastViewedAt || 0) - (a.lastViewedAt || 0));
+    queue = all.slice(0, cfg.max);
+    if (!queue.length) { setState('done'); return; }
+    rebuild();
+    showStage();
+  } catch(e) {
+    setState('err');
+    document.getElementById('errMsg').textContent = e.message || 'Connection failed.';
+  }
+}
+
+// ── Full rebuild (initial & back) ─────────────────────────
+function rebuild() {
+  const item = queue[0];
+  if (!item) return;
+  const stack = document.getElementById('posterStack');
+  stack.innerHTML = '';
+  const top3 = queue.slice(0, 3);
+  for (let i = top3.length - 1; i >= 0; i--) {
+    const img = document.createElement('img');
+    img.className = 'poster p' + i;
+    stack.appendChild(img);
+    loadPoster(top3[i], img, i === 0);
+  }
+  setInfo(item);
+  resetRating();
+  document.getElementById('btnBack').disabled = hist.length === 0;
+  preloadAhead();
+}
+
+function setInfo(item) {
+  document.getElementById('iTitle').textContent = item.title || '';
+  document.getElementById('iDate').textContent = item.lastViewedAt
+    ? 'Watched ' + fmtDate(item.lastViewedAt * 1000) : '';
+  document.getElementById('iSummary').textContent = item.summary || '';
+}
+
+async function loadPoster(item, img, isTop) {
+  const url = posterUrl(item);
+  try {
+    const resp = await fetch(url, { headers: H() });
+    const blob = await resp.blob();
+    const obj = URL.createObjectURL(blob);
+    img.onload = async () => {
+      const c = await getDominantColor(img);
+      img._glow = c;
+      if (isTop) setGlow(c);
+      URL.revokeObjectURL(obj);
+    };
+    img.src = obj;
+  } catch {
+    img.src = url;
+  }
+}
+
+function preloadAhead() {
+  const next = queue[3];
+  if (next) { const im = new Image(); im.src = posterUrl(next); }
+}
+
+// ── Colour extraction ─────────────────────────────────────
+function getDominantColor(imgEl) {
+  return new Promise(resolve => {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 60; canvas.height = 80;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(imgEl, 0, 0, 60, 80);
+      const data = ctx.getImageData(0, 0, 60, 80).data;
+      let best = null, bestScore = -1;
+      for (let i = 0; i < data.length; i += 32) {
+        const r = data[i], g = data[i+1], b = data[i+2];
+        const max = Math.max(r,g,b), min = Math.min(r,g,b);
+        const brightness = max / 255;
+        const sat = max === 0 ? 0 : (max - min) / max;
+        if (brightness < 0.12 || brightness > 0.95 || sat < 0.2) continue;
+        const score = sat * (1 - Math.abs(brightness - 0.55));
+        if (score > bestScore) { bestScore = score; best = [r, g, b]; }
+      }
+      resolve(best || [40, 40, 60]);
+    } catch { resolve([40, 40, 60]); }
+  });
+}
+
+function setGlow([r, g, b]) {
+  document.getElementById('glowBg').style.setProperty('--glow', `rgb(${r},${g},${b})`);
+}
+
+// ── Stars ─────────────────────────────────────────────────
+(function buildStars() {
+  const row = document.getElementById('starRow');
+  for (let n = 1; n <= 5; n++) {
+    const el = document.createElement('i');
+    el.className = 'bx bx-star star';
+    el.dataset.n = n;
+    row.appendChild(el);
+  }
+  let sliding = false;
+  row.addEventListener('pointerdown', e => {
+    if (busy) return;
+    sliding = true;
+    row.setPointerCapture(e.pointerId);
+    applyFromX(e.clientX);
+  });
+  row.addEventListener('pointermove', e => { if (sliding) applyFromX(e.clientX); });
+  row.addEventListener('pointerup',     () => { sliding = false; });
+  row.addEventListener('pointercancel', () => { sliding = false; });
+
+  function applyFromX(x) {
+    const stars = [...row.querySelectorAll('.star')];
+    let picked = 0.5;
+    for (const s of stars) {
+      const rect = s.getBoundingClientRect();
+      const mid  = rect.left + rect.width / 2;
+      const n    = parseInt(s.dataset.n);
+      if (x >= rect.left) picked = x < mid ? n - 0.5 : n;
+    }
+    setRating(Math.max(0.5, picked));
+  }
+})();
+
+function setRating(n) {
+  rating = n;
+  document.querySelectorAll('.star').forEach(s => {
+    const sn = parseInt(s.dataset.n);
+    if      (n >= sn)       s.className = 'bx bxs-star star lit';
+    else if (n >= sn - 0.5) s.className = 'bx bxs-star-half star lit';
+    else                    s.className = 'bx bx-star star';
+  });
+  clearTimeout(ratingTimer);
+  ratingTimer = setTimeout(submitRating, 1500);
+}
+
+function resetRating() {
+  clearTimeout(ratingTimer);
+  ratingTimer = null;
+  rating = 0;
+  document.querySelectorAll('.star').forEach(s => { s.className = 'bx bx-star star'; });
+}
+
+async function submitRating() {
+  if (!rating || busy) return;
+  const item = queue[0];
+  if (!item) return;
+  const r = rating;
+  let ok = true;
+  try {
+    await fetch(
+      `${cfg.url}/:/rate?key=${item.ratingKey}&identifier=com.plexapp.plugins.library&rating=${r * 2}`,
+      { method: 'PUT', headers: H() }
+    );
+  } catch { ok = false; }
+
+  if (ok) {
+    ratedCount++;
+    if (ratedCount % 10 === 0) celebrate(ratedCount);
+  } else {
+    toast('Failed to save rating');
+  }
+  advance('right');   // rated → flies RIGHT
+}
+
+function doSkip() {
+  if (busy) return;
+  clearTimeout(ratingTimer);
+  toast('Skipped');
+  advance('left');    // skipped → flies LEFT
+}
+
+// ── Confetti milestone ────────────────────────────────────
+function celebrate(n) {
+  toast(n + ' Titles Rated!', true);
+  if (typeof confetti !== 'function') return;
+  const colors = ['#ebaf00', '#fffbf8', '#7ecb8f', '#e07272'];
+  confetti({ particleCount: 130, spread: 80, startVelocity: 45, origin: { y: 0.75 }, colors });
+  setTimeout(() => confetti({ particleCount: 90, spread: 110, startVelocity: 35, origin: { y: 0.7, x: 0.3 }, colors }), 180);
+  setTimeout(() => confetti({ particleCount: 90, spread: 110, startVelocity: 35, origin: { y: 0.7, x: 0.7 }, colors }), 320);
+}
+
+// ── Advance ───────────────────────────────────────────────
+function advance(dir) {
+  if (busy) return;
+  busy = true;
+
+  const stack = document.getElementById('posterStack');
+  const p0 = stack.querySelector('.poster.p0');
+  const p1 = stack.querySelector('.poster.p1');
+  const p2 = stack.querySelector('.poster.p2');
+
+  if (p0) {
+    p0.style.zIndex = 5;
+    p0.style.transition = 'transform 0.4s cubic-bezier(0.4,0,0.6,1), opacity 0.4s ease';
+    const x = dir === 'left' ? '-130%' : '130%';
+    const rot = dir === 'left' ? '-18deg' : '18deg';
+    p0.style.transform = `translate(-50%,-50%) translateX(${x}) rotate(${rot})`;
+    p0.style.opacity = '0';
+  }
+
+  if (p1) { p1.className = 'poster p0'; if (p1._glow) setGlow(p1._glow); }
+  if (p2) { p2.className = 'poster p1'; }
+
+  const next = queue[3];
+  if (next) {
+    const img = document.createElement('img');
+    img.className = 'poster p2';
+    stack.insertBefore(img, stack.firstChild);
+    loadPoster(next, img, false);
+  }
+
+  if (queue[1]) setInfo(queue[1]);
+  resetRating();
+
+  setTimeout(() => {
+    if (p0) p0.remove();
+    hist.push(queue.shift());
+    if (hist.length > 30) hist.shift();
+    document.getElementById('btnBack').disabled = hist.length === 0;
+    busy = false;
+    if (!queue.length) { hideStage(); setState('done'); }
+  }, 400);
+}
+
+// ── Summary popup ─────────────────────────────────────────
+function openSummary() {
+  const item = queue[0];
+  if (!item || !item.summary) return;
+  document.getElementById('summaryTitle').textContent = item.title || '';
+  document.getElementById('summaryText').textContent = item.summary;
+  document.getElementById('summaryOverlay').classList.add('on');
+}
+function closeSummary() {
+  document.getElementById('summaryOverlay').classList.remove('on');
+}
+function closeSummaryFromOverlay(e) {
+  if (e.target === document.getElementById('summaryOverlay')) closeSummary();
+}
+
+function goBack() {
+  if (!hist.length || busy) return;
+  clearTimeout(ratingTimer);
+  queue.unshift(hist.pop());
+  rebuild();
+}
+
+// ── UI helpers ────────────────────────────────────────────
+function setState(s) {
+  document.getElementById('stAuth').classList.toggle('on', s === 'auth');
+  document.getElementById('stLoad').classList.toggle('on', s === 'load');
+  document.getElementById('stErr').classList.toggle('on',  s === 'err');
+  document.getElementById('stDone').classList.toggle('on', s === 'done');
+}
+function showStage() {
+  document.getElementById('stage').classList.add('on');
+  ['stAuth','stLoad','stErr','stDone'].forEach(id => document.getElementById(id).classList.remove('on'));
+}
+function hideStage() {
+  document.getElementById('stage').classList.remove('on');
+}
+
+function fmtDate(ms) {
+  const d = new Date(ms), diff = (Date.now() - ms) / 86400000;
+  if (diff < 1)  return 'today';
+  if (diff < 2)  return 'yesterday';
+  if (diff < 7)  return Math.floor(diff) + 'd ago';
+  if (diff < 30) return Math.floor(diff/7) + 'w ago';
+  return d.toLocaleDateString('en-US', { month:'short', year:'numeric' });
+}
+
+function toast(msg, isCelebrate) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.toggle('celebrate', !!isCelebrate);
+  t.classList.add('on');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('on'), isCelebrate ? 2600 : 1600);
+}
+
+// iOS webapp hardening: block pinch/double-tap zoom & rubber-banding
+['gesturestart','gesturechange','gestureend'].forEach(ev =>
+  document.addEventListener(ev, e => e.preventDefault())
+);
+let lastTouch = 0;
+document.addEventListener('touchend', e => {
+  const now = Date.now();
+  if (now - lastTouch <= 300) e.preventDefault();
+  lastTouch = now;
+}, { passive: false });
+document.addEventListener('touchmove', e => {
+  if (e.scale && e.scale !== 1) e.preventDefault();
+}, { passive: false });
+
+// ── Boot ──────────────────────────────────────────────────
+if (cfg.token && cfg.url) {
+  loadItems();
+} else {
+  setState('auth');
+}
+</script>
+</body>
+</html>
