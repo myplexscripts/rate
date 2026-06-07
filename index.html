@@ -697,7 +697,7 @@ function setInfo(item) {
   const trailerBtn = document.getElementById('btnTrailer');
   trailerBtn.classList.add('hidden');
   loadTrailer(item).then(trailer => {
-    if (queue[0] === item) trailerBtn.classList.toggle('hidden', !trailer);
+    if (queue[0] === item) trailerBtn.classList.toggle('hidden', !(trailer && trailer.sources.length));
   });
 }
 
@@ -706,6 +706,7 @@ function setInfo(item) {
 // (e.g. MKV), so stream them through Plex's universal HLS transcoder instead —
 // the same approach Plex Web uses, and natively playable in Safari/iOS.
 function trailerStreamUrl(ratingKey) {
+  const sessionId = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`);
   const params = new URLSearchParams({
     path: `/library/metadata/${ratingKey}`,
     mediaIndex: '0',
@@ -714,12 +715,17 @@ function trailerStreamUrl(ratingKey) {
     fastSeek: '1',
     directPlay: '0',
     directStream: '1',
+    directStreamAudio: '1',
     subtitleSize: '100',
     audioBoost: '100',
     location: 'lan',
+    autoAdjustQuality: '0',
+    'X-Plex-Session-Identifier': sessionId,
     'X-Plex-Token': cfg.token,
     'X-Plex-Client-Identifier': clientId,
-    'X-Plex-Product': PLEX_PRODUCT
+    'X-Plex-Product': PLEX_PRODUCT,
+    'X-Plex-Platform': 'Safari',
+    'X-Plex-Device': 'Web'
   });
   return `${cfg.url}/video/:/transcode/universal/start.m3u8?${params.toString()}`;
 }
@@ -730,7 +736,14 @@ async function loadTrailer(item) {
     const d = await plexGet(`/library/metadata/${item.ratingKey}/extras`);
     const extras = (d.MediaContainer.Metadata || []);
     const clip = extras.find(e => e.subtype === 'trailer');
-    item._trailer = clip ? { url: trailerStreamUrl(clip.ratingKey) } : null;
+    if (!clip) { item._trailer = null; return null; }
+    const part = clip.Media && clip.Media[0] && clip.Media[0].Part && clip.Media[0].Part[0];
+    item._trailer = {
+      sources: [
+        trailerStreamUrl(clip.ratingKey),
+        part ? `${cfg.url}${part.key}?X-Plex-Token=${cfg.token}` : null
+      ].filter(Boolean)
+    };
   } catch {
     item._trailer = null;
   }
@@ -739,15 +752,23 @@ async function loadTrailer(item) {
 
 function openTrailer() {
   const item = queue[0];
-  if (!item || !item._trailer) return;
+  if (!item || !item._trailer || !item._trailer.sources.length) return;
   const video = document.getElementById('trailerVideo');
-  video.src = item._trailer.url;
+  const sources = item._trailer.sources;
+  let i = 0;
+  const tryNext = () => {
+    if (i >= sources.length) { closeTrailer(); toast('Trailer unavailable'); return; }
+    video.src = sources[i++];
+    video.play().catch(() => {});
+  };
+  video.onerror = tryNext;
   document.getElementById('trailerOverlay').classList.add('on');
-  video.play().catch(() => {});
+  tryNext();
 }
 function closeTrailer() {
-  document.getElementById('trailerOverlay').classList.remove('on');
   const video = document.getElementById('trailerVideo');
+  video.onerror = null;
+  document.getElementById('trailerOverlay').classList.remove('on');
   video.pause();
   video.removeAttribute('src');
   video.load();
