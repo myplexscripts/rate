@@ -291,10 +291,45 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   font-size:0.78rem; font-weight:600;
   text-align:center;
   opacity:0; pointer-events:none;
-  transition:opacity 0.2s, transform 0.2s;
+  transition:opacity 0.2s, transform 0.2s, bottom 0.2s;
   z-index:999;
 }
 #toast.on { opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* PROGRESS RING — subtle indicator of items left */
+#progress {
+  position:fixed;
+  top:calc(var(--safe-top) + 16px);
+  right:18px;
+  width:36px; height:36px;
+  z-index:60;
+  display:flex; align-items:center; justify-content:center;
+  opacity:0; pointer-events:none;
+  transition:opacity 0.25s;
+}
+#progress.on { opacity:0.55; }
+#progress svg {
+  position:absolute; inset:0;
+  width:100%; height:100%;
+  transform:rotate(-90deg);
+}
+#progress circle {
+  fill:none;
+  stroke-width:2.5;
+}
+#progress .ring-track { stroke:rgba(255,251,248,0.14); }
+#progress .ring-bar {
+  stroke:var(--text);
+  stroke-linecap:round;
+  transition:stroke-dashoffset 0.4s ease;
+}
+#progressCount {
+  position:relative;
+  font-size:0.6rem;
+  font-weight:700;
+  letter-spacing:-0.02em;
+  color:var(--text);
+}
 #toast.celebrate {
   background:var(--star);
   color:#191919;
@@ -358,6 +393,14 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 </div>
 
 <div id="toast"></div>
+
+<div id="progress" title="Items left to rate">
+  <svg viewBox="0 0 36 36">
+    <circle class="ring-track" cx="18" cy="18" r="15.5"></circle>
+    <circle class="ring-bar" cx="18" cy="18" r="15.5"></circle>
+  </svg>
+  <span id="progressCount">0</span>
+</div>
 
 <div id="summaryOverlay" onclick="closeSummaryFromOverlay(event)">
   <div id="summaryBox">
@@ -566,6 +609,7 @@ function rebuild() {
   setInfo(item);
   resetRating();
   document.getElementById('btnBack').disabled = hist.length === 0;
+  updateProgress();
   preloadAhead();
 }
 
@@ -576,7 +620,20 @@ function setInfo(item) {
   document.getElementById('iSummary').textContent = item.summary || '';
 }
 
+// Cache loaded poster blob URLs + extracted glow colours by ratingKey so
+// revisiting an item (e.g. via Back or Shuffle) shows it instantly instead
+// of re-fetching — and never appears to "lose" the previous poster.
+const posterCache = new Map();
+
 async function loadPoster(item, img, isTop) {
+  const key = item.ratingKey;
+  const cached = posterCache.get(key);
+  if (cached) {
+    img._glow = cached.glow;
+    img.src = cached.url;
+    if (isTop) setGlow(cached.glow);
+    return;
+  }
   const url = posterUrl(item);
   try {
     const resp = await fetch(url, { headers: H() });
@@ -585,8 +642,8 @@ async function loadPoster(item, img, isTop) {
     img.onload = async () => {
       const c = await getEdgeColors(img);
       img._glow = c;
+      posterCache.set(key, { url: obj, glow: c });
       if (isTop) setGlow(c);
-      URL.revokeObjectURL(obj);
     };
     img.src = obj;
   } catch {
@@ -774,6 +831,7 @@ function advance(dir) {
     hist.push(queue.shift());
     if (hist.length > 30) hist.shift();
     document.getElementById('btnBack').disabled = hist.length === 0;
+    updateProgress();
     busy = false;
     if (!queue.length) { hideStage(); setState('done'); }
   }, 400);
@@ -839,10 +897,23 @@ function setState(s) {
 }
 function showStage() {
   document.getElementById('stage').classList.add('on');
+  document.getElementById('progress').classList.add('on');
   ['stAuth','stLoad','stErr','stDone'].forEach(id => document.getElementById(id).classList.remove('on'));
 }
 function hideStage() {
   document.getElementById('stage').classList.remove('on');
+  document.getElementById('progress').classList.remove('on');
+}
+
+const RING_CIRC = 2 * Math.PI * 15.5;
+function updateProgress() {
+  const total = chronological.length;
+  const remaining = queue.length;
+  const frac = total ? (total - remaining) / total : 0;
+  const bar = document.querySelector('#progress .ring-bar');
+  bar.style.strokeDasharray = RING_CIRC;
+  bar.style.strokeDashoffset = RING_CIRC * (1 - frac);
+  document.getElementById('progressCount').textContent = remaining;
 }
 
 function fmtDate(ms) {
@@ -856,6 +927,11 @@ function fmtDate(ms) {
 
 function toast(msg, isCelebrate) {
   const t = document.getElementById('toast');
+  const actions = document.getElementById('actions');
+  const rect = actions.getBoundingClientRect();
+  if (rect.height) {
+    t.style.bottom = (window.innerHeight - rect.top + 14) + 'px';
+  }
   t.textContent = msg;
   t.classList.toggle('celebrate', !!isCelebrate);
   t.classList.add('on');
