@@ -688,7 +688,10 @@ function rebuild() {
   preloadAhead();
 }
 
+let infoItem = null;
+
 function setInfo(item) {
+  infoItem = item;
   document.getElementById('iTitle').textContent = item.title || '';
   document.getElementById('iDate').textContent = item.lastViewedAt
     ? 'Watched ' + fmtDate(item.lastViewedAt * 1000) : '';
@@ -697,7 +700,7 @@ function setInfo(item) {
   const trailerBtn = document.getElementById('btnTrailer');
   trailerBtn.classList.add('hidden');
   loadTrailer(item).then(trailer => {
-    if (queue[0] === item) trailerBtn.classList.toggle('hidden', !(trailer && trailer.sources.length));
+    if (infoItem === item) trailerBtn.classList.toggle('hidden', !(trailer && trailer.sources.length));
   });
 }
 
@@ -744,11 +747,15 @@ async function loadTrailer(item) {
         part ? `${cfg.url}${part.key}?X-Plex-Token=${cfg.token}` : null
       ].filter(Boolean)
     };
-  } catch {
+    console.info('[trailer] found clip', clip.ratingKey, 'sources:', item._trailer.sources);
+  } catch (e) {
+    console.warn('[trailer] lookup failed', e);
     item._trailer = null;
   }
   return item._trailer;
 }
+
+const MEDIA_ERR = { 1: 'aborted', 2: 'network', 3: 'decode', 4: 'unsupported' };
 
 function openTrailer() {
   const item = queue[0];
@@ -756,12 +763,24 @@ function openTrailer() {
   const video = document.getElementById('trailerVideo');
   const sources = item._trailer.sources;
   let i = 0;
+  let lastErr = '';
   const tryNext = () => {
-    if (i >= sources.length) { closeTrailer(); toast('Trailer unavailable'); return; }
-    video.src = sources[i++];
-    video.play().catch(() => {});
+    if (i >= sources.length) {
+      closeTrailer();
+      toast(lastErr ? `Trailer unavailable (${lastErr})` : 'Trailer unavailable');
+      return;
+    }
+    const src = sources[i++];
+    console.info('[trailer] trying source', src);
+    video.src = src;
+    video.play().catch(err => console.warn('[trailer] play() rejected', err));
   };
-  video.onerror = tryNext;
+  video.onerror = () => {
+    const code = video.error && video.error.code;
+    lastErr = MEDIA_ERR[code] || ('code ' + code);
+    console.warn('[trailer] source failed:', lastErr, video.error);
+    tryNext();
+  };
   document.getElementById('trailerOverlay').classList.add('on');
   tryNext();
 }
