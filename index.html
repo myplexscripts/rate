@@ -227,6 +227,21 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   font-size:0.88rem; font-weight:400;
   line-height:1.65; color:rgba(255,251,248,0.75);
 }
+#summaryGenres {
+  display:flex; gap:8px; margin-top:16px;
+}
+#summaryGenres .genrePill {
+  display:inline-flex; align-items:center;
+  background:rgba(255,251,248,0.07);
+  border:1px solid rgba(255,251,248,0.13);
+  color:var(--text);
+  border-radius:50px;
+  padding:6px 14px;
+  font-family:'Circular',sans-serif;
+  font-size:0.7rem; font-weight:600;
+  letter-spacing:0.01em;
+}
+#summaryGenres.hidden { display:none; }
 #summaryClose {
   position:absolute; top:16px; right:16px;
   width:32px; height:32px;
@@ -479,6 +494,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     <button id="summaryClose" onclick="closeSummary()"><i class='bx bx-x'></i></button>
     <div id="summaryTitle"></div>
     <div id="summaryText"></div>
+    <div id="summaryGenres" class="hidden"></div>
   </div>
 </div>
 
@@ -745,7 +761,7 @@ async function openTrailer() {
   const video = document.getElementById('trailerVideo');
   overlay.classList.add('on', 'loading');
   try {
-    const resp = await fetch(item._trailer.url, { headers: H() });
+    const resp = await fetch(item._trailer.url);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const blob = await resp.blob();
     const obj = URL.createObjectURL(blob);
@@ -990,12 +1006,32 @@ function advance(dir) {
 }
 
 // ── Summary popup ─────────────────────────────────────────
+async function loadGenres(item) {
+  if (item._genres !== undefined) return item._genres;
+  try {
+    const d = await plexGet(`/library/metadata/${item.ratingKey}`);
+    const meta = (d.MediaContainer.Metadata || [])[0];
+    item._genres = (meta && meta.Genre || []).map(g => g.tag).slice(0, 2);
+  } catch (e) {
+    item._genres = [];
+  }
+  return item._genres;
+}
+
 function openSummary() {
   const item = queue[0];
   if (!item || !item.summary) return;
   document.getElementById('summaryTitle').textContent = item.title || '';
   document.getElementById('summaryText').textContent = item.summary;
+  const genresEl = document.getElementById('summaryGenres');
+  genresEl.innerHTML = '';
+  genresEl.classList.add('hidden');
   document.getElementById('summaryOverlay').classList.add('on');
+  loadGenres(item).then(genres => {
+    if (queue[0] !== item || !genres.length) return;
+    genresEl.innerHTML = genres.map(g => `<span class="genrePill">${g}</span>`).join('');
+    genresEl.classList.remove('hidden');
+  });
 }
 function closeSummary() {
   document.getElementById('summaryOverlay').classList.remove('on');
