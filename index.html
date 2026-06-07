@@ -240,6 +240,63 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryClose:hover { background:rgba(255,251,248,0.2); }
 #summaryClose i { font-size:1.3rem; }
 
+/* TRAILER */
+#btnTrailer {
+  display:inline-flex; align-items:center; gap:5px;
+  margin-top:10px;
+  background:rgba(255,251,248,0.07);
+  border:1px solid rgba(255,251,248,0.13);
+  color:var(--text);
+  border-radius:50px;
+  padding:6px 15px 6px 11px;
+  font-family:'Circular',sans-serif;
+  font-size:0.7rem; font-weight:600;
+  letter-spacing:0.01em;
+  cursor:pointer;
+  transition:background 0.15s, opacity 0.2s;
+}
+#btnTrailer i { font-size:1.05rem; }
+#btnTrailer:active { transform:scale(0.96); }
+#btnTrailer.hidden { display:none; }
+
+#trailerOverlay {
+  position:fixed; inset:0;
+  z-index:500;
+  display:flex; align-items:center; justify-content:center;
+  padding:24px;
+  background:rgba(0,0,0,0.75);
+  backdrop-filter:blur(4px);
+  opacity:0; pointer-events:none;
+  transition:opacity 0.2s;
+}
+#trailerOverlay.on { opacity:1; pointer-events:all; }
+#trailerBox {
+  position:relative;
+  width:100%; max-width:520px;
+  transform:scale(0.94);
+  transition:transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
+}
+#trailerOverlay.on #trailerBox { transform:scale(1); }
+#trailerVideo {
+  width:100%;
+  aspect-ratio:16/9;
+  border-radius:14px;
+  background:#000;
+  display:block;
+}
+#trailerClose {
+  position:absolute; top:-44px; right:0;
+  width:32px; height:32px;
+  border:none; border-radius:50%;
+  background:rgba(255,251,248,0.12);
+  color:var(--text);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer;
+  transition:background 0.15s;
+}
+#trailerClose:hover { background:rgba(255,251,248,0.22); }
+#trailerClose i { font-size:1.3rem; }
+
 /* STARS */
 #starRow {
   display:flex; align-items:center; justify-content:center;
@@ -375,6 +432,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     <div id="info">
       <div id="iTitle">—</div>
       <div id="iDate"></div>
+      <button id="btnTrailer" class="hidden" onclick="openTrailer()" title="Watch trailer">
+        <i class='bx bx-play-circle'></i> Trailer
+      </button>
       <div id="iSummary" onclick="openSummary()"></div>
     </div>
     <div id="starRow"></div>
@@ -410,6 +470,13 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   </div>
 </div>
 
+<div id="trailerOverlay" onclick="closeTrailerFromOverlay(event)">
+  <div id="trailerBox">
+    <button id="trailerClose" onclick="closeTrailer()"><i class='bx bx-x'></i></button>
+    <video id="trailerVideo" controls playsinline></video>
+  </div>
+</div>
+
 <script>
 const PLEX_PRODUCT = 'Rate It';
 const STORE_TOKEN = 'rateit_token';
@@ -429,7 +496,7 @@ function getClientId() {
 }
 const clientId = getClientId();
 
-const cfg = { url: localStorage.getItem(STORE_URL) || '', token: localStorage.getItem(STORE_TOKEN) || '', max:200 };
+const cfg = { url: localStorage.getItem(STORE_URL) || '', token: localStorage.getItem(STORE_TOKEN) || '' };
 
 let queue = [];
 let hist  = [];
@@ -572,16 +639,23 @@ async function loadItems() {
     let all = [];
     for (const lib of libs) {
       const t = lib.type === 'movie' ? 1 : 2;
-      const d = await plexGet(`/library/sections/${lib.key}/all?type=${t}&viewCount%3E=0&sort=lastViewedAt%3Adesc&X-Plex-Container-Size=${cfg.max}&X-Plex-Container-Start=0`);
+      // Movies: only ones that have been watched. Shows: fetch all, then
+      // require >50% of episodes watched before they're eligible to rate.
+      const filter = t === 1 ? '&viewCount%3E=0' : '';
+      const d = await plexGet(`/library/sections/${lib.key}/all?type=${t}${filter}&sort=lastViewedAt%3Adesc&X-Plex-Container-Size=10000&X-Plex-Container-Start=0`);
       for (const m of (d.MediaContainer.Metadata || [])) {
-        if (!m.userRating && !seen.has(m.ratingKey)) {
-          seen.add(m.ratingKey);
-          all.push({ ...m, libType: lib.type });
+        if (m.userRating || seen.has(m.ratingKey)) continue;
+        if (t === 2) {
+          const total = m.leafCount || 0;
+          const watched = m.viewedLeafCount || 0;
+          if (!total || watched / total <= 0.5) continue;
         }
+        seen.add(m.ratingKey);
+        all.push({ ...m, libType: lib.type });
       }
     }
     all.sort((a, b) => (b.lastViewedAt || 0) - (a.lastViewedAt || 0));
-    chronological = all.slice(0, cfg.max);
+    chronological = all;
     queue = chronological.slice();
     shuffled = false;
     document.getElementById('btnShuffle').classList.remove('active');
@@ -619,6 +693,46 @@ function setInfo(item) {
   document.getElementById('iDate').textContent = item.lastViewedAt
     ? 'Watched ' + fmtDate(item.lastViewedAt * 1000) : '';
   document.getElementById('iSummary').textContent = item.summary || '';
+
+  const trailerBtn = document.getElementById('btnTrailer');
+  trailerBtn.classList.add('hidden');
+  loadTrailer(item).then(trailer => {
+    if (queue[0] === item) trailerBtn.classList.toggle('hidden', !trailer);
+  });
+}
+
+// ── Trailer ───────────────────────────────────────────────
+async function loadTrailer(item) {
+  if (item._trailer !== undefined) return item._trailer;
+  try {
+    const d = await plexGet(`/library/metadata/${item.ratingKey}/extras`);
+    const extras = (d.MediaContainer.Metadata || []);
+    const clip = extras.find(e => e.subtype === 'trailer');
+    const part = clip && clip.Media && clip.Media[0] && clip.Media[0].Part && clip.Media[0].Part[0];
+    item._trailer = part ? { url: `${cfg.url}${part.key}?X-Plex-Token=${cfg.token}` } : null;
+  } catch {
+    item._trailer = null;
+  }
+  return item._trailer;
+}
+
+function openTrailer() {
+  const item = queue[0];
+  if (!item || !item._trailer) return;
+  const video = document.getElementById('trailerVideo');
+  video.src = item._trailer.url;
+  document.getElementById('trailerOverlay').classList.add('on');
+  video.play().catch(() => {});
+}
+function closeTrailer() {
+  document.getElementById('trailerOverlay').classList.remove('on');
+  const video = document.getElementById('trailerVideo');
+  video.pause();
+  video.removeAttribute('src');
+  video.load();
+}
+function closeTrailerFromOverlay(e) {
+  if (e.target === document.getElementById('trailerOverlay')) closeTrailer();
 }
 
 // Cache loaded poster blob URLs + extracted glow colours by ratingKey so
