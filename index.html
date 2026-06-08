@@ -7,7 +7,7 @@
 <meta name="apple-touch-fullscreen" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#191919">
+<meta name="theme-color" content="#000000">
 <title>Rate It</title>
 <link rel="icon" type="image/png" href="app-icon.png">
 <link rel="apple-touch-icon" href="app-icon.png">
@@ -31,7 +31,7 @@
 }
 
 :root {
-  --bg: #191919;
+  --bg: #000000;
   --text: #fffbf8;
   --muted: rgba(255,251,248,0.45);
   --star: #ebaf00;
@@ -61,6 +61,30 @@ html, body {
 }
 
 img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
+
+/* SKELETON SHIMMER */
+@keyframes shimmer {
+  0% { background-position:-468px 0; }
+  100% { background-position:468px 0; }
+}
+.skeleton {
+  background-color:rgba(255,251,248,0.06);
+  background-image:linear-gradient(100deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0) 70%);
+  background-size:468px 100%;
+  background-repeat:no-repeat;
+  animation:shimmer 1.5s ease-in-out infinite;
+}
+.poster.skeleton {
+  width:60vw;
+  max-width:280px;
+  aspect-ratio:2/3;
+  height:auto;
+}
+#trailerSkeleton {
+  width:100%;
+  aspect-ratio:16/9;
+  border-radius:14px;
+}
 
 /* GRADIENT BG */
 #glowBg {
@@ -571,6 +595,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   <div id="trailerBox">
     <button id="trailerClose" onclick="closeTrailer()"><i class='bx bx-x'></i></button>
     <div id="trailerTitle">Trailer</div>
+    <div id="trailerSkeleton" class="skeleton hidden"></div>
     <video id="trailerVideo" controls playsinline></video>
     <div id="trailerError" class="hidden"><i class='bx bx-error-circle'></i> Trailer unavailable</div>
   </div>
@@ -742,11 +767,13 @@ async function loadItems() {
       const t = lib.type === 'movie' ? 1 : 2;
       // Movies: only ones that have been watched. Shows: fetch all, then
       // require >50% of episodes watched before they're eligible to rate.
-      const filter = t === 1 ? '&viewCount%3E=0' : '';
+      const filter = t === 1 ? '&viewCount%3E=1' : '';
       const d = await plexGet(`/library/sections/${lib.key}/all?type=${t}${filter}&sort=lastViewedAt%3Adesc&X-Plex-Container-Size=10000&X-Plex-Container-Start=0`);
       for (const m of (d.MediaContainer.Metadata || [])) {
         if (m.userRating || seen.has(m.ratingKey)) continue;
-        if (t === 2) {
+        if (t === 1) {
+          if (!(m.viewCount > 0)) continue;
+        } else {
           const total = m.leafCount || 0;
           const watched = m.viewedLeafCount || 0;
           if (!total || watched / total <= 0.5) continue;
@@ -778,7 +805,7 @@ function rebuild() {
   const top3 = queue.slice(0, 3);
   for (let i = top3.length - 1; i >= 0; i--) {
     const img = document.createElement('img');
-    img.className = 'poster p' + i;
+    img.className = 'poster p' + i + ' skeleton';
     stack.appendChild(img);
     loadPoster(top3[i], img, i === 0);
   }
@@ -827,9 +854,12 @@ function openTrailer() {
   const overlay = document.getElementById('trailerOverlay');
   const video = document.getElementById('trailerVideo');
   const errEl = document.getElementById('trailerError');
+  const skel = document.getElementById('trailerSkeleton');
   errEl.classList.add('hidden');
-  video.classList.remove('hidden');
-  video.onerror = () => { video.classList.add('hidden'); errEl.classList.remove('hidden'); };
+  video.classList.add('hidden');
+  skel.classList.remove('hidden');
+  video.onerror = () => { skel.classList.add('hidden'); video.classList.add('hidden'); errEl.classList.remove('hidden'); };
+  video.onloadeddata = () => { skel.classList.add('hidden'); video.classList.remove('hidden'); };
   overlay.classList.add('on');
   video.src = item._trailer.url;
   video.play().catch(err => console.warn('[trailer] play() rejected', err));
@@ -837,10 +867,13 @@ function openTrailer() {
 function closeTrailer() {
   const overlay = document.getElementById('trailerOverlay');
   const video = document.getElementById('trailerVideo');
+  const skel = document.getElementById('trailerSkeleton');
   overlay.classList.remove('on');
+  skel.classList.add('hidden');
   video.pause();
   video.removeAttribute('src');
   video.onerror = null;
+  video.onloadeddata = null;
   video.load();
 }
 function closeTrailerFromOverlay(e) {
@@ -873,17 +906,19 @@ async function loadPoster(item, img, isTop) {
   if (cached) {
     img._glow = cached.glow;
     img.src = cached.url;
+    img.classList.remove('skeleton');
     if (isTop) setGlow(cached.glow);
     return;
   }
   const url = posterUrl(item);
-  img.onerror = () => { img.onerror = null; img.src = PLACEHOLDER_POSTER; };
+  img.onerror = () => { img.onerror = null; img.classList.remove('skeleton'); img.src = PLACEHOLDER_POSTER; };
   try {
     const resp = await fetch(url, { headers: H() });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const blob = await resp.blob();
     const obj = URL.createObjectURL(blob);
     img.onload = async () => {
+      img.classList.remove('skeleton');
       const c = await getEdgeColors(img);
       img._glow = c;
       posterCache.set(key, { url: obj, glow: c });
@@ -891,6 +926,7 @@ async function loadPoster(item, img, isTop) {
     };
     img.src = obj;
   } catch {
+    img.classList.remove('skeleton');
     img.src = PLACEHOLDER_POSTER;
   }
 }
@@ -1060,7 +1096,7 @@ function advance(dir) {
   const next = queue[3];
   if (next) {
     const img = document.createElement('img');
-    img.className = 'poster p2';
+    img.className = 'poster p2 skeleton';
     stack.insertBefore(img, stack.firstChild);
     loadPoster(next, img, false);
   }
@@ -1085,8 +1121,9 @@ function advance(dir) {
 const castPhotoCache = new Map();
 async function loadCastPhoto(url, img) {
   const cached = castPhotoCache.get(url);
-  if (cached) { img.src = cached; return; }
-  img.onerror = () => { img.onerror = null; img.src = PLACEHOLDER_CAST; };
+  if (cached) { img.src = cached; img.classList.remove('skeleton'); return; }
+  img.onerror = () => { img.onerror = null; img.classList.remove('skeleton'); img.src = PLACEHOLDER_CAST; };
+  img.onload = () => img.classList.remove('skeleton');
   if (!url.startsWith(cfg.url)) { img.src = url; return; }
   try {
     const resp = await fetch(url, { headers: H() });
@@ -1097,6 +1134,7 @@ async function loadCastPhoto(url, img) {
     img.src = obj;
   } catch (e) {
     console.warn('[cast] photo fetch failed', url, e);
+    img.classList.remove('skeleton');
     img.src = PLACEHOLDER_CAST;
   }
 }
@@ -1149,7 +1187,7 @@ function openSummary() {
     if (extra.cast.length) {
       castEl.innerHTML = extra.cast.map(c => `
         <div class="castMember">
-          <img class="castPhoto" loading="lazy">
+          <img class="castPhoto skeleton" loading="lazy">
           <span class="castName">${c.name}</span>
         </div>`).join('');
       castWrap.classList.remove('hidden');
@@ -1193,7 +1231,7 @@ function goBack() {
 
   // Returning poster re-enters from the side it originally exited toward
   const img = document.createElement('img');
-  img.className = 'poster p0';
+  img.className = 'poster p0 skeleton';
   img.style.transition = 'none';
   img.style.zIndex = 5;
   const x = dir === 'left' ? '-130%' : '130%';
