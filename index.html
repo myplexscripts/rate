@@ -101,10 +101,12 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   animation:shimmer 1.5s ease-in-out infinite;
 }
 .poster.skeleton {
+  /* <img> with no src may collapse to 0 height and ignore aspect-ratio;
+     set height explicitly from the same width basis so 2:3 is guaranteed. */
   width:60vw;
   max-width:280px;
+  height:calc(min(60vw, 280px) * 3 / 2);
   aspect-ratio:2/3;
-  height:auto;
 }
 #trailerSkeleton {
   width:100%;
@@ -185,14 +187,17 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 }
 #stage.on { opacity:1; pointer-events:all; }
 
-/* CARD — vertically centred */
+/* CARD — top-anchored so the poster's top edge lines up with the filter box.
+   justify-content:flex-start (not center) so the poster truly starts at the
+   padding-top boundary rather than being re-centred in the remaining space. */
 #card {
   position:relative; z-index:1;
   width:100%; height:100%;
   max-width:480px;
   display:flex; flex-direction:column;
-  align-items:center; justify-content:center;
-  padding:calc(var(--safe-top) + 20px) 24px calc(var(--safe-bottom) + 20px);
+  align-items:center; justify-content:flex-start;
+  /* safe-top + progress-ring top (16px) + ring height (36px) + gap to filter (12px) = +64px */
+  padding:calc(var(--safe-top) + 64px) 24px calc(var(--safe-bottom) + 20px);
   gap:0;
 }
 
@@ -588,6 +593,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 /* TOAST — pinned to the top, clear of all centred UI & the progress ring */
 #toast {
   position:fixed;
+  /* Sit at the same vertical band as the streak and progress counters so the
+     three elements read as one horizontal row at the top of the screen. */
+  top:calc(var(--safe-top) + 16px);
   left:50%;
   transform:translateX(-50%) translateY(-6px);
   max-width:min(calc(100vw - 100px), 320px);
