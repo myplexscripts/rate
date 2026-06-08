@@ -486,6 +486,37 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   letter-spacing:-0.02em;
   color:var(--text);
 }
+
+/* TYPE FILTER — sits beneath the progress ring, top-right corner */
+#typeFilter {
+  position:fixed;
+  top:calc(var(--safe-top) + 16px + 36px + 12px);
+  right:18px;
+  z-index:60;
+  display:flex; flex-direction:column; gap:4px;
+  padding:4px;
+  background:rgba(255,251,248,0.06);
+  border:1px solid rgba(255,251,248,0.1);
+  border-radius:14px;
+  opacity:0; pointer-events:none;
+  transition:opacity 0.25s;
+}
+#typeFilter.on { opacity:0.55; pointer-events:all; }
+#typeFilter.on:hover { opacity:1; }
+.filter-btn {
+  width:32px; height:32px;
+  display:flex; align-items:center; justify-content:center;
+  background:none; border:none;
+  /* outer radius (14) − container padding (4) keeps the corners concentric */
+  border-radius:10px;
+  color:var(--muted);
+  cursor:pointer;
+  transition:background 0.15s, color 0.15s, transform 0.12s;
+  -webkit-tap-highlight-color:transparent;
+}
+.filter-btn .icon { width:1.05rem; height:1.05rem; }
+.filter-btn:active { transform:scale(0.9); }
+.filter-btn.active { background:var(--star); color:#191919; }
 #toast.celebrate {
   background:var(--star);
   color:#191919;
@@ -533,7 +564,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 
 <div class="state" id="stDone">
   <div class="state-title">All done</div>
-  <div class="state-sub">No more unrated watched items.</div>
+  <div class="state-sub" id="doneSub">No more unrated watched items.</div>
   <button class="state-btn" onclick="loadItems()">Refresh</button>
 </div>
 
@@ -570,6 +601,15 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   <span id="progressCount">0</span>
 </div>
 
+<div id="typeFilter">
+  <button id="filterMovie" class="filter-btn" onclick="setTypeFilter('movie')" title="Movies only">
+    <svg class="icon"><use href="#icon-film-strip"/></svg>
+  </button>
+  <button id="filterShow" class="filter-btn" onclick="setTypeFilter('show')" title="TV shows only">
+    <svg class="icon"><use href="#icon-television"/></svg>
+  </button>
+</div>
+
 <div id="summaryOverlay" onclick="closeSummaryFromOverlay(event)">
   <div id="summaryBox">
     <button id="summaryClose" onclick="closeSummary()"><svg class="icon"><use href="#icon-x"/></svg></button>
@@ -600,6 +640,7 @@ const PLEX_PRODUCT = 'Rate It';
 const STORE_TOKEN = 'rateit_token';
 const STORE_URL   = 'rateit_url';
 const STORE_CLIENT= 'rateit_clientId';
+const STORE_FILTER= 'rateit_typeFilter';
 
 function getClientId() {
   let id = localStorage.getItem(STORE_CLIENT);
@@ -618,8 +659,10 @@ const cfg = { url: localStorage.getItem(STORE_URL) || '', token: localStorage.ge
 
 let queue = [];
 let hist  = [];
+let allItems = [];
 let chronological = [];
 let shuffled = false;
+let typeFilter = localStorage.getItem(STORE_FILTER) || 'all';
 let rating = 0;
 let ratingTimer = null;
 let busy = false;
@@ -785,17 +828,66 @@ async function loadItems() {
       }
     }
     all.sort((a, b) => (b.lastViewedAt || 0) - (a.lastViewedAt || 0));
-    chronological = all;
-    queue = chronological.slice();
-    shuffled = false;
-    document.getElementById('btnShuffle').classList.remove('active');
-    if (!queue.length) { setState('done'); return; }
+    allItems = all;
+    updateFilterButtons();
+    rebuildQueueFromFilter();
+    if (!queue.length) {
+      document.getElementById('doneSub').textContent = typeFilter === 'movie'
+        ? 'No unrated watched movies.'
+        : typeFilter === 'show'
+          ? 'No unrated watched TV shows.'
+          : 'No more unrated watched items.';
+      setState('done');
+      return;
+    }
     rebuild();
     showStage();
   } catch(e) {
     setState('err');
     document.getElementById('errMsg').textContent = e.message || 'Connection failed.';
   }
+}
+
+// ── Type filter (movies / TV shows) ───────────────────────
+function rebuildQueueFromFilter() {
+  chronological = (typeFilter === 'all')
+    ? allItems.slice()
+    : allItems.filter(it => it.libType === typeFilter);
+  queue = chronological.slice();
+  shuffled = false;
+  document.getElementById('btnShuffle').classList.remove('active');
+}
+
+function updateFilterButtons() {
+  document.getElementById('filterMovie').classList.toggle('active', typeFilter === 'movie');
+  document.getElementById('filterShow').classList.toggle('active', typeFilter === 'show');
+}
+
+function setTypeFilter(type) {
+  if (busy) return;
+  typeFilter = (typeFilter === type) ? 'all' : type;
+  localStorage.setItem(STORE_FILTER, typeFilter);
+  updateFilterButtons();
+  clearTimeout(ratingTimer);
+  hist = [];
+  ratedCount = 0;
+  rebuildQueueFromFilter();
+  if (!queue.length) {
+    hideStage();
+    document.getElementById('doneSub').textContent = typeFilter === 'movie'
+      ? 'No unrated watched movies.'
+      : typeFilter === 'show'
+        ? 'No unrated watched TV shows.'
+        : 'No more unrated watched items.';
+    setState('done');
+    updateProgress();
+    return;
+  }
+  hideStage();
+  rebuild();
+  showStage();
+  updateProgress();
+  toast(typeFilter === 'all' ? 'Showing movies & TV' : (typeFilter === 'movie' ? 'Movies only' : 'TV shows only'));
 }
 
 // ── Full rebuild (initial & back) ─────────────────────────
@@ -1384,11 +1476,13 @@ function setState(s) {
 function showStage() {
   document.getElementById('stage').classList.add('on');
   document.getElementById('progress').classList.add('on');
+  document.getElementById('typeFilter').classList.add('on');
   ['stAuth','stLoad','stErr','stDone'].forEach(id => document.getElementById(id).classList.remove('on'));
 }
 function hideStage() {
   document.getElementById('stage').classList.remove('on');
   document.getElementById('progress').classList.remove('on');
+  document.getElementById('typeFilter').classList.remove('on');
 }
 
 const RING_CIRC = 2 * Math.PI * 15.5;
