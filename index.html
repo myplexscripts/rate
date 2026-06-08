@@ -156,9 +156,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   will-change:transform, opacity;
   box-shadow:0 18px 50px rgba(0,0,0,0.45);
 }
-.poster.p0 { z-index:3; transform:translate(-50%,-50%) scale(1);                    opacity:1;    filter:none; }
-.poster.p1 { z-index:2; transform:translate(-50%,-50%) translateY(30px) scale(0.94); opacity:0.5;  filter:brightness(0.55); }
-.poster.p2 { z-index:1; transform:translate(-50%,-50%) translateY(58px) scale(0.88); opacity:0.28; filter:brightness(0.4); }
+.poster.p0 { z-index:3; transform:translate(-50%,-50%) scale(1); opacity:1; filter:none; }
+.poster.p1 { z-index:2; transform:translate(-50%,-50%) scale(1); opacity:0; filter:none; }
+.poster.p2 { z-index:1; transform:translate(-50%,-50%) scale(1); opacity:0; filter:none; }
 
 /* INFO */
 #info {
@@ -194,8 +194,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 /* SUMMARY POPUP */
 #summaryOverlay {
   position:fixed;
-  top:0; left:0; right:0; bottom:0;
-  height:100vh; height:100dvh;
+  inset:0;
   z-index:500;
   display:flex; align-items:center; justify-content:center;
   padding:28px;
@@ -328,8 +327,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 
 #trailerOverlay {
   position:fixed;
-  top:0; left:0; right:0; bottom:0;
-  height:100vh; height:100dvh;
+  inset:0;
   z-index:500;
   display:flex; align-items:center; justify-content:center;
   padding:28px;
@@ -363,6 +361,19 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   background:#000;
   display:block;
 }
+#trailerError {
+  width:100%;
+  aspect-ratio:16/9;
+  border-radius:14px;
+  background:#000;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  color:var(--muted);
+  font-size:0.875rem;
+}
+#trailerError i { font-size:1.3rem; }
 #trailerClose {
   position:absolute; top:16px; right:16px;
   width:32px; height:32px;
@@ -561,6 +572,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     <button id="trailerClose" onclick="closeTrailer()"><i class='bx bx-x'></i></button>
     <div id="trailerTitle">Trailer</div>
     <video id="trailerVideo" controls playsinline></video>
+    <div id="trailerError" class="hidden"><i class='bx bx-error-circle'></i> Trailer unavailable</div>
   </div>
 </div>
 
@@ -814,6 +826,10 @@ function openTrailer() {
   if (!item || !item._trailer) return;
   const overlay = document.getElementById('trailerOverlay');
   const video = document.getElementById('trailerVideo');
+  const errEl = document.getElementById('trailerError');
+  errEl.classList.add('hidden');
+  video.classList.remove('hidden');
+  video.onerror = () => { video.classList.add('hidden'); errEl.classList.remove('hidden'); };
   overlay.classList.add('on');
   video.src = item._trailer.url;
   video.play().catch(err => console.warn('[trailer] play() rejected', err));
@@ -824,11 +840,27 @@ function closeTrailer() {
   overlay.classList.remove('on');
   video.pause();
   video.removeAttribute('src');
+  video.onerror = null;
   video.load();
 }
 function closeTrailerFromOverlay(e) {
   if (e.target === document.getElementById('trailerOverlay')) closeTrailer();
 }
+
+// Inline SVG placeholders shown when posters / cast photos fail to load.
+const PLACEHOLDER_POSTER = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 450">
+    <rect width="300" height="450" fill="#262626"/>
+    <rect x="95" y="155" width="110" height="80" rx="8" fill="none" stroke="#555" stroke-width="6"/>
+    <circle cx="125" cy="180" r="9" fill="#555"/>
+    <path d="M100 225 L140 190 L165 210 L200 175 L200 225 Z" fill="#555"/>
+  </svg>`);
+const PLACEHOLDER_CAST = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <rect width="100" height="100" fill="#262626"/>
+    <circle cx="50" cy="38" r="18" fill="#555"/>
+    <path d="M20 92 Q50 62 80 92 Z" fill="#555"/>
+  </svg>`);
 
 // Cache loaded poster blob URLs + extracted glow colours by ratingKey so
 // revisiting an item (e.g. via Back or Shuffle) shows it instantly instead
@@ -845,8 +877,10 @@ async function loadPoster(item, img, isTop) {
     return;
   }
   const url = posterUrl(item);
+  img.onerror = () => { img.onerror = null; img.src = PLACEHOLDER_POSTER; };
   try {
     const resp = await fetch(url, { headers: H() });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const blob = await resp.blob();
     const obj = URL.createObjectURL(blob);
     img.onload = async () => {
@@ -857,7 +891,7 @@ async function loadPoster(item, img, isTop) {
     };
     img.src = obj;
   } catch {
-    img.src = url;
+    img.src = PLACEHOLDER_POSTER;
   }
 }
 
@@ -1052,6 +1086,7 @@ const castPhotoCache = new Map();
 async function loadCastPhoto(url, img) {
   const cached = castPhotoCache.get(url);
   if (cached) { img.src = cached; return; }
+  img.onerror = () => { img.onerror = null; img.src = PLACEHOLDER_CAST; };
   if (!url.startsWith(cfg.url)) { img.src = url; return; }
   try {
     const resp = await fetch(url, { headers: H() });
@@ -1062,7 +1097,7 @@ async function loadCastPhoto(url, img) {
     img.src = obj;
   } catch (e) {
     console.warn('[cast] photo fetch failed', url, e);
-    img.src = url;
+    img.src = PLACEHOLDER_CAST;
   }
 }
 
