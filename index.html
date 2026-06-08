@@ -18,12 +18,22 @@
 @font-face { font-family:'Circular'; src:url('https://dvdbsh.github.io/fonts/Circular/Circular-Bold.ttf') format('truetype'); font-weight:700; font-display:swap; }
 @font-face { font-family:'Circular'; src:url('https://dvdbsh.github.io/fonts/Circular/Circular-Black.ttf') format('truetype'); font-weight:900; font-display:swap; }
 
-@property --glow-left {
+@property --glow-tl {
   syntax: '<color>';
   inherits: false;
   initial-value: rgba(40,40,60,1);
 }
-@property --glow-right {
+@property --glow-tr {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: rgba(40,40,60,1);
+}
+@property --glow-bl {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: rgba(40,40,60,1);
+}
+@property --glow-br {
   syntax: '<color>';
   inherits: false;
   initial-value: rgba(40,40,60,1);
@@ -90,18 +100,25 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   vertical-align:middle;
 }
 
-/* GRADIENT BG */
+/* ULTRABLUR-STYLE GRADIENT BG — four corner blobs blended together,
+   mirroring Plex's own "ultraBlurColors" artwork-derived backgrounds. */
 #glowBg {
   position:fixed; inset:0;
   z-index:0;
   pointer-events:none;
-  --glow-left: rgba(40,40,60,1);
-  --glow-right: rgba(40,40,60,1);
-  background:linear-gradient(to right, var(--glow-left) 0%, var(--glow-right) 100%);
+  --glow-tl: rgba(40,40,60,1);
+  --glow-tr: rgba(40,40,60,1);
+  --glow-bl: rgba(40,40,60,1);
+  --glow-br: rgba(40,40,60,1);
+  background:
+    radial-gradient(circle at 0% 0%,   var(--glow-tl) 0%, transparent 65%),
+    radial-gradient(circle at 100% 0%, var(--glow-tr) 0%, transparent 65%),
+    radial-gradient(circle at 0% 100%, var(--glow-bl) 0%, transparent 65%),
+    radial-gradient(circle at 100% 100%, var(--glow-br) 0%, transparent 65%);
   -webkit-mask-image:linear-gradient(to bottom, #000 0%, transparent 65%);
   mask-image:linear-gradient(to bottom, #000 0%, transparent 65%);
   opacity:0.6;
-  transition:--glow-left 0.7s ease, --glow-right 0.7s ease;
+  transition:--glow-tl 0.7s ease, --glow-tr 0.7s ease, --glow-bl 0.7s ease, --glow-br 0.7s ease;
 }
 
 /* STATES */
@@ -1012,6 +1029,7 @@ async function loadPoster(item, img, isTop) {
     return;
   }
   const url = posterUrl(item);
+  const ultraBlur = getUltraBlurColors(item);
   img.onerror = () => { img.onerror = null; img.classList.remove('skeleton'); img.src = PLACEHOLDER_POSTER; };
   try {
     const resp = await fetch(url, { headers: H() });
@@ -1020,7 +1038,9 @@ async function loadPoster(item, img, isTop) {
     const obj = URL.createObjectURL(blob);
     img.onload = async () => {
       img.classList.remove('skeleton');
-      const c = await getEdgeColors(img);
+      // Prefer Plex's own ultraBlurColors (server-extracted, matches its UI);
+      // fall back to sampling pixels ourselves if the metadata lacks it.
+      const c = ultraBlur || await getEdgeColors(img);
       img._glow = c;
       posterCache.set(key, { url: obj, glow: c });
       if (isTop) setGlow(c);
@@ -1087,15 +1107,42 @@ function getEdgeColors(imgEl) {
         return best || [40, 40, 60];
       };
 
-      resolve({ left: dominant(0, edge), right: dominant(W - edge, W) });
-    } catch { resolve({ left: [40, 40, 60], right: [40, 40, 60] }); }
+      const left = dominant(0, edge), right = dominant(W - edge, W);
+      resolve({ tl: left, bl: left, tr: right, br: right });
+    } catch {
+      const c = [40, 40, 60];
+      resolve({ tl: c, bl: c, tr: c, br: c });
+    }
   });
 }
 
-function setGlow({ left, right }) {
+// Plex tags most artwork with "ultraBlurColors" — four corner colours
+// (already extracted server-side) that its own apps use for ambient
+// backgrounds. Prefer that real metadata over guessing from pixels.
+function hexToRgb(hex) {
+  if (!hex) return null;
+  const h = hex.replace('#', '');
+  if (h.length !== 6) return null;
+  const n = parseInt(h, 16);
+  if (Number.isNaN(n)) return null;
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function getUltraBlurColors(item) {
+  const ub = item.ultraBlurColors || item.UltraBlurColors;
+  if (!ub) return null;
+  const tl = hexToRgb(ub.topLeft), tr = hexToRgb(ub.topRight);
+  const bl = hexToRgb(ub.bottomLeft), br = hexToRgb(ub.bottomRight);
+  if (!tl || !tr || !bl || !br) return null;
+  return { tl, tr, bl, br };
+}
+
+function setGlow({ tl, tr, bl, br }) {
   const bg = document.getElementById('glowBg');
-  bg.style.setProperty('--glow-left',  `rgb(${left[0]},${left[1]},${left[2]})`);
-  bg.style.setProperty('--glow-right', `rgb(${right[0]},${right[1]},${right[2]})`);
+  bg.style.setProperty('--glow-tl', `rgb(${tl[0]},${tl[1]},${tl[2]})`);
+  bg.style.setProperty('--glow-tr', `rgb(${tr[0]},${tr[1]},${tr[2]})`);
+  bg.style.setProperty('--glow-bl', `rgb(${bl[0]},${bl[1]},${bl[2]})`);
+  bg.style.setProperty('--glow-br', `rgb(${br[0]},${br[1]},${br[2]})`);
 }
 
 // ── Stars ─────────────────────────────────────────────────
@@ -1197,13 +1244,15 @@ function doSkip() {
 function celebrate(n) {
   toast(n + ' Titles Rated!', true);
   if (typeof confetti !== 'function') return;
-  const colors = ['#F7C600', '#15A9FC', '#F74366', '#69DD58'];
+  // Two colours per side (rather than all four on both) so each burst reads as its own palette.
+  const leftColors  = ['#F7C600', '#15A9FC'];
+  const rightColors = ['#F74366', '#69DD58'];
   // Bursts fired from the left and right edges, angled inward toward centre.
-  confetti({ particleCount: 110, spread: 70, startVelocity: 50, angle: 60, origin: { x: 0, y: 0.75 }, colors });
-  confetti({ particleCount: 110, spread: 70, startVelocity: 50, angle: 120, origin: { x: 1, y: 0.75 }, colors });
+  confetti({ particleCount: 110, spread: 70, startVelocity: 50, angle: 60,  origin: { x: 0, y: 0.75 }, colors: leftColors });
+  confetti({ particleCount: 110, spread: 70, startVelocity: 50, angle: 120, origin: { x: 1, y: 0.75 }, colors: rightColors });
   setTimeout(() => {
-    confetti({ particleCount: 80, spread: 90, startVelocity: 40, angle: 60, origin: { x: 0, y: 0.7 }, colors });
-    confetti({ particleCount: 80, spread: 90, startVelocity: 40, angle: 120, origin: { x: 1, y: 0.7 }, colors });
+    confetti({ particleCount: 80, spread: 90, startVelocity: 40, angle: 60,  origin: { x: 0, y: 0.7 }, colors: leftColors });
+    confetti({ particleCount: 80, spread: 90, startVelocity: 40, angle: 120, origin: { x: 1, y: 0.7 }, colors: rightColors });
   }, 200);
 }
 
