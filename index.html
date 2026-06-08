@@ -278,7 +278,10 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   inset:0;
   z-index:500;
   display:flex; align-items:center; justify-content:center;
-  padding:28px;
+  /* Small, safe-area-aware gutter so the panel can grow nearly full-height.
+     The MAIN surface never scrolls (html/body are fixed + overflow:hidden);
+     when the panel's own content is taller than this, it scrolls internally. */
+  padding:max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
   background:rgba(0,0,0,0.6);
   backdrop-filter:blur(4px);
   opacity:0; pointer-events:none;
@@ -288,7 +291,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryBox {
   position:relative;
   width:100%; max-width:440px;
-  max-height:85vh;
+  /* Fill the available height inside the overlay's safe-area gutter; when the
+     content is taller, it scrolls within the panel rather than the page. */
+  max-height:100%;
   overflow-y:auto;
   /* Bottom-corner tints (set from the backdrop's ultraBlur colours) glow up
      from the two bottom corners over the base, giving the panel depth that
