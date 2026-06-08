@@ -242,10 +242,11 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 }
 #iTitle img {
   display:block;
+  margin:0 auto;
   max-width:70%;
   max-height:100%;
   object-fit:contain;
-  object-position:left center;
+  object-position:center;
 }
 #iDate {
   font-size:0.75rem; font-weight:500;
@@ -507,6 +508,21 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #toast.on { opacity:1; transform:translateX(-50%) translateY(0); }
 
 /* PROGRESS RING — subtle indicator of items left */
+#ratedCounter {
+  position:fixed;
+  top:calc(var(--safe-top) + 16px);
+  left:18px;
+  z-index:60;
+  display:flex; align-items:center; gap:6px;
+  font-size:0.8rem; font-weight:700;
+  color:var(--text);
+  opacity:0.55;
+  letter-spacing:0.01em;
+}
+#ratedCounter .icon {
+  width:15px; height:15px;
+  color:var(--star);
+}
 #progress {
   position:fixed;
   top:calc(var(--safe-top) + 16px);
@@ -648,6 +664,11 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 
 <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
+<div id="ratedCounter" role="status" aria-live="polite" aria-label="Titles rated this session">
+  <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-star-fill"/></svg>
+  <span id="ratedCounterNum">0</span>
+</div>
+
 <div id="progress" title="Items left to rate" role="img" aria-label="Items left to rate">
   <svg viewBox="0 0 36 36" aria-hidden="true" focusable="false">
     <circle class="ring-track" cx="18" cy="18" r="15.5"></circle>
@@ -722,6 +743,10 @@ let rating = 0;
 let ratingTimer = null;
 let busy = false;
 let ratedCount = 0;   // RATED items only (not skips)
+
+function updateRatedCounter() {
+  document.getElementById('ratedCounterNum').textContent = ratedCount;
+}
 
 const escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
@@ -859,6 +884,7 @@ async function loadItems() {
   hideStage();
   hist = [];
   ratedCount = 0;
+  updateRatedCounter();
   try {
     const sd = await plexGet('/library/sections');
     const libs = (sd.MediaContainer.Directory || []).filter(d => d.type === 'movie' || d.type === 'show');
@@ -933,6 +959,7 @@ function setTypeFilter(type) {
   clearTimeout(ratingTimer);
   hist = [];
   ratedCount = 0;
+  updateRatedCounter();
   rebuildQueueFromFilter();
   if (!queue.length) {
     hideStage();
@@ -982,7 +1009,19 @@ function setInfo(item) {
   loadExtraInfo(item).then(extra => {
     if (infoItem !== item) return;
     if (extra.logo) {
-      titleEl.innerHTML = `<img src="${extra.logo}" alt="${escHtml(item.title || '')}">`;
+      const img = new Image();
+      img.alt = item.title || '';
+      img.onload = () => {
+        if (infoItem !== item) return;
+        titleEl.innerHTML = '';
+        titleEl.appendChild(img);
+      };
+      img.onerror = () => {
+        // Plex sometimes serves a broken/empty image for clearLogo — fall back to text.
+        item._extra.logo = '';
+        if (infoItem === item) titleEl.textContent = item.title || '';
+      };
+      img.src = extra.logo;
     } else {
       titleEl.textContent = item.title || '';
     }
@@ -1270,6 +1309,7 @@ async function submitRating() {
 
   if (ok) {
     ratedCount++;
+    updateRatedCounter();
     if (ratedCount % 10 === 0) celebrate(ratedCount);
   } else {
     toast('Failed to save rating');
@@ -1653,8 +1693,25 @@ document.addEventListener('touchmove', e => {
 }, { passive: false });
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && document.getElementById('summaryOverlay').classList.contains('on')) {
+  const summaryOpen = document.getElementById('summaryOverlay').classList.contains('on');
+  if (e.key === 'Escape' && summaryOpen) {
     closeSummary();
+    return;
+  }
+  if (summaryOpen || busy || !queue[0]) return;
+
+  // Number keys rate in whole stars; hold Shift for the half-star below
+  // (e.g. "3" = 3 stars, Shift+"3" = 2.5 stars) — mirrors the star slider's granularity.
+  if (e.key >= '1' && e.key <= '5') {
+    e.preventDefault();
+    const n = parseInt(e.key, 10);
+    setRating(e.shiftKey ? n - 0.5 : n);
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    goBack();
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    doSkip();
   }
 });
 
