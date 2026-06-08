@@ -85,6 +85,11 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   aspect-ratio:16/9;
   border-radius:14px;
 }
+.skel-text {
+  display:inline-block;
+  border-radius:5px;
+  vertical-align:middle;
+}
 
 /* GRADIENT BG */
 #glowBg {
@@ -332,22 +337,31 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 
 /* TRAILER */
 #btnTrailer {
-  display:inline-flex; align-items:center; gap:5px;
-  margin-top:10px;
-  background:rgba(255,251,248,0.07);
-  border:1px solid rgba(255,251,248,0.13);
-  color:var(--text);
+  display:inline-flex; align-items:center; gap:6px;
+  margin:14px 0 18px;
+  background:var(--star);
+  border:none;
+  color:#191919;
   border-radius:50px;
-  padding:6px 15px 6px 11px;
+  padding:8px 18px 8px 13px;
   font-family:'Circular',sans-serif;
-  font-size:0.7rem; font-weight:600;
+  font-size:0.75rem; font-weight:700;
   letter-spacing:0.01em;
   cursor:pointer;
-  transition:background 0.15s, opacity 0.2s;
+  transition:background 0.15s, opacity 0.2s, transform 0.15s;
 }
-#btnTrailer i { font-size:1.05rem; }
+#btnTrailer i { font-size:1.15rem; }
 #btnTrailer:active { transform:scale(0.96); }
 #btnTrailer.hidden { display:none; }
+#btnTrailer.skeleton {
+  background-color:rgba(255,251,248,0.06);
+  background-image:linear-gradient(100deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0) 70%);
+  background-size:468px 100%;
+  animation:shimmer 1.5s ease-in-out infinite;
+  color:transparent;
+  pointer-events:none;
+  width:104px; height:34px;
+}
 
 #trailerInline { margin:14px 0 4px; }
 #trailerInline.hidden { display:none; }
@@ -781,6 +795,7 @@ function setInfo(item) {
   document.getElementById('iDate').textContent = item.lastViewedAt
     ? 'Watched ' + fmtDate(item.lastViewedAt * 1000) : '';
   document.getElementById('iSummary').textContent = item.summary || '';
+  preloadInfo();
 }
 
 // ── Trailer ───────────────────────────────────────────────
@@ -887,6 +902,20 @@ function preloadAhead() {
   for (let i = 3; i <= 4; i++) {
     const item = queue[i];
     if (item) { const im = new Image(); im.src = posterUrl(item); }
+  }
+}
+
+// Quietly warm the summary-popup data (extra info + trailer lookup) for the
+// next couple of titles so it's already cached on the item by the time the
+// user opens the popup. queue[1]/queue[2] are "up next" regardless of whether
+// we're in chronological or shuffled order, since shuffle simply reorders the
+// queue itself — the lookahead logic doesn't need to know which mode it's in.
+function preloadInfo() {
+  for (let i = 1; i <= 2; i++) {
+    const item = queue[i];
+    if (!item) continue;
+    loadExtraInfo(item);
+    loadTrailer(item);
   }
 }
 
@@ -1121,29 +1150,49 @@ function openSummary() {
   const genresEl = document.getElementById('summaryGenres');
   const castWrap = document.getElementById('summaryCastWrap');
   const castEl = document.getElementById('summaryCast');
-  genresEl.innerHTML = '';
-  genresEl.classList.add('hidden');
-  castEl.innerHTML = '';
+  const trailerBtn = document.getElementById('btnTrailer');
+
+  // Show skeleton placeholders sized like the real content immediately, so the
+  // popup doesn't visibly resize once genres/cast/trailer info arrives.
+  genresEl.innerHTML = `
+    <span class="genrePill skeleton skel-text" style="width:64px;height:13px;"></span>
+    <span class="genrePill skeleton skel-text" style="width:80px;height:13px;"></span>`;
+  genresEl.classList.remove('hidden');
+  castEl.innerHTML = Array.from({ length: 6 }).map(() => `
+    <div class="castMember">
+      <div class="castPhoto skeleton"></div>
+      <div class="castName skel-text skeleton" style="width:100%;height:11px;margin-top:6px;"></div>
+    </div>`).join('');
   castEl.onscroll = null;
-  castWrap.classList.add('hidden');
+  castWrap.classList.remove('hidden');
   document.getElementById('castFadeL').classList.remove('show');
   document.getElementById('castFadeR').classList.remove('show');
-  // Reset trailer state for this item; reveal the button only if one exists.
+
+  // Reset trailer state for this item; show a skeleton until we know if one exists.
   stopInlineTrailer();
-  const trailerBtn = document.getElementById('btnTrailer');
-  trailerBtn.classList.add('hidden');
+  trailerBtn.classList.remove('hidden');
+  trailerBtn.classList.add('skeleton');
+  trailerBtn.innerHTML = '';
   loadTrailer(item).then(trailer => {
-    if (queue[0] === item && trailer && trailer.url) trailerBtn.classList.remove('hidden');
+    if (queue[0] !== item) return;
+    trailerBtn.classList.remove('skeleton');
+    if (trailer && trailer.url) {
+      trailerBtn.innerHTML = "<i class='bx bx-play-circle'></i> Trailer";
+    } else {
+      trailerBtn.classList.add('hidden');
+    }
   });
+
   // Hide any lingering toast so it can't sit on top of the popup.
   document.getElementById('toast').classList.remove('on');
   document.getElementById('summaryOverlay').classList.add('on');
   loadExtraInfo(item).then(extra => {
     if (queue[0] !== item) return;
-    if (extra.year) document.getElementById('summaryYear').textContent = extra.year;
+    document.getElementById('summaryYear').textContent = extra.year || '';
     if (extra.genres.length) {
       genresEl.innerHTML = extra.genres.map(g => `<span class="genrePill">${g}</span>`).join('');
-      genresEl.classList.remove('hidden');
+    } else {
+      genresEl.classList.add('hidden');
     }
     if (extra.cast.length) {
       castEl.innerHTML = extra.cast.map(c => `
@@ -1151,11 +1200,12 @@ function openSummary() {
           <img class="castPhoto skeleton" loading="lazy">
           <span class="castName">${c.name}</span>
         </div>`).join('');
-      castWrap.classList.remove('hidden');
       const imgs = castEl.querySelectorAll('.castPhoto');
       extra.cast.forEach((c, i) => { if (c.photo) loadCastPhoto(c.photo, imgs[i]); });
       castEl.onscroll = updateCastFades;
       requestAnimationFrame(updateCastFades);
+    } else {
+      castWrap.classList.add('hidden');
     }
   });
 }
