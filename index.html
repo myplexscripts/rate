@@ -287,8 +287,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryOverlay.on { opacity:1; pointer-events:all; }
 #summaryBox {
   position:relative;
-  width:100%; max-width:420px;
-  max-height:70vh;
+  width:100%; max-width:440px;
+  max-height:85vh;
   overflow-y:auto;
   /* Bottom-corner tints (set from the backdrop's ultraBlur colours) glow up
      from the two bottom corners over the base, giving the panel depth that
@@ -339,36 +339,38 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   position:relative; z-index:1;
   margin-top:-50px; margin-bottom:6px;
   padding:0 12px;
-  min-height:96px;
+  min-height:100px;
 }
 #summaryTitle {
   /* --title-fs is driven down by fitTitle() only when the text would
      otherwise overflow; short titles keep the full size. */
-  --title-fs:1.5rem;
+  --title-fs:1.9rem;
   font-weight:900; font-size:var(--title-fs);
-  letter-spacing:-0.02em; line-height:1.15;
+  letter-spacing:-0.02em; line-height:1.12;
   margin-bottom:12px;
   padding:0 44px;
   color:var(--text);
   display:flex; align-items:flex-end; justify-content:center;
 }
+#summaryTitle .ttxt { display:block; width:100%; }
+/* The logo is sized so it scales up to fill a generous box in BOTH dimensions:
+   wide logos are bounded by max-width, square/tall ones by max-height — so a
+   square logo no longer ends up tiny just because it isn't very wide.
+   This MUST apply during `loading-backdrop` too: the logo image and the
+   backdrop image load independently, and if the logo wins the race it would
+   otherwise briefly get the small fallback sizing and then jump bigger once
+   the backdrop's `has-backdrop` class lands. */
 #summaryTitle img {
   display:block;
   width:auto; height:auto;
-  max-width:72%;
-  min-height:40px;
-  max-height:58px;
+  max-width:80%;
+  max-height:100px;
   object-fit:contain;
   margin:0 auto;
 }
-/* The logo is sized so it scales up to fill a generous box in BOTH dimensions:
-   wide logos are bounded by max-width, square/tall ones by max-height — so a
-   square logo no longer ends up tiny just because it isn't very wide. */
-#summaryBox.has-backdrop #summaryTitle img {
-  max-width:80%;
-  min-height:56px;
-  max-height:96px;
-  filter:drop-shadow(0 2px 8px rgba(0,0,0,0.45));
+#summaryBox.has-backdrop #summaryTitle img,
+#summaryBox.loading-backdrop #summaryTitle img {
+  filter:drop-shadow(0 2px 10px rgba(0,0,0,0.5));
 }
 #summaryText {
   font-size:0.88rem; font-weight:400;
@@ -1377,14 +1379,21 @@ function ubTint(hex) {
 // Text titles start at full size and only shrink (down to a floor) when they'd
 // otherwise spill past two lines — so most titles stay big and legible, and
 // only the genuinely long ones scale down to fit. No-ops for logo titles.
+// The text lives in an inner <span> so we measure the text's own height rather
+// than the title box (whose min-height — reserved for logos — would otherwise
+// make every title look like it overflows and shrink to the floor).
 function fitTitle(el) {
   if (!el || el.querySelector('img')) return;
-  const MAX = 1.5, MIN = 1.0, STEP = 0.05;
+  const text = el.textContent;
+  el.innerHTML = '<span class="ttxt"></span>';
+  const span = el.firstChild;
+  span.textContent = text;
+  const MAX = 1.9, MIN = 1.1, STEP = 0.05;
   let fs = MAX, guard = 0;
   el.style.setProperty('--title-fs', fs + 'rem');
-  const lh = parseFloat(getComputedStyle(el).lineHeight) || (fs * 16 * 1.15);
+  const lh = parseFloat(getComputedStyle(span).lineHeight) || (fs * 16 * 1.12);
   while (fs > MIN && guard++ < 24) {
-    if (el.scrollHeight <= lh * 2 + 1) break;
+    if (span.scrollHeight <= lh * 2 + 1) break;
     fs = Math.max(MIN, +(fs - STEP).toFixed(2));
     el.style.setProperty('--title-fs', fs + 'rem');
   }
@@ -1623,7 +1632,8 @@ async function loadExtraInfo(item) {
   try {
     const d = await plexGet(`/library/metadata/${item.ratingKey}`);
     const meta = (d.MediaContainer.Metadata || [])[0];
-    const logoImg = (meta && meta.Image || []).find(i => i.type === 'clearLogo');
+    const images = (meta && meta.Image) || item.Image || [];
+    const logoImg = images.find(i => /clearlogo/i.test(i.type || ''));
     const artPath = meta && meta.art;
     const ub = (meta && (meta.UltraBlurColors || meta.ultraBlurColors))
       || item.ultraBlurColors || item.UltraBlurColors || null;
