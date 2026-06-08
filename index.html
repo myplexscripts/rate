@@ -347,37 +347,10 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 }
 #btnTrailer i { font-size:1.05rem; }
 #btnTrailer:active { transform:scale(0.96); }
-#btnTrailer.hidden { visibility:hidden; pointer-events:none; }
+#btnTrailer.hidden { display:none; }
 
-#trailerOverlay {
-  position:fixed;
-  inset:0;
-  z-index:500;
-  display:flex; align-items:center; justify-content:center;
-  padding:28px;
-  background:rgba(0,0,0,0.6);
-  backdrop-filter:blur(4px);
-  opacity:0; pointer-events:none;
-  transition:opacity 0.2s;
-}
-#trailerOverlay.on { opacity:1; pointer-events:all; }
-#trailerBox {
-  position:relative;
-  width:100%; max-width:420px;
-  background:#222;
-  border:1px solid rgba(255,251,248,0.1);
-  border-radius:20px;
-  padding:26px 24px 24px;
-  transform:scale(0.94);
-  transition:transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
-}
-#trailerOverlay.on #trailerBox { transform:scale(1); }
-#trailerTitle {
-  font-weight:900; font-size:1.2rem;
-  letter-spacing:-0.02em; margin-bottom:14px;
-  padding-right:36px;
-  color:var(--text);
-}
+#trailerInline { margin:14px 0 4px; }
+#trailerInline.hidden { display:none; }
 #trailerVideo {
   width:100%;
   aspect-ratio:16/9;
@@ -399,18 +372,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 }
 #trailerError i { font-size:1.3rem; }
 #trailerVideo.hidden, #trailerError.hidden, #trailerSkeleton.hidden { display:none; }
-#trailerClose {
-  position:absolute; top:16px; right:16px;
-  width:32px; height:32px;
-  border:none; border-radius:50%;
-  background:rgba(255,251,248,0.1);
-  color:var(--text);
-  display:flex; align-items:center; justify-content:center;
-  cursor:pointer;
-  transition:background 0.15s;
-}
-#trailerClose:hover { background:rgba(255,251,248,0.2); }
-#trailerClose i { font-size:1.3rem; }
 
 /* STARS */
 #starRow {
@@ -464,7 +425,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   text-align:center;
   opacity:0; pointer-events:none;
   transition:opacity 0.2s, transform 0.2s;
-  z-index:999;
+  z-index:400;
 }
 #toast.on { opacity:1; transform:translateX(-50%) translateY(0); }
 
@@ -547,9 +508,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     <div id="info">
       <div id="iTitle">—</div>
       <div id="iDate"></div>
-      <button id="btnTrailer" class="hidden" onclick="openTrailer()" title="Watch trailer">
-        <i class='bx bx-play-circle'></i> Trailer
-      </button>
       <div id="iSummary" onclick="openSummary()"></div>
     </div>
     <div id="starRow"></div>
@@ -582,6 +540,14 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     <button id="summaryClose" onclick="closeSummary()"><i class='bx bx-x'></i></button>
     <div id="summaryTitle"></div>
     <div id="summaryYear"></div>
+    <button id="btnTrailer" class="hidden" onclick="playInlineTrailer()" title="Watch trailer">
+      <i class='bx bx-play-circle'></i> Trailer
+    </button>
+    <div id="trailerInline" class="hidden">
+      <div id="trailerSkeleton" class="skeleton hidden"></div>
+      <video id="trailerVideo" controls playsinline></video>
+      <div id="trailerError" class="hidden"><i class='bx bx-error-circle'></i> Trailer unavailable</div>
+    </div>
     <div id="summaryText"></div>
     <div id="summaryGenres" class="hidden"></div>
     <div id="summaryCastWrap" class="hidden">
@@ -589,16 +555,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
       <div id="summaryCast"></div>
       <div id="castFadeR"></div>
     </div>
-  </div>
-</div>
-
-<div id="trailerOverlay" onclick="closeTrailerFromOverlay(event)">
-  <div id="trailerBox">
-    <button id="trailerClose" onclick="closeTrailer()"><i class='bx bx-x'></i></button>
-    <div id="trailerTitle">Trailer</div>
-    <div id="trailerSkeleton" class="skeleton hidden"></div>
-    <video id="trailerVideo" controls playsinline></video>
-    <div id="trailerError" class="hidden"><i class='bx bx-error-circle'></i> Trailer unavailable</div>
   </div>
 </div>
 
@@ -825,12 +781,6 @@ function setInfo(item) {
   document.getElementById('iDate').textContent = item.lastViewedAt
     ? 'Watched ' + fmtDate(item.lastViewedAt * 1000) : '';
   document.getElementById('iSummary').textContent = item.summary || '';
-
-  const trailerBtn = document.getElementById('btnTrailer');
-  trailerBtn.classList.add('hidden');
-  loadTrailer(item).then(trailer => {
-    if (infoItem === item) trailerBtn.classList.toggle('hidden', !(trailer && trailer.url));
-  });
 }
 
 // ── Trailer ───────────────────────────────────────────────
@@ -849,36 +799,37 @@ async function loadTrailer(item) {
   return item._trailer;
 }
 
-function openTrailer() {
+// Reveals the trailer player inline inside the summary popup (no nested popup).
+function playInlineTrailer() {
   const item = queue[0];
   if (!item || !item._trailer) return;
-  const overlay = document.getElementById('trailerOverlay');
+  const btn = document.getElementById('btnTrailer');
+  const wrap = document.getElementById('trailerInline');
   const video = document.getElementById('trailerVideo');
   const errEl = document.getElementById('trailerError');
   const skel = document.getElementById('trailerSkeleton');
+  btn.classList.add('hidden');
+  wrap.classList.remove('hidden');
   errEl.classList.add('hidden');
   video.classList.add('hidden');
   skel.classList.remove('hidden');
   video.onerror = () => { skel.classList.add('hidden'); video.classList.add('hidden'); errEl.classList.remove('hidden'); };
   video.onloadeddata = () => { skel.classList.add('hidden'); errEl.classList.add('hidden'); video.classList.remove('hidden'); };
-  overlay.classList.add('on');
   video.src = item._trailer.url;
   video.play().catch(err => console.warn('[trailer] play() rejected', err));
 }
-function closeTrailer() {
-  const overlay = document.getElementById('trailerOverlay');
+// Stop + tear down the inline player (called when the summary popup closes).
+function stopInlineTrailer() {
+  const wrap = document.getElementById('trailerInline');
   const video = document.getElementById('trailerVideo');
   const skel = document.getElementById('trailerSkeleton');
-  overlay.classList.remove('on');
+  wrap.classList.add('hidden');
   skel.classList.add('hidden');
   video.pause();
   video.removeAttribute('src');
   video.onerror = null;
   video.onloadeddata = null;
   video.load();
-}
-function closeTrailerFromOverlay(e) {
-  if (e.target === document.getElementById('trailerOverlay')) closeTrailer();
 }
 
 // Inline SVG placeholders shown when posters / cast photos fail to load.
@@ -1177,6 +1128,15 @@ function openSummary() {
   castWrap.classList.add('hidden');
   document.getElementById('castFadeL').classList.remove('show');
   document.getElementById('castFadeR').classList.remove('show');
+  // Reset trailer state for this item; reveal the button only if one exists.
+  stopInlineTrailer();
+  const trailerBtn = document.getElementById('btnTrailer');
+  trailerBtn.classList.add('hidden');
+  loadTrailer(item).then(trailer => {
+    if (queue[0] === item && trailer && trailer.url) trailerBtn.classList.remove('hidden');
+  });
+  // Hide any lingering toast so it can't sit on top of the popup.
+  document.getElementById('toast').classList.remove('on');
   document.getElementById('summaryOverlay').classList.add('on');
   loadExtraInfo(item).then(extra => {
     if (queue[0] !== item) return;
@@ -1208,6 +1168,7 @@ function updateCastFades() {
 }
 function closeSummary() {
   document.getElementById('summaryOverlay').classList.remove('on');
+  stopInlineTrailer();
 }
 function closeSummaryFromOverlay(e) {
   if (e.target === document.getElementById('summaryOverlay')) closeSummary();
