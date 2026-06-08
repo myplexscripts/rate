@@ -617,9 +617,18 @@ const posterUrl = it => {
 };
 
 async function plexGet(path) {
-  const r = await fetch(cfg.url + path, { headers: H() });
-  if (!r.ok) throw new Error('HTTP ' + r.status);
-  return r.json();
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 20000);
+  try {
+    const r = await fetch(cfg.url + path, { headers: H(), signal: ctrl.signal });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.json();
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('Request timed out');
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // ── Plex OAuth sign-in ────────────────────────────────────
@@ -737,10 +746,11 @@ async function loadItems() {
     let all = [];
     for (const lib of libs) {
       const t = lib.type === 'movie' ? 1 : 2;
-      // Movies: only ones that have been watched. Shows: fetch all, then
-      // require >50% of episodes watched before they're eligible to rate.
-      const filter = t === 1 ? '&viewCount%3E=1' : '';
-      const d = await plexGet(`/library/sections/${lib.key}/all?type=${t}${filter}&sort=lastViewedAt%3Adesc&X-Plex-Container-Size=10000&X-Plex-Container-Start=0`);
+      // Movies: only ones that have been watched (checked client-side below
+      // via viewCount, since not all PMS versions accept the same filter
+      // operator syntax server-side — better to fetch everything and be sure).
+      // Shows: fetch all, then require >50% of episodes watched.
+      const d = await plexGet(`/library/sections/${lib.key}/all?type=${t}&sort=lastViewedAt%3Adesc&X-Plex-Container-Size=10000&X-Plex-Container-Start=0`);
       for (const m of (d.MediaContainer.Metadata || [])) {
         if (m.userRating || seen.has(m.ratingKey)) continue;
         if (t === 1) {
