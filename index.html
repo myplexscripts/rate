@@ -300,11 +300,39 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   touch-action:pan-y;
 }
 #summaryOverlay.on #summaryBox { transform:scale(1); }
+#summaryBackdrop {
+  display:none;
+  position:relative;
+  margin:-26px -24px 16px;
+  height:160px;
+  overflow:hidden;
+  border-radius:20px 20px 0 0;
+  opacity:0;
+  transition:opacity 0.3s ease;
+}
+#summaryBackdrop.on { opacity:1; }
+#summaryBackdrop img {
+  width:100%; height:100%;
+  object-fit:cover; display:block;
+}
+#summaryBackdrop::after {
+  content:'';
+  position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(0,0,0,0.05) 35%, #222 100%);
+}
+#summaryBox.has-backdrop #summaryBackdrop { display:block; }
+#summaryBox.has-backdrop #summaryTitle { padding-right:0; }
 #summaryTitle {
   font-weight:900; font-size:1.2rem;
   letter-spacing:-0.02em; margin-bottom:12px;
   padding-right:36px;
   color:var(--text);
+}
+#summaryTitle img {
+  display:block;
+  max-width:60%;
+  max-height:46px;
+  object-fit:contain;
 }
 #summaryText {
   font-size:0.88rem; font-weight:400;
@@ -379,6 +407,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   /* Small controls like this read better as full circles than as
      near-square corners — concentricity math only pays off at larger sizes. */
   position:absolute; top:16px; right:16px;
+  z-index:2;
   width:32px; height:32px;
   border:none; border-radius:50%;
   background:rgba(255,251,248,0.1);
@@ -715,6 +744,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 <div id="summaryOverlay" onclick="closeSummaryFromOverlay(event)" role="dialog" aria-modal="true" aria-labelledby="summaryTitle">
   <div id="summaryBox">
     <button id="summaryClose" onclick="closeSummary()" aria-label="Close summary"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-x"/></svg></button>
+    <div id="summaryBackdrop"><img id="summaryBackdropImg" alt=""></div>
     <div id="summaryTitle"></div>
     <div id="summaryYear"></div>
     <button id="btnTrailer" class="hidden" onclick="playInlineTrailer()" title="Watch trailer">
@@ -1468,8 +1498,14 @@ async function loadExtraInfo(item) {
   try {
     const d = await plexGet(`/library/metadata/${item.ratingKey}`);
     const meta = (d.MediaContainer.Metadata || [])[0];
+    const logoImg = (meta && meta.Image || []).find(i => i.type === 'clearLogo');
+    const artPath = meta && meta.art;
     item._extra = {
       year: (meta && meta.year) || null,
+      backdrop: artPath ? `${cfg.url}${artPath}?X-Plex-Token=${cfg.token}&width=700` : '',
+      logo: logoImg && logoImg.url
+        ? (/^https?:\/\//.test(logoImg.url) ? logoImg.url : `${cfg.url}${logoImg.url}?X-Plex-Token=${cfg.token}`)
+        : '',
       genres: (meta && meta.Genre || []).map(g => g.tag).slice(0, 2),
       cast: (meta && meta.Role || []).slice(0, 6).map(r => ({
         name: r.tag,
@@ -1479,7 +1515,7 @@ async function loadExtraInfo(item) {
       }))
     };
   } catch (e) {
-    item._extra = { year: null, genres: [], cast: [] };
+    item._extra = { year: null, backdrop: '', logo: '', genres: [], cast: [] };
   }
   return item._extra;
 }
@@ -1489,7 +1525,14 @@ function openSummary() {
   const item = queue[0];
   if (!item || !item.summary) return;
   summaryOpener = document.activeElement;
-  document.getElementById('summaryTitle').textContent = item.title || '';
+  const titleEl = document.getElementById('summaryTitle');
+  const box = document.getElementById('summaryBox');
+  const backdrop = document.getElementById('summaryBackdrop');
+  const backdropImg = document.getElementById('summaryBackdropImg');
+  box.classList.remove('has-backdrop');
+  backdrop.classList.remove('on');
+  backdropImg.removeAttribute('src');
+  titleEl.textContent = item.title || '';
   document.getElementById('summaryYear').textContent = '';
   document.getElementById('summaryText').textContent = item.summary;
   const genresEl = document.getElementById('summaryGenres');
@@ -1536,6 +1579,35 @@ function openSummary() {
   loadExtraInfo(item).then(extra => {
     if (queue[0] !== item) return;
     document.getElementById('summaryYear').textContent = extra.year || '';
+
+    // Backdrop + logo go together: no backdrop means we keep the plain
+    // text-title layout untouched, even if a logo happens to be available.
+    if (extra.backdrop) {
+      backdropImg.onload = () => {
+        if (queue[0] !== item) return;
+        box.classList.add('has-backdrop');
+        requestAnimationFrame(() => backdrop.classList.add('on'));
+      };
+      backdropImg.onerror = () => {
+        backdropImg.onerror = null;
+        box.classList.remove('has-backdrop');
+        backdrop.classList.remove('on');
+      };
+      backdropImg.src = extra.backdrop;
+
+      if (extra.logo) {
+        const logoImg = new Image();
+        logoImg.alt = item.title || '';
+        logoImg.onload = () => {
+          if (queue[0] !== item) return;
+          titleEl.innerHTML = '';
+          titleEl.appendChild(logoImg);
+        };
+        logoImg.onerror = () => { titleEl.textContent = item.title || ''; };
+        logoImg.src = extra.logo;
+      }
+    }
+
     if (extra.genres.length) {
       genresEl.innerHTML = extra.genres.map(g => `<span class="genrePill">${escHtml(g)}</span>`).join('');
     } else {
