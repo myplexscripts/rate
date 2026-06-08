@@ -277,11 +277,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   position:fixed;
   inset:0;
   z-index:500;
-  /* flex-start (not center): once the panel's vertical offset is fixed at
-     open time (see openSummary), it must stay put as the panel grows taller —
-     e.g. when the trailer expands inline or a long summary wraps — rather
-     than the whole box re-centering and its top edge sliding upward. */
-  display:flex; align-items:flex-start; justify-content:center;
+  display:flex; align-items:center; justify-content:center;
   /* Small, safe-area-aware gutter so the panel can grow nearly full-height.
      The MAIN surface never scrolls (html/body are fixed + overflow:hidden);
      when the panel's own content is taller than this, it scrolls internally. */
@@ -295,10 +291,13 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryBox {
   position:relative;
   width:100%; max-width:440px;
-  /* Fill the available height inside the overlay's safe-area gutter; when the
-     content is taller, the inner #summaryScroll scrolls rather than the box
-     itself — that keeps the close button (a sibling, not scrolled content)
-     floating in place above everything. */
+  /* The box's height is locked (via JS, right after it first settles) to
+     whatever it needed for its initially-known content, capped at the
+     available space. That gives short items a compact panel and long ones
+     a capped, internally-scrollable one — and crucially means later growth
+     (trailer expanding inline, async content streaming in) can never visibly
+     stretch/reflow the panel: it only ever changes what's scrollable inside
+     the fixed #summaryScroll viewport. */
   max-height:100%;
   display:flex; flex-direction:column;
   overflow:hidden;
@@ -1697,7 +1696,7 @@ function openSummary() {
   const backdrop = document.getElementById('summaryBackdrop');
   const backdropImg = document.getElementById('summaryBackdropImg');
   box.classList.remove('has-backdrop');
-  box.style.marginTop = '';
+  box.style.height = '';
   backdrop.classList.remove('on');
   backdropImg.removeAttribute('src');
   box.style.removeProperty('--sb-bl'); box.style.removeProperty('--sb-br');
@@ -1780,20 +1779,13 @@ function openSummary() {
   document.getElementById('toast').classList.remove('on');
   document.getElementById('summaryOverlay').classList.add('on');
   document.getElementById('summaryClose').focus();
-  // Lock the panel's vertical offset once, right after its initial (mostly
-  // settled — thanks to the skeleton/known-extra sizing above) layout. The
-  // overlay aligns to flex-start, so this margin is what visually centres a
-  // typical panel; because it's a fixed margin rather than flex auto-centring,
-  // later growth (trailer expanding inline, long summary text wrapping) only
-  // pushes the BOTTOM edge down (or triggers internal scrolling) — the top
-  // edge stays exactly where the user first saw it.
+  // Lock the panel to its just-settled height (capped by max-height above).
+  // From this point on it's a fixed-size window — opening the trailer or
+  // streaming in a long summary can only ever change what's scrollable
+  // *inside* #summaryScroll, never the panel's own footprint or position.
   requestAnimationFrame(() => {
     if (queue[0] !== item) return;
-    const overlay = document.getElementById('summaryOverlay');
-    const ov = overlay.getBoundingClientRect();
-    const br = box.getBoundingClientRect();
-    const gutter = parseFloat(getComputedStyle(overlay).paddingTop) || 16;
-    box.style.marginTop = Math.max(gutter, (ov.height - br.height) / 2) + 'px';
+    box.style.height = box.getBoundingClientRect().height + 'px';
   });
 
   const applyExtra = extra => {
