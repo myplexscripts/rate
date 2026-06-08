@@ -339,7 +339,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   position:relative; z-index:1;
   margin-top:-50px; margin-bottom:6px;
   padding:0 12px;
-  min-height:74px;
+  min-height:96px;
 }
 #summaryTitle {
   /* --title-fs is driven down by fitTitle() only when the text would
@@ -361,10 +361,13 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   object-fit:contain;
   margin:0 auto;
 }
+/* The logo is sized so it scales up to fill a generous box in BOTH dimensions:
+   wide logos are bounded by max-width, square/tall ones by max-height — so a
+   square logo no longer ends up tiny just because it isn't very wide. */
 #summaryBox.has-backdrop #summaryTitle img {
   max-width:80%;
-  min-height:50px;
-  max-height:74px;
+  min-height:56px;
+  max-height:96px;
   filter:drop-shadow(0 2px 8px rgba(0,0,0,0.45));
 }
 #summaryText {
@@ -394,36 +397,22 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   margin-top:10px;
 }
 #summaryYear:empty { display:none; }
+/* Full-bleed to the panel edges: the row's first avatar lines up with the
+   body text (via padding), but avatars scroll straight off the left/right
+   edges and clip there — a clear cue that the row keeps going. */
 #summaryCastWrap {
-  position:relative;
-  margin-top:18px;
+  margin:18px -24px 0;
   text-align:left;
 }
 #summaryCastWrap.hidden { display:none; }
 #summaryCast {
   display:flex; gap:14px;
+  padding:0 24px;
   overflow-x:auto;
   scrollbar-width:none;
   -ms-overflow-style:none;
 }
 #summaryCast::-webkit-scrollbar { display:none; }
-/* The edge fades blend into the panel's local background — which at the cast
-   row's depth is the tinted bottom corners, so they pick up those colours. */
-#castFadeL, #castFadeR {
-  position:absolute; top:0; bottom:0;
-  width:28px; pointer-events:none;
-  opacity:0; transition:opacity 0.2s ease;
-  z-index:1;
-}
-#castFadeL {
-  left:0;
-  background:linear-gradient(to right, var(--sb-fade-l, #222) 0%, transparent 100%);
-}
-#castFadeR {
-  right:0;
-  background:linear-gradient(to left, var(--sb-fade-r, #222) 0%, transparent 100%);
-}
-#castFadeL.show, #castFadeR.show { opacity:1; }
 #summaryCast .castMember {
   display:flex; flex-direction:column; align-items:center;
   width:64px; flex-shrink:0; text-align:center;
@@ -805,9 +794,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     <div id="summaryYear"></div>
     <div id="summaryGenres" class="hidden"></div>
     <div id="summaryCastWrap" class="hidden">
-      <div id="castFadeL"></div>
       <div id="summaryCast"></div>
-      <div id="castFadeR"></div>
     </div>
   </div>
 </div>
@@ -1298,6 +1285,10 @@ function preloadInfo() {
     loadExtraInfo(item).then(extra => {
       if (metered) return;
       extra.cast.forEach(c => { if (c.photo) prefetchCastPhoto(c.photo); });
+      // Warm the browser cache for the backdrop + logo so they appear the
+      // instant the popup opens, rather than after a visible blank beat.
+      if (extra.backdrop) { const im = new Image(); im.src = extra.backdrop; }
+      if (extra.logo) { const im = new Image(); im.src = extra.logo; }
     });
     loadTrailer(item);
   }
@@ -1688,8 +1679,15 @@ function openSummary() {
     box.classList.add('loading-backdrop');
     backdrop.classList.add('skeleton');
   }
-  titleEl.textContent = item.title || '';
-  fitTitle(titleEl);
+  // If we already know a logo is coming, leave the title slot empty (its space
+  // is reserved by min-height) rather than flashing the text title for a frame
+  // before the logo image swaps in. Otherwise render the text title now.
+  if (known && known.backdrop && known.logo) {
+    titleEl.innerHTML = '';
+  } else {
+    titleEl.textContent = item.title || '';
+    fitTitle(titleEl);
+  }
   // Year is known up front whenever the extra info is cached, so we can set it
   // immediately — that keeps its row from popping in later and nudging layout.
   document.getElementById('summaryYear').textContent = (known && known.year) || '';
@@ -1699,10 +1697,7 @@ function openSummary() {
   const castEl = document.getElementById('summaryCast');
   const trailerBtn = document.getElementById('btnTrailer');
 
-  castEl.onscroll = null;
   castEl.scrollLeft = 0;
-  document.getElementById('castFadeL').classList.remove('show');
-  document.getElementById('castFadeR').classList.remove('show');
   // Skeleton placeholders are only needed when the extra info isn't cached yet.
   // When it is (the common case, thanks to prefetch), we render the real
   // content synchronously below so the panel never resizes after it appears.
@@ -1821,13 +1816,20 @@ function openSummary() {
       castWrap.classList.remove('hidden');
       castEl.innerHTML = extra.cast.map(c => `
         <div class="castMember">
-          <img class="castPhoto skeleton" loading="lazy" alt="${escHtml(c.name)}">
+          <img class="castPhoto skeleton" alt="${escHtml(c.name)}">
           <span class="castName">${escHtml(c.name)}</span>
         </div>`).join('');
       const imgs = castEl.querySelectorAll('.castPhoto');
-      extra.cast.forEach((c, i) => { if (c.photo) loadCastPhoto(c.photo, imgs[i]); });
-      castEl.onscroll = updateCastFades;
-      requestAnimationFrame(updateCastFades);
+      extra.cast.forEach((c, i) => {
+        if (c.photo) {
+          loadCastPhoto(c.photo, imgs[i]);
+        } else {
+          // No photo for this actor — drop the shimmer skeleton and show the
+          // silhouette placeholder right away (otherwise it sits blank/grey).
+          imgs[i].classList.remove('skeleton');
+          imgs[i].src = PLACEHOLDER_CAST;
+        }
+      });
     } else {
       castWrap.classList.add('hidden');
     }
@@ -1835,13 +1837,6 @@ function openSummary() {
 
   if (known) applyExtra(known);
   else loadExtraInfo(item).then(applyExtra);
-}
-function updateCastFades() {
-  const el = document.getElementById('summaryCast');
-  const fadeL = document.getElementById('castFadeL');
-  const fadeR = document.getElementById('castFadeR');
-  fadeL.classList.toggle('show', el.scrollLeft > 2);
-  fadeR.classList.toggle('show', el.scrollLeft < el.scrollWidth - el.clientWidth - 2);
 }
 function closeSummary() {
   document.getElementById('summaryOverlay').classList.remove('on');
