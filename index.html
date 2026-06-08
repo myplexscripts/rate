@@ -132,8 +132,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     radial-gradient(circle at 100% 0%, var(--glow-tr) 0%, transparent 65%),
     radial-gradient(circle at 0% 100%, var(--glow-bl) 0%, transparent 65%),
     radial-gradient(circle at 100% 100%, var(--glow-br) 0%, transparent 65%);
-  -webkit-mask-image:linear-gradient(to bottom, #000 0%, transparent 65%);
-  mask-image:linear-gradient(to bottom, #000 0%, transparent 65%);
+  -webkit-mask-image:linear-gradient(to bottom, #000 0%, #000 60%, transparent 100%);
+  mask-image:linear-gradient(to bottom, #000 0%, #000 60%, transparent 100%);
   opacity:0.6;
   transition:--glow-tl 0.7s ease, --glow-tr 0.7s ease, --glow-bl 0.7s ease, --glow-br 0.7s ease;
 }
@@ -239,14 +239,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   -webkit-box-orient:vertical;
   overflow:hidden;
   height:calc(var(--fs) * 1.1 * 2);
-}
-#iTitle img {
-  display:block;
-  margin:0 auto;
-  max-width:70%;
-  max-height:100%;
-  object-fit:contain;
-  object-position:center;
 }
 #iDate {
   font-size:0.75rem; font-weight:500;
@@ -1004,28 +996,7 @@ let infoItem = null;
 
 function setInfo(item) {
   infoItem = item;
-  const titleEl = document.getElementById('iTitle');
-  titleEl.textContent = item.title || '';
-  loadExtraInfo(item).then(extra => {
-    if (infoItem !== item) return;
-    if (extra.logo) {
-      const img = new Image();
-      img.alt = item.title || '';
-      img.onload = () => {
-        if (infoItem !== item) return;
-        titleEl.innerHTML = '';
-        titleEl.appendChild(img);
-      };
-      img.onerror = () => {
-        // Plex sometimes serves a broken/empty image for clearLogo — fall back to text.
-        item._extra.logo = '';
-        if (infoItem === item) titleEl.textContent = item.title || '';
-      };
-      img.src = extra.logo;
-    } else {
-      titleEl.textContent = item.title || '';
-    }
-  });
+  document.getElementById('iTitle').textContent = item.title || '';
   document.getElementById('iDate').textContent = item.lastViewedAt
     ? 'Watched ' + fmtDate(item.lastViewedAt * 1000) : '';
   document.getElementById('iSummary').textContent = item.summary || '';
@@ -1432,12 +1403,8 @@ async function loadExtraInfo(item) {
   try {
     const d = await plexGet(`/library/metadata/${item.ratingKey}`);
     const meta = (d.MediaContainer.Metadata || [])[0];
-    const logoImg = (meta && meta.Image || []).find(i => i.type === 'clearLogo');
     item._extra = {
       year: (meta && meta.year) || null,
-      logo: logoImg && logoImg.url
-        ? (/^https?:\/\//.test(logoImg.url) ? logoImg.url : `${cfg.url}${logoImg.url}?X-Plex-Token=${cfg.token}`)
-        : '',
       genres: (meta && meta.Genre || []).map(g => g.tag).slice(0, 2),
       cast: (meta && meta.Role || []).slice(0, 6).map(r => ({
         name: r.tag,
@@ -1447,7 +1414,7 @@ async function loadExtraInfo(item) {
       }))
     };
   } catch (e) {
-    item._extra = { year: null, logo: '', genres: [], cast: [] };
+    item._extra = { year: null, genres: [], cast: [] };
   }
   return item._extra;
 }
