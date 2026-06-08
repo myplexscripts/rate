@@ -515,6 +515,28 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   width:15px; height:15px;
   color:var(--star);
 }
+#ratedCounter, #progress { cursor:pointer; }
+
+.counterTip {
+  position:fixed;
+  z-index:70;
+  max-width:180px;
+  padding:8px 12px;
+  border-radius:10px;
+  background:rgba(28,28,32,0.92);
+  border:1px solid rgba(255,251,248,0.12);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  color:var(--text);
+  font-size:0.74rem; font-weight:600; line-height:1.4;
+  letter-spacing:0.005em;
+  text-align:left;
+  box-shadow:0 8px 24px rgba(0,0,0,0.35);
+  opacity:0; transform:translateY(-4px) scale(0.96);
+  transition:opacity 0.18s ease, transform 0.18s ease;
+  pointer-events:none;
+}
+.counterTip.on { opacity:1; transform:translateY(0) scale(1); }
 #progress {
   position:fixed;
   top:calc(var(--safe-top) + 16px);
@@ -656,12 +678,16 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 
 <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<div id="ratedCounter" role="status" aria-live="polite" aria-label="Titles rated this session">
+<div id="ratedCounter" role="status" aria-live="polite" aria-label="Titles rated this session" tabindex="0"
+     onclick="showCounterTip(this, 'Titles you\'ve rated this session')"
+     onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showCounterTip(this, 'Titles you\'ve rated this session');}">
   <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-star-fill"/></svg>
   <span id="ratedCounterNum">0</span>
 </div>
 
-<div id="progress" title="Items left to rate" role="img" aria-label="Items left to rate">
+<div id="progress" title="Items left to rate" role="img" aria-label="Items left to rate" tabindex="0"
+     onclick="showCounterTip(this, 'Unrated titles left in your queue')"
+     onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showCounterTip(this, 'Unrated titles left in your queue');}">
   <svg viewBox="0 0 36 36" aria-hidden="true" focusable="false">
     <circle class="ring-track" cx="18" cy="18" r="15.5"></circle>
     <circle class="ring-bar" cx="18" cy="18" r="15.5"></circle>
@@ -738,6 +764,37 @@ let ratedCount = 0;   // RATED items only (not skips)
 
 function updateRatedCounter() {
   document.getElementById('ratedCounterNum').textContent = ratedCount;
+}
+
+// Brief explanatory bubble for the rated/remaining counters — appears near
+// the tapped element, then fades itself out after a moment.
+let counterTipTimer = null;
+function showCounterTip(anchor, text) {
+  let tip = document.getElementById('counterTip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'counterTip';
+    tip.className = 'counterTip';
+    tip.setAttribute('role', 'tooltip');
+    document.body.appendChild(tip);
+  }
+  clearTimeout(counterTipTimer);
+  tip.textContent = text;
+  tip.classList.remove('on');
+
+  const r = anchor.getBoundingClientRect();
+  const onLeft = r.left < window.innerWidth / 2;
+  tip.style.top = (r.bottom + 8) + 'px';
+  if (onLeft) {
+    tip.style.left = r.left + 'px';
+    tip.style.right = 'auto';
+  } else {
+    tip.style.right = (window.innerWidth - r.right) + 'px';
+    tip.style.left = 'auto';
+  }
+
+  requestAnimationFrame(() => tip.classList.add('on'));
+  counterTipTimer = setTimeout(() => tip.classList.remove('on'), 1800);
 }
 
 const escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
