@@ -11,7 +11,6 @@
 <title>Rate It</title>
 <link rel="icon" type="image/png" href="app-icon.png">
 <link rel="apple-touch-icon" href="app-icon.png">
-<link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 <style>
 @font-face { font-family:'Circular'; src:url('https://dvdbsh.github.io/fonts/Circular/Circular-Book.ttf') format('truetype'); font-weight:400; font-display:swap; }
@@ -395,6 +394,15 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   margin-bottom:24px;
   touch-action:none; cursor:pointer;
 }
+/* Inline SVG icons (sprite-based) — fill follows the element's CSS `color`,
+   so they behave exactly like the font-icons they replace. */
+.icon {
+  width:1em; height:1em;
+  display:inline-block;
+  vertical-align:-0.15em;
+  fill:currentColor;
+  flex-shrink:0;
+}
 .star {
   font-size:2.5rem; line-height:1;
   color:var(--star-off);
@@ -491,6 +499,18 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 </head>
 <body>
 
+<svg style="display:none" aria-hidden="true">
+  <symbol id="icon-chevrons-left" viewBox="0 0 256 256"><path d="M208.49,199.51a12,12,0,0,1-17,17l-80-80a12,12,0,0,1,0-17l80-80a12,12,0,0,1,17,17L137,128ZM57,128l71.52-71.51a12,12,0,0,0-17-17l-80,80a12,12,0,0,0,0,17l80,80a12,12,0,0,0,17-17Z"/></symbol>
+  <symbol id="icon-chevrons-right" viewBox="0 0 256 256"><path d="M144.49,136.49l-80,80a12,12,0,0,1-17-17L119,128,47.51,56.49a12,12,0,0,1,17-17l80,80A12,12,0,0,1,144.49,136.49Zm80-17-80-80a12,12,0,1,0-17,17L199,128l-71.52,71.51a12,12,0,0,0,17,17l80-80A12,12,0,0,0,224.49,119.51Z"/></symbol>
+  <symbol id="icon-shuffle" viewBox="0 0 256 256"><path d="M240.49,175.51a12,12,0,0,1,0,17l-24,24a12,12,0,0,1-17-17L203,196h-2.09a76.17,76.17,0,0,1-61.85-31.83L97.38,105.78A52.1,52.1,0,0,0,55.06,84H32a12,12,0,0,1,0-24H55.06a76.17,76.17,0,0,1,61.85,31.83l41.71,58.39A52.1,52.1,0,0,0,200.94,172H203l-3.52-3.51a12,12,0,0,1,17-17Zm-95.62-72.62a12,12,0,0,0,16.93-1.13A52,52,0,0,1,200.94,84H203l-3.52,3.51a12,12,0,0,0,17,17l24-24a12,12,0,0,0,0-17l-24-24a12,12,0,0,0-17,17L203,60h-2.09a76,76,0,0,0-57.2,26A12,12,0,0,0,144.87,102.89Zm-33.74,50.22a12,12,0,0,0-16.93,1.13A52,52,0,0,1,55.06,172H32a12,12,0,0,0,0,24H55.06a76,76,0,0,0,57.2-26A12,12,0,0,0,111.13,153.11Z"/></symbol>
+  <symbol id="icon-x" viewBox="0 0 256 256"><path d="M208.49,191.51a12,12,0,0,1-17,17L128,145,64.49,208.49a12,12,0,0,1-17-17L111,128,47.51,64.49a12,12,0,0,1,17-17L128,111l63.51-63.52a12,12,0,0,1,17,17L145,128Z"/></symbol>
+  <symbol id="icon-film-strip" viewBox="0 0 256 256"><path d="M216,36H40A20,20,0,0,0,20,56V200a20,20,0,0,0,20,20H216a20,20,0,0,0,20-20V56A20,20,0,0,0,216,36ZM44,100h72v56H44Zm96-24V60h24V76Zm-24,0H92V60h24Zm0,104v16H92V180Zm24,0h24v16H140Zm0-24V100h72v56Zm72-80H188V60h24ZM68,60V76H44V60ZM44,180H68v16H44Zm144,16V180h24v16Z"/></symbol>
+  <symbol id="icon-television" viewBox="0 0 256 256"><path d="M216,60H157l27.52-27.52a12,12,0,0,0-17-17L128,55,88.49,15.51a12,12,0,0,0-17,17L99,60H40A20,20,0,0,0,20,80V200a20,20,0,0,0,20,20H216a20,20,0,0,0,20-20V80A20,20,0,0,0,216,60Zm-4,136H44V84H212Z"/></symbol>
+  <symbol id="icon-star-empty" viewBox="0 0 256 256"><path d="M239.18,97.26A16.38,16.38,0,0,0,224.92,86l-59-4.76L143.14,26.15a16.36,16.36,0,0,0-30.27,0L90.11,81.23,31.08,86a16.46,16.46,0,0,0-9.37,28.86l45,38.83L53,211.75a16.38,16.38,0,0,0,24.5,17.82L128,198.49l50.53,31.08A16.4,16.4,0,0,0,203,211.75l-13.76-58.07,45-38.83A16.43,16.43,0,0,0,239.18,97.26Zm-15.34,5.47-48.7,42a8,8,0,0,0-2.56,7.91l14.88,62.8a.37.37,0,0,1-.17.48c-.18.14-.23.11-.38,0l-54.72-33.65a8,8,0,0,0-8.38,0L69.09,215.94c-.15.09-.19.12-.38,0a.37.37,0,0,1-.17-.48l14.88-62.8a8,8,0,0,0-2.56-7.91l-48.7-42c-.12-.1-.23-.19-.13-.5s.18-.27.33-.29l63.92-5.16A8,8,0,0,0,103,91.86l24.62-59.61c.08-.17.11-.25.35-.25s.27.08.35.25L153,91.86a8,8,0,0,0,6.75,4.92l63.92,5.16c.15,0,.24,0,.33.29S224,102.63,223.84,102.73Z"/></symbol>
+  <symbol id="icon-star-fill" viewBox="0 0 256 256"><path d="M234.29,114.85l-45,38.83L203,211.75a16.4,16.4,0,0,1-24.5,17.82L128,198.49,77.47,229.57A16.4,16.4,0,0,1,53,211.75l13.76-58.07-45-38.83A16.46,16.46,0,0,1,31.08,86l59-4.76,22.76-55.08a16.36,16.36,0,0,1,30.27,0l22.75,55.08,59,4.76a16.46,16.46,0,0,1,9.37,28.86Z"/></symbol>
+  <symbol id="icon-star-half" viewBox="0 0 256 256"><path d="M239.18,97.26A16.38,16.38,0,0,0,224.92,86l-59-4.76L143.14,26.15a16.36,16.36,0,0,0-30.27,0L90.11,81.23,31.08,86a16.46,16.46,0,0,0-9.37,28.86l45,38.83L53,211.75a16.4,16.4,0,0,0,24.5,17.82L128,198.49l50.53,31.08A16.4,16.4,0,0,0,203,211.75l-13.76-58.07,45-38.83A16.43,16.43,0,0,0,239.18,97.26Zm-15.34,5.47-48.7,42a8,8,0,0,0-2.56,7.91l14.88,62.8a.37.37,0,0,1-.17.48c-.18.14-.23.11-.38,0l-54.72-33.65A8,8,0,0,0,128,181.1V32c.24,0,.27.08.35.26L153,91.86a8,8,0,0,0,6.75,4.92l63.91,5.16c.16,0,.25,0,.34.29S224,102.63,223.84,102.73Z"/></symbol>
+</svg>
+
 <div id="glowBg"></div>
 
 <div class="state" id="stAuth">
@@ -528,13 +548,13 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     <div id="starRow"></div>
     <div id="actions">
       <button class="act-btn" id="btnBack" onclick="goBack()" disabled title="Back">
-        <i class='bx bx-chevrons-left'></i>
+        <svg class="icon"><use href="#icon-chevrons-left"/></svg>
       </button>
       <button class="act-btn" id="btnShuffle" onclick="toggleShuffle()" title="Shuffle">
-        <i class='bx bx-shuffle'></i>
+        <svg class="icon"><use href="#icon-shuffle"/></svg>
       </button>
       <button class="act-btn" onclick="doSkip()" title="Skip">
-        <i class='bx bx-chevrons-right'></i>
+        <svg class="icon"><use href="#icon-chevrons-right"/></svg>
       </button>
     </div>
   </div>
@@ -552,16 +572,16 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 
 <div id="summaryOverlay" onclick="closeSummaryFromOverlay(event)">
   <div id="summaryBox">
-    <button id="summaryClose" onclick="closeSummary()"><i class='bx bx-x'></i></button>
+    <button id="summaryClose" onclick="closeSummary()"><svg class="icon"><use href="#icon-x"/></svg></button>
     <div id="summaryTitle"></div>
     <div id="summaryYear"></div>
     <button id="btnTrailer" class="hidden" onclick="playInlineTrailer()" title="Watch trailer">
-      <i class='bx bx-play-circle'></i> Trailer
+      <svg class="icon"><use href="#icon-film-strip"/></svg> Trailer
     </button>
     <div id="trailerInline" class="hidden">
       <div id="trailerSkeleton" class="skeleton hidden"></div>
       <video id="trailerVideo" controls playsinline></video>
-      <div id="trailerError" class="hidden"><i class='bx bx-error-circle'></i> Trailer unavailable</div>
+      <div id="trailerError" class="hidden"><svg class="icon"><use href="#icon-television"/></svg> Trailer unavailable</div>
     </div>
     <div id="summaryText"></div>
     <div id="summaryGenres" class="hidden"></div>
@@ -979,9 +999,12 @@ function setGlow({ left, right }) {
 (function buildStars() {
   const row = document.getElementById('starRow');
   for (let n = 1; n <= 5; n++) {
-    const el = document.createElement('i');
-    el.className = 'bx bx-star star';
+    const el = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    el.setAttribute('class', 'icon star');
     el.dataset.n = n;
+    const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+    use.setAttribute('href', '#icon-star-empty');
+    el.appendChild(use);
     row.appendChild(el);
   }
   let sliding = false;
@@ -1012,9 +1035,17 @@ function setRating(n) {
   rating = n;
   document.querySelectorAll('.star').forEach(s => {
     const sn = parseInt(s.dataset.n);
-    if      (n >= sn)       s.className = 'bx bxs-star star lit';
-    else if (n >= sn - 0.5) s.className = 'bx bxs-star-half star lit';
-    else                    s.className = 'bx bx-star star';
+    const use = s.querySelector('use');
+    if (n >= sn) {
+      s.setAttribute('class', 'icon star lit');
+      use.setAttribute('href', '#icon-star-fill');
+    } else if (n >= sn - 0.5) {
+      s.setAttribute('class', 'icon star lit');
+      use.setAttribute('href', '#icon-star-half');
+    } else {
+      s.setAttribute('class', 'icon star');
+      use.setAttribute('href', '#icon-star-empty');
+    }
   });
   clearTimeout(ratingTimer);
   ratingTimer = setTimeout(submitRating, 1500);
@@ -1024,7 +1055,10 @@ function resetRating() {
   clearTimeout(ratingTimer);
   ratingTimer = null;
   rating = 0;
-  document.querySelectorAll('.star').forEach(s => { s.className = 'bx bx-star star'; });
+  document.querySelectorAll('.star').forEach(s => {
+    s.setAttribute('class', 'icon star');
+    s.querySelector('use').setAttribute('href', '#icon-star-empty');
+  });
 }
 
 async function submitRating() {
@@ -1214,7 +1248,7 @@ function openSummary() {
     if (queue[0] !== item) return;
     trailerBtn.classList.remove('skeleton');
     if (trailer && trailer.url) {
-      trailerBtn.innerHTML = "<i class='bx bx-play-circle'></i> Trailer";
+      trailerBtn.innerHTML = '<svg class="icon"><use href="#icon-film-strip"/></svg> Trailer';
     } else {
       trailerBtn.classList.add('hidden');
     }
