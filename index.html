@@ -304,13 +304,14 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   display:none;
   position:relative;
   margin:-26px -24px 16px;
-  height:160px;
+  aspect-ratio:16/9;
   overflow:hidden;
   border-radius:20px 20px 0 0;
   opacity:0;
   transition:opacity 0.3s ease;
 }
 #summaryBackdrop.on { opacity:1; }
+#summaryBackdrop.skeleton { opacity:1; }
 #summaryBackdrop img {
   width:100%; height:100%;
   object-fit:cover; display:block;
@@ -318,10 +319,15 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryBackdrop::after {
   content:'';
   position:absolute; inset:0;
-  background:linear-gradient(180deg, rgba(0,0,0,0.05) 35%, #222 100%);
+  background:linear-gradient(180deg, rgba(34,34,34,0) 45%, rgba(34,34,34,0.6) 78%, #222 100%);
 }
-#summaryBox.has-backdrop #summaryBackdrop { display:block; }
+#summaryBox.has-backdrop #summaryBackdrop,
+#summaryBox.loading-backdrop #summaryBackdrop { display:block; }
 #summaryBox.has-backdrop #summaryTitle { padding-right:0; }
+#summaryBox.has-backdrop #summaryTitle {
+  position:relative; z-index:1;
+  margin-top:-46px; margin-bottom:6px;
+}
 #summaryTitle {
   font-weight:900; font-size:1.2rem;
   letter-spacing:-0.02em; margin-bottom:12px;
@@ -333,6 +339,10 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   max-width:60%;
   max-height:46px;
   object-fit:contain;
+}
+#summaryBox.has-backdrop #summaryTitle img {
+  max-width:74%;
+  max-height:68px;
 }
 #summaryText {
   font-size:0.88rem; font-weight:400;
@@ -357,8 +367,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryYear {
   font-size:0.78rem; font-weight:600;
   color:rgba(255,251,248,0.5);
-  margin-top:-8px; margin-bottom:12px;
+  margin-top:10px;
 }
+#summaryYear:empty { display:none; }
 #summaryCastWrap {
   position:relative;
   margin-top:18px;
@@ -417,6 +428,15 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   transition:background 0.15s;
 }
 #summaryClose:hover { background:rgba(255,251,248,0.2); }
+/* Over a backdrop image the chip needs its own scrim regardless of how
+   light/dark the artwork is, so it stays legible either way. */
+#summaryBox.has-backdrop #summaryClose {
+  background:rgba(0,0,0,0.35);
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+}
+#summaryBox.has-backdrop #summaryClose.on-light { color:#1a1a1a; }
+#summaryBox.has-backdrop #summaryClose.on-light:hover { background:rgba(0,0,0,0.45); }
 #summaryClose .icon { width:1.3rem; height:1.3rem; }
 
 /* TRAILER */
@@ -746,7 +766,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     <button id="summaryClose" onclick="closeSummary()" aria-label="Close summary"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-x"/></svg></button>
     <div id="summaryBackdrop"><img id="summaryBackdropImg" alt=""></div>
     <div id="summaryTitle"></div>
-    <div id="summaryYear"></div>
     <button id="btnTrailer" class="hidden" onclick="playInlineTrailer()" title="Watch trailer">
       <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-movies"/></svg> Trailer
     </button>
@@ -756,6 +775,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
       <div id="trailerError" class="hidden"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-television"/></svg> Trailer unavailable</div>
     </div>
     <div id="summaryText"></div>
+    <div id="summaryYear"></div>
     <div id="summaryGenres" class="hidden"></div>
     <div id="summaryCastWrap" class="hidden">
       <div id="castFadeL"></div>
@@ -1296,6 +1316,28 @@ function getEdgeColors(imgEl) {
   });
 }
 
+// Samples the corner of a backdrop image where the close button sits, so it
+// can switch to a dark icon/scrim when the artwork there is light.
+function sampleCornerBrightness(imgEl) {
+  return new Promise(resolve => {
+    try {
+      const W = 60, H = 34;
+      const canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(imgEl, 0, 0, W, H);
+      const cw = Math.round(W * 0.35), ch = Math.round(H * 0.6);
+      const data = ctx.getImageData(W - cw, 0, cw, ch).data;
+      let total = 0, n = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        total += (data[i] * 299 + data[i + 1] * 587 + data[i + 2] * 114) / 1000;
+        n++;
+      }
+      resolve(n ? (total / n) > 165 : false);
+    } catch { resolve(false); }
+  });
+}
+
 // Plex tags most artwork with "ultraBlurColors" — four corner colours
 // (already extracted server-side) that its own apps use for ambient
 // backgrounds. Prefer that real metadata over guessing from pixels.
@@ -1563,6 +1605,11 @@ function openSummary() {
   box.classList.remove('has-backdrop');
   backdrop.classList.remove('on');
   backdropImg.removeAttribute('src');
+  document.getElementById('summaryClose').classList.remove('on-light');
+  // We don't yet know whether this title has a backdrop — show a skeleton in
+  // its place so the popup doesn't "pop" into a different layout once we do.
+  box.classList.add('loading-backdrop');
+  backdrop.classList.add('skeleton');
   titleEl.textContent = item.title || '';
   document.getElementById('summaryYear').textContent = '';
   document.getElementById('summaryText').textContent = item.summary;
@@ -1614,17 +1661,33 @@ function openSummary() {
     // Backdrop + logo go together: no backdrop means we keep the plain
     // text-title layout untouched, even if a logo happens to be available.
     if (extra.backdrop) {
-      backdropImg.onload = () => {
-        if (queue[0] !== item) return;
-        box.classList.add('has-backdrop');
-        requestAnimationFrame(() => backdrop.classList.add('on'));
-      };
-      backdropImg.onerror = () => {
-        backdropImg.onerror = null;
-        box.classList.remove('has-backdrop');
-        backdrop.classList.remove('on');
-      };
-      backdropImg.src = extra.backdrop;
+      // Fetch as a blob (like posters/cast photos) rather than setting .src
+      // directly — the resulting same-origin blob URL lets us read pixels off
+      // it on a canvas (to gauge the corner brightness for the close button)
+      // without the canvas getting cross-origin "tainted".
+      fetch(extra.backdrop, { headers: H() })
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
+        .then(blob => {
+          if (queue[0] !== item) return;
+          backdropImg.onload = () => {
+            if (queue[0] !== item) return;
+            backdrop.classList.remove('skeleton');
+            box.classList.remove('loading-backdrop');
+            box.classList.add('has-backdrop');
+            requestAnimationFrame(() => backdrop.classList.add('on'));
+            sampleCornerBrightness(backdropImg).then(light => {
+              if (queue[0] !== item) return;
+              document.getElementById('summaryClose').classList.toggle('on-light', light);
+            });
+          };
+          backdropImg.src = URL.createObjectURL(blob);
+        })
+        .catch(() => {
+          if (queue[0] !== item) return;
+          backdrop.classList.remove('skeleton');
+          box.classList.remove('loading-backdrop', 'has-backdrop');
+          backdrop.classList.remove('on');
+        });
 
       if (extra.logo) {
         const logoImg = new Image();
@@ -1637,6 +1700,9 @@ function openSummary() {
         logoImg.onerror = () => { titleEl.textContent = item.title || ''; };
         logoImg.src = extra.logo;
       }
+    } else {
+      backdrop.classList.remove('skeleton');
+      box.classList.remove('loading-backdrop');
     }
 
     if (extra.genres.length) {
