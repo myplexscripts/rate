@@ -845,7 +845,9 @@ const plexHeaders = () => ({
 });
 const posterUrl = it => {
   const k = it && (it.thumb || it.art);
-  return k ? `${cfg.url}${k}?X-Plex-Token=${cfg.token}&width=800` : '';
+  if (!k) return '';
+  const w = isMeteredConnection() ? 480 : 800;
+  return `${cfg.url}${k}?X-Plex-Token=${cfg.token}&width=${w}`;
 };
 
 async function plexGet(path) {
@@ -1212,7 +1214,18 @@ async function loadPoster(item, img, isTop) {
   }
 }
 
+// On cellular (or when the user has Data Saver on), background prefetching
+// of posters/cast photos/backdrops just competes with what's on screen for
+// limited bandwidth — so we scale it back instead of firing it all eagerly.
+function isMeteredConnection() {
+  const c = navigator.connection || navigator.webkitConnection || navigator.mozConnection;
+  if (!c) return false;
+  if (c.saveData) return true;
+  return /^(slow-2g|2g|3g)$/.test(c.effectiveType || '');
+}
+
 function preloadAhead() {
+  if (isMeteredConnection()) return;
   for (let i = 3; i <= 4; i++) {
     const item = queue[i];
     if (item) { const im = new Image(); im.src = posterUrl(item); }
@@ -1225,11 +1238,18 @@ function preloadAhead() {
 // because the very first title shown has no "previous" item to have preloaded
 // it. queue[1]/queue[2] are "up next" regardless of chronological vs shuffled
 // order, since shuffle simply reorders the queue itself.
+// On metered connections we only warm queue[0] (the item the user is looking
+// at right now) and skip the cast-photo downloads — those only matter once
+// the summary popup is actually opened, where loadExtraInfo() is re-run and
+// covers them anyway.
 function preloadInfo() {
-  for (let i = 0; i <= 2; i++) {
+  const metered = isMeteredConnection();
+  const upper = metered ? 0 : 2;
+  for (let i = 0; i <= upper; i++) {
     const item = queue[i];
     if (!item) continue;
     loadExtraInfo(item).then(extra => {
+      if (metered) return;
       extra.cast.forEach(c => { if (c.photo) prefetchCastPhoto(c.photo); });
     });
     loadTrailer(item);
