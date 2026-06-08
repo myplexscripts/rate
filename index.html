@@ -733,7 +733,19 @@ async function loadTrailer(item) {
 function openTrailer() {
   const item = queue[0];
   if (!item || !item._trailer) return;
-  window.open(item._trailer.url, '_blank', 'noopener,noreferrer');
+  // Plex's media endpoints only allow CORS from app.plex.tv, so the file
+  // can't be fetched/embedded inline — only a top-level navigation can
+  // load it. Opening it as a sized popup window (rather than a full new
+  // tab) keeps it feeling close to an in-app overlay.
+  const w = Math.min(window.innerWidth - 40, 480);
+  const h = Math.round(w * 9 / 16) + 60;
+  const left = Math.round((window.screen.width - w) / 2);
+  const top = Math.round((window.screen.height - h) / 2);
+  window.open(
+    item._trailer.url,
+    'trailerPopup',
+    `popup=yes,noopener,noreferrer,width=${w},height=${h},left=${left},top=${top}`
+  );
 }
 
 // Cache loaded poster blob URLs + extracted glow colours by ratingKey so
