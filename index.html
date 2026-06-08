@@ -193,7 +193,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 
 /* SUMMARY POPUP */
 #summaryOverlay {
-  position:fixed; inset:-2px;
+  position:fixed;
+  top:0; left:0; right:0; bottom:0;
+  height:100vh; height:100dvh;
   z-index:500;
   display:flex; align-items:center; justify-content:center;
   padding:28px;
@@ -248,11 +250,30 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   color:rgba(255,251,248,0.5);
   margin-top:-8px; margin-bottom:12px;
 }
+#summaryCastWrap {
+  position:relative;
+  margin-top:18px;
+}
+#summaryCastWrap.hidden { display:none; }
 #summaryCast {
-  display:flex; gap:14px; margin-top:18px;
+  display:flex; gap:14px;
   overflow-x:auto;
 }
-#summaryCast.hidden { display:none; }
+#castFadeL, #castFadeR {
+  position:absolute; top:0; bottom:0;
+  width:28px; pointer-events:none;
+  opacity:0; transition:opacity 0.2s ease;
+  z-index:1;
+}
+#castFadeL {
+  left:0;
+  background:linear-gradient(to right, #222 0%, transparent 100%);
+}
+#castFadeR {
+  right:0;
+  background:linear-gradient(to left, #222 0%, transparent 100%);
+}
+#castFadeL.show, #castFadeR.show { opacity:1; }
 #summaryCast .castMember {
   display:flex; flex-direction:column; align-items:center;
   width:64px; flex-shrink:0; text-align:center;
@@ -303,7 +324,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #btnTrailer.hidden { visibility:hidden; pointer-events:none; }
 
 #trailerOverlay {
-  position:fixed; inset:-2px;
+  position:fixed;
+  top:0; left:0; right:0; bottom:0;
+  height:100vh; height:100dvh;
   z-index:500;
   display:flex; align-items:center; justify-content:center;
   padding:24px;
@@ -512,7 +535,11 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     <div id="summaryYear"></div>
     <div id="summaryText"></div>
     <div id="summaryGenres" class="hidden"></div>
-    <div id="summaryCast" class="hidden"></div>
+    <div id="summaryCastWrap" class="hidden">
+      <div id="castFadeL"></div>
+      <div id="summaryCast"></div>
+      <div id="castFadeR"></div>
+    </div>
   </div>
 </div>
 
@@ -1053,11 +1080,15 @@ function openSummary() {
   document.getElementById('summaryYear').textContent = '';
   document.getElementById('summaryText').textContent = item.summary;
   const genresEl = document.getElementById('summaryGenres');
+  const castWrap = document.getElementById('summaryCastWrap');
   const castEl = document.getElementById('summaryCast');
   genresEl.innerHTML = '';
   genresEl.classList.add('hidden');
   castEl.innerHTML = '';
-  castEl.classList.add('hidden');
+  castEl.onscroll = null;
+  castWrap.classList.add('hidden');
+  document.getElementById('castFadeL').classList.remove('show');
+  document.getElementById('castFadeR').classList.remove('show');
   document.getElementById('summaryOverlay').classList.add('on');
   loadExtraInfo(item).then(extra => {
     if (queue[0] !== item) return;
@@ -1072,11 +1103,20 @@ function openSummary() {
           <img class="castPhoto" loading="lazy">
           <span class="castName">${c.name}</span>
         </div>`).join('');
-      castEl.classList.remove('hidden');
+      castWrap.classList.remove('hidden');
       const imgs = castEl.querySelectorAll('.castPhoto');
       extra.cast.forEach((c, i) => { if (c.photo) loadCastPhoto(c.photo, imgs[i]); });
+      castEl.onscroll = updateCastFades;
+      requestAnimationFrame(updateCastFades);
     }
   });
+}
+function updateCastFades() {
+  const el = document.getElementById('summaryCast');
+  const fadeL = document.getElementById('castFadeL');
+  const fadeR = document.getElementById('castFadeR');
+  fadeL.classList.toggle('show', el.scrollLeft > 2);
+  fadeR.classList.toggle('show', el.scrollLeft < el.scrollWidth - el.clientWidth - 2);
 }
 function closeSummary() {
   document.getElementById('summaryOverlay').classList.remove('on');
