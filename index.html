@@ -1141,7 +1141,13 @@ async function loadCastPhoto(url, img) {
 // Silently warms castPhotoCache (no <img> involved) so by the time the
 // summary popup renders the real photo elements, loadCastPhoto hits cache.
 async function prefetchCastPhoto(url) {
-  if (!url || castPhotoCache.has(url) || !url.startsWith(cfg.url)) return;
+  if (!url || castPhotoCache.has(url)) return;
+  if (!url.startsWith(cfg.url)) {
+    // External (e.g. TMDB) CDN photo — just warm the browser's HTTP cache.
+    const im = new Image();
+    im.src = url;
+    return;
+  }
   try {
     const resp = await fetch(url, { headers: H() });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
