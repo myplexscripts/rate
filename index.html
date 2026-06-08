@@ -506,7 +506,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   width:104px; height:34px;
 }
 
-#trailerInline { margin:14px 0 18px; }
+#trailerInline { margin:22px 0 18px; }
 #trailerInline.hidden { display:none; }
 #trailerVideo {
   width:100%;
@@ -1381,6 +1381,32 @@ function sampleCornerBrightness(imgEl) {
   });
 }
 
+// Called on #summaryScroll scroll and when the backdrop brightness result lands.
+// The close button is pinned to the box (position:absolute, outside the scroll
+// container), so as the user scrolls, the backdrop image slides past it. Once
+// the backdrop has scrolled clear of the button we know only the dark panel bg
+// is behind it, so on-light is safe to remove without any extra sampling.
+function updateCloseAdaptation() {
+  const scrollEl = document.getElementById('summaryScroll');
+  const box = document.getElementById('summaryBox');
+  const closeBtn = document.getElementById('summaryClose');
+  const backdropEl = document.getElementById('summaryBackdrop');
+  if (!box.classList.contains('has-backdrop') || !backdropEl.offsetParent) {
+    closeBtn.classList.remove('on-light');
+    return;
+  }
+  // getBoundingClientRect() gives live viewport positions that already
+  // account for scrolling — no need to walk the offsetParent chain manually.
+  const backdropBottom = backdropEl.getBoundingClientRect().bottom;
+  const btnRect = closeBtn.getBoundingClientRect();
+  const btnCentre = (btnRect.top + btnRect.bottom) / 2;
+  if (backdropBottom <= btnCentre) {
+    closeBtn.classList.remove('on-light');
+  } else {
+    closeBtn.classList.toggle('on-light', closeBtn._backdropIsLight === true);
+  }
+}
+
 // Turns an ultraBlur corner hex into two derived colours for the summary
 // panel: a `glow` (the corner tint, darkened and luminance-capped so white
 // text keeps a comfortable contrast ratio over it) and a `fade` (that glow
@@ -1701,7 +1727,9 @@ function openSummary() {
   backdropImg.removeAttribute('src');
   box.style.removeProperty('--sb-bl'); box.style.removeProperty('--sb-br');
   box.style.removeProperty('--sb-fade-l'); box.style.removeProperty('--sb-fade-r');
-  document.getElementById('summaryClose').classList.remove('on-light');
+  const closeBtn = document.getElementById('summaryClose');
+  closeBtn.classList.remove('on-light');
+  closeBtn._backdropIsLight = false;
 
   // Background prefetch (preloadInfo) usually has the extra info cached by the
   // time the popup opens, so we know up front whether a backdrop exists. Only
@@ -1732,6 +1760,10 @@ function openSummary() {
   const trailerBtn = document.getElementById('btnTrailer');
 
   castEl.scrollLeft = 0;
+  const scrollEl = document.getElementById('summaryScroll');
+  scrollEl.scrollTop = 0;
+  scrollEl.removeEventListener('scroll', updateCloseAdaptation);
+  scrollEl.addEventListener('scroll', updateCloseAdaptation, { passive: true });
   // Skeleton placeholders are only needed when the extra info isn't cached yet.
   // When it is (the common case, thanks to prefetch), we render the real
   // content synchronously below so the panel never resizes after it appears.
@@ -1820,7 +1852,9 @@ function openSummary() {
             requestAnimationFrame(() => backdrop.classList.add('on'));
             sampleCornerBrightness(backdropImg).then(light => {
               if (queue[0] !== item) return;
-              document.getElementById('summaryClose').classList.toggle('on-light', light);
+              const closeBtn = document.getElementById('summaryClose');
+              closeBtn._backdropIsLight = light;
+              updateCloseAdaptation();
             });
           };
           backdropImg.src = URL.createObjectURL(blob);
