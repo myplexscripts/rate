@@ -194,14 +194,23 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   flex-shrink:0; margin-bottom:20px;
 }
 #iTitle {
+  --fs: clamp(1.3rem,5vw,1.7rem);
   font-weight:900;
-  font-size:clamp(1.3rem,5vw,1.7rem);
+  font-size:var(--fs);
   letter-spacing:-0.025em; line-height:1.1;
   color:var(--text); margin-bottom:5px;
+  /* Fixed 2-line box so titles of varying length never shift what's below */
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+  height:calc(var(--fs) * 1.1 * 2);
 }
 #iDate {
   font-size:0.75rem; font-weight:500;
   color:var(--muted); letter-spacing:0.01em;
+  height:calc(0.75rem * 1.4);
+  line-height:1.4;
 }
 #iSummary {
   margin-top:10px;
@@ -213,11 +222,13 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   -webkit-line-clamp:3;
   -webkit-box-orient:vertical;
   overflow:hidden;
+  /* Fixed 3-line box so 1-line and 3-line summaries take identical space */
+  height:calc(0.78rem * 1.55 * 3);
   cursor:pointer;
   transition:color 0.15s;
 }
 #iSummary:hover { color:var(--text); }
-#iSummary:empty { display:none; }
+#iSummary:empty { cursor:default; }
 
 /* SUMMARY POPUP */
 #summaryOverlay {
