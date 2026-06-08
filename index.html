@@ -204,7 +204,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   height:46svh;
   flex-shrink:1;
   min-height:0;
-  margin-bottom:20px;
+  margin-bottom:28px;
 }
 /* img sized to its own content (no letterbox box) so rounding shows on the real poster */
 .poster {
@@ -233,12 +233,20 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   font-size:var(--fs);
   letter-spacing:-0.025em; line-height:1.1;
   color:var(--text); margin-bottom:5px;
-  /* Fixed 2-line box so titles of varying length never shift what's below */
+  /* Fixed 2-line box so titles of varying length never shift what's below —
+     content sits at the bottom edge so a 1-line title doesn't leave a gap
+     before the date. */
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  overflow:hidden;
+  height:calc(var(--fs) * 1.1 * 2);
+}
+#iTitleText {
   display:-webkit-box;
   -webkit-line-clamp:2;
   -webkit-box-orient:vertical;
   overflow:hidden;
-  height:calc(var(--fs) * 1.1 * 2);
 }
 #iDate {
   font-size:0.75rem; font-weight:500;
@@ -485,13 +493,10 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   left:50%;
   transform:translateX(-50%) translateY(-6px);
   max-width:min(calc(100vw - 100px), 320px);
-  /* "Liquid Glass" — translucent, saturated blur with a soft inner highlight
-     so it reads as frosted material rather than a flat dark chip. */
-  background:linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.06));
-  border:1px solid rgba(255,255,255,0.28);
-  backdrop-filter:blur(22px) saturate(180%);
-  -webkit-backdrop-filter:blur(22px) saturate(180%);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,0.25), 0 8px 28px rgba(0,0,0,0.3);
+  background:rgba(255,251,248,0.06);
+  border:1px solid rgba(255,251,248,0.1);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
   color:var(--text);
   padding:9px 20px; border-radius:50px;
   font-size:0.78rem; font-weight:600;
@@ -660,7 +665,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   <div id="card">
     <div id="posterStack"></div>
     <div id="info">
-      <div id="iTitle">—</div>
+      <div id="iTitle"><span id="iTitleText">—</span></div>
       <div id="iDate"></div>
       <div id="iSummary" onclick="openSummary()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openSummary();}" aria-label="View full summary, cast and trailer"></div>
     </div>
@@ -1056,7 +1061,7 @@ let infoItem = null;
 
 function setInfo(item) {
   infoItem = item;
-  document.getElementById('iTitle').textContent = item.title || '';
+  document.getElementById('iTitleText').textContent = item.title || '';
   document.getElementById('iDate').textContent = item.lastViewedAt
     ? 'Watched ' + fmtDate(item.lastViewedAt * 1000) : '';
   document.getElementById('iSummary').textContent = item.summary || '';
