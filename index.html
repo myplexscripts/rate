@@ -290,10 +290,18 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   width:100%; max-width:420px;
   max-height:70vh;
   overflow-y:auto;
-  background:#222;
+  /* Bottom-corner tints (set from the backdrop's ultraBlur colours) glow up
+     from the two bottom corners over the base, giving the panel depth that
+     echoes the artwork while staying dark enough for white text. */
+  --sb-bl:transparent; --sb-br:transparent;
+  background:
+    radial-gradient(125% 80% at 0% 100%, var(--sb-bl) 0%, transparent 62%),
+    radial-gradient(125% 80% at 100% 100%, var(--sb-br) 0%, transparent 62%),
+    #222;
   border:1px solid rgba(255,251,248,0.1);
   border-radius:20px;
   padding:26px 24px 24px;
+  text-align:center;
   transform:scale(0.94);
   transition:transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
   -webkit-overflow-scrolling:touch;
@@ -323,26 +331,41 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 }
 #summaryBox.has-backdrop #summaryBackdrop,
 #summaryBox.loading-backdrop #summaryBackdrop { display:block; }
-#summaryBox.has-backdrop #summaryTitle { padding-right:0; }
-#summaryBox.has-backdrop #summaryTitle {
+/* The same overlap + reserved height applies the moment we commit to the
+   backdrop layout (skeleton stage included), so the title doesn't shift when
+   the artwork resolves or when an async-loaded logo replaces the text. */
+#summaryBox.has-backdrop #summaryTitle,
+#summaryBox.loading-backdrop #summaryTitle {
   position:relative; z-index:1;
-  margin-top:-46px; margin-bottom:6px;
+  margin-top:-50px; margin-bottom:6px;
+  padding:0 12px;
+  min-height:74px;
 }
 #summaryTitle {
-  font-weight:900; font-size:1.2rem;
-  letter-spacing:-0.02em; margin-bottom:12px;
-  padding-right:36px;
+  /* --title-fs is driven down by fitTitle() only when the text would
+     otherwise overflow; short titles keep the full size. */
+  --title-fs:1.5rem;
+  font-weight:900; font-size:var(--title-fs);
+  letter-spacing:-0.02em; line-height:1.15;
+  margin-bottom:12px;
+  padding:0 44px;
   color:var(--text);
+  display:flex; align-items:flex-end; justify-content:center;
 }
 #summaryTitle img {
   display:block;
-  max-width:60%;
-  max-height:46px;
+  width:auto; height:auto;
+  max-width:72%;
+  min-height:40px;
+  max-height:58px;
   object-fit:contain;
+  margin:0 auto;
 }
 #summaryBox.has-backdrop #summaryTitle img {
-  max-width:74%;
-  max-height:68px;
+  max-width:80%;
+  min-height:50px;
+  max-height:74px;
+  filter:drop-shadow(0 2px 8px rgba(0,0,0,0.45));
 }
 #summaryText {
   font-size:0.88rem; font-weight:400;
@@ -351,6 +374,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 }
 #summaryGenres {
   display:flex; gap:8px; margin-top:16px;
+  justify-content:center; flex-wrap:wrap;
 }
 #summaryGenres .genrePill {
   display:inline-flex; align-items:center;
@@ -373,6 +397,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryCastWrap {
   position:relative;
   margin-top:18px;
+  text-align:left;
 }
 #summaryCastWrap.hidden { display:none; }
 #summaryCast {
@@ -382,6 +407,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   -ms-overflow-style:none;
 }
 #summaryCast::-webkit-scrollbar { display:none; }
+/* The edge fades blend into the panel's local background — which at the cast
+   row's depth is the tinted bottom corners, so they pick up those colours. */
 #castFadeL, #castFadeR {
   position:absolute; top:0; bottom:0;
   width:28px; pointer-events:none;
@@ -390,11 +417,11 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 }
 #castFadeL {
   left:0;
-  background:linear-gradient(to right, #222 0%, transparent 100%);
+  background:linear-gradient(to right, var(--sb-fade-l, #222) 0%, transparent 100%);
 }
 #castFadeR {
   right:0;
-  background:linear-gradient(to left, #222 0%, transparent 100%);
+  background:linear-gradient(to left, var(--sb-fade-r, #222) 0%, transparent 100%);
 }
 #castFadeL.show, #castFadeR.show { opacity:1; }
 #summaryCast .castMember {
@@ -1338,6 +1365,40 @@ function sampleCornerBrightness(imgEl) {
   });
 }
 
+// Turns an ultraBlur corner hex into two derived colours for the summary
+// panel: a `glow` (the corner tint, darkened and luminance-capped so white
+// text keeps a comfortable contrast ratio over it) and a `fade` (that glow
+// composited over the #222 base, used by the cast-row edge fades so they
+// blend seamlessly into the tinted bottom corners).
+function ubTint(hex) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return null;
+  let [r, g, b] = rgb.map(c => Math.round(c * 0.4));
+  // Hard-cap perceptual luminance so even bright source colours stay dark
+  // enough for accessible white-on-tint text (contrast stays ~7:1+).
+  const lum = (r * 299 + g * 587 + b * 114) / 1000;
+  if (lum > 64) { const k = 64 / lum; r = Math.round(r * k); g = Math.round(g * k); b = Math.round(b * k); }
+  const base = 34; // #222
+  const fade = c => Math.min(255, base + c);
+  return { glow: `rgb(${r},${g},${b})`, fade: `rgb(${fade(r)},${fade(g)},${fade(b)})` };
+}
+
+// Text titles start at full size and only shrink (down to a floor) when they'd
+// otherwise spill past two lines — so most titles stay big and legible, and
+// only the genuinely long ones scale down to fit. No-ops for logo titles.
+function fitTitle(el) {
+  if (!el || el.querySelector('img')) return;
+  const MAX = 1.5, MIN = 1.0, STEP = 0.05;
+  let fs = MAX, guard = 0;
+  el.style.setProperty('--title-fs', fs + 'rem');
+  const lh = parseFloat(getComputedStyle(el).lineHeight) || (fs * 16 * 1.15);
+  while (fs > MIN && guard++ < 24) {
+    if (el.scrollHeight <= lh * 2 + 1) break;
+    fs = Math.max(MIN, +(fs - STEP).toFixed(2));
+    el.style.setProperty('--title-fs', fs + 'rem');
+  }
+}
+
 // Plex tags most artwork with "ultraBlurColors" — four corner colours
 // (already extracted server-side) that its own apps use for ambient
 // backgrounds. Prefer that real metadata over guessing from pixels.
@@ -1573,8 +1634,16 @@ async function loadExtraInfo(item) {
     const meta = (d.MediaContainer.Metadata || [])[0];
     const logoImg = (meta && meta.Image || []).find(i => i.type === 'clearLogo');
     const artPath = meta && meta.art;
+    const ub = (meta && (meta.UltraBlurColors || meta.ultraBlurColors))
+      || item.ultraBlurColors || item.UltraBlurColors || null;
+    const tintBL = ub && ub.bottomLeft ? ubTint(ub.bottomLeft) : null;
+    const tintBR = ub && ub.bottomRight ? ubTint(ub.bottomRight) : null;
     item._extra = {
       year: (meta && meta.year) || null,
+      tint: (tintBL || tintBR) ? {
+        bl: (tintBL || tintBR).glow, br: (tintBR || tintBL).glow,
+        fl: (tintBL || tintBR).fade, fr: (tintBR || tintBL).fade
+      } : null,
       backdrop: artPath ? `${cfg.url}${artPath}?X-Plex-Token=${cfg.token}&width=700` : '',
       logo: logoImg && logoImg.url
         ? (/^https?:\/\//.test(logoImg.url) ? logoImg.url : `${cfg.url}${logoImg.url}?X-Plex-Token=${cfg.token}`)
@@ -1588,7 +1657,7 @@ async function loadExtraInfo(item) {
       }))
     };
   } catch (e) {
-    item._extra = { year: null, backdrop: '', logo: '', genres: [], cast: [] };
+    item._extra = { year: null, tint: null, backdrop: '', logo: '', genres: [], cast: [] };
   }
   return item._extra;
 }
@@ -1605,46 +1674,73 @@ function openSummary() {
   box.classList.remove('has-backdrop');
   backdrop.classList.remove('on');
   backdropImg.removeAttribute('src');
+  box.style.removeProperty('--sb-bl'); box.style.removeProperty('--sb-br');
+  box.style.removeProperty('--sb-fade-l'); box.style.removeProperty('--sb-fade-r');
   document.getElementById('summaryClose').classList.remove('on-light');
-  // We don't yet know whether this title has a backdrop — show a skeleton in
-  // its place so the popup doesn't "pop" into a different layout once we do.
-  box.classList.add('loading-backdrop');
-  backdrop.classList.add('skeleton');
+
+  // Background prefetch (preloadInfo) usually has the extra info cached by the
+  // time the popup opens, so we know up front whether a backdrop exists. Only
+  // reserve the 16:9 backdrop skeleton when we genuinely don't know yet —
+  // otherwise the panel would visibly stretch then snap back when an item
+  // turns out to have no backdrop.
+  const known = item._extra;
+  if (!known || known.backdrop) {
+    box.classList.add('loading-backdrop');
+    backdrop.classList.add('skeleton');
+  }
   titleEl.textContent = item.title || '';
-  document.getElementById('summaryYear').textContent = '';
+  fitTitle(titleEl);
+  // Year is known up front whenever the extra info is cached, so we can set it
+  // immediately — that keeps its row from popping in later and nudging layout.
+  document.getElementById('summaryYear').textContent = (known && known.year) || '';
   document.getElementById('summaryText').textContent = item.summary;
   const genresEl = document.getElementById('summaryGenres');
   const castWrap = document.getElementById('summaryCastWrap');
   const castEl = document.getElementById('summaryCast');
   const trailerBtn = document.getElementById('btnTrailer');
 
-  // Show skeleton placeholders sized like the real content immediately, so the
-  // popup doesn't visibly resize once genres/cast/trailer info arrives.
-  genresEl.innerHTML = `
-    <span class="genrePill skeleton skel-text" style="width:64px;height:13px;"></span>
-    <span class="genrePill skeleton skel-text" style="width:80px;height:13px;"></span>`;
-  genresEl.classList.remove('hidden');
-  castEl.innerHTML = Array.from({ length: 6 }).map(() => `
-    <div class="castMember">
-      <div class="castPhoto skeleton"></div>
-      <div class="castName skel-text skeleton" style="width:100%;height:11px;margin-top:6px;"></div>
-    </div>`).join('');
   castEl.onscroll = null;
   castEl.scrollLeft = 0;
-  castWrap.classList.remove('hidden');
   document.getElementById('castFadeL').classList.remove('show');
   document.getElementById('castFadeR').classList.remove('show');
+  // Skeleton placeholders are only needed when the extra info isn't cached yet.
+  // When it is (the common case, thanks to prefetch), we render the real
+  // content synchronously below so the panel never resizes after it appears.
+  if (!known) {
+    genresEl.innerHTML = `
+      <span class="genrePill skeleton skel-text" style="width:64px;height:13px;"></span>
+      <span class="genrePill skeleton skel-text" style="width:80px;height:13px;"></span>`;
+    genresEl.classList.remove('hidden');
+    castEl.innerHTML = Array.from({ length: 6 }).map(() => `
+      <div class="castMember">
+        <div class="castPhoto skeleton"></div>
+        <div class="castName skel-text skeleton" style="width:100%;height:11px;margin-top:6px;"></div>
+      </div>`).join('');
+    castWrap.classList.remove('hidden');
+  }
 
-  // Reset trailer state for this item; show a skeleton until we know if one exists.
+  // Reset trailer state for this item. If we already know (from prefetch)
+  // whether a trailer exists, render the final state immediately so the panel
+  // doesn't reserve a button slot that then vanishes; otherwise show a skeleton.
   stopInlineTrailer();
-  trailerBtn.classList.remove('hidden');
-  trailerBtn.classList.add('skeleton');
+  const trailerKnown = item._trailer;
   trailerBtn.innerHTML = '';
+  if (trailerKnown === undefined) {
+    trailerBtn.classList.remove('hidden');
+    trailerBtn.classList.add('skeleton');
+  } else {
+    trailerBtn.classList.remove('skeleton');
+    trailerBtn.classList.toggle('hidden', !(trailerKnown && trailerKnown.url));
+    if (trailerKnown && trailerKnown.url) {
+      trailerBtn.innerHTML = '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-movies"/></svg> Trailer';
+    }
+  }
   loadTrailer(item).then(trailer => {
     if (queue[0] !== item) return;
     trailerBtn.classList.remove('skeleton');
     if (trailer && trailer.url) {
       trailerBtn.innerHTML = '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-movies"/></svg> Trailer';
+      trailerBtn.classList.remove('hidden');
     } else {
       trailerBtn.classList.add('hidden');
     }
@@ -1654,9 +1750,19 @@ function openSummary() {
   document.getElementById('toast').classList.remove('on');
   document.getElementById('summaryOverlay').classList.add('on');
   document.getElementById('summaryClose').focus();
-  loadExtraInfo(item).then(extra => {
+
+  const applyExtra = extra => {
     if (queue[0] !== item) return;
     document.getElementById('summaryYear').textContent = extra.year || '';
+
+    // Paint the bottom corners with the artwork's ultraBlur tint (or clear it
+    // for items without that metadata).
+    if (extra.tint) {
+      box.style.setProperty('--sb-bl', extra.tint.bl);
+      box.style.setProperty('--sb-br', extra.tint.br);
+      box.style.setProperty('--sb-fade-l', extra.tint.fl);
+      box.style.setProperty('--sb-fade-r', extra.tint.fr);
+    }
 
     // Backdrop + logo go together: no backdrop means we keep the plain
     // text-title layout untouched, even if a logo happens to be available.
@@ -1697,7 +1803,7 @@ function openSummary() {
           titleEl.innerHTML = '';
           titleEl.appendChild(logoImg);
         };
-        logoImg.onerror = () => { titleEl.textContent = item.title || ''; };
+        logoImg.onerror = () => { titleEl.textContent = item.title || ''; fitTitle(titleEl); };
         logoImg.src = extra.logo;
       }
     } else {
@@ -1707,10 +1813,12 @@ function openSummary() {
 
     if (extra.genres.length) {
       genresEl.innerHTML = extra.genres.map(g => `<span class="genrePill">${escHtml(g)}</span>`).join('');
+      genresEl.classList.remove('hidden');
     } else {
       genresEl.classList.add('hidden');
     }
     if (extra.cast.length) {
+      castWrap.classList.remove('hidden');
       castEl.innerHTML = extra.cast.map(c => `
         <div class="castMember">
           <img class="castPhoto skeleton" loading="lazy" alt="${escHtml(c.name)}">
@@ -1723,7 +1831,10 @@ function openSummary() {
     } else {
       castWrap.classList.add('hidden');
     }
-  });
+  };
+
+  if (known) applyExtra(known);
+  else loadExtraInfo(item).then(applyExtra);
 }
 function updateCastFades() {
   const el = document.getElementById('summaryCast');
