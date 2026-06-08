@@ -301,17 +301,11 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   max-height:100%;
   display:flex; flex-direction:column;
   overflow:hidden;
-  /* ultraBlur corner tints — fill the whole panel so the artwork's palette
-     colours the card rather than just accenting the very bottom edges.
-     Four gradients radiate from each corner and overlap in the centre. */
-  --sb-tl:transparent; --sb-tr:transparent;
-  --sb-bl:transparent; --sb-br:transparent;
-  background:
-    radial-gradient(ellipse 130% 65% at   0%   0%, var(--sb-tl) 0%, transparent 65%),
-    radial-gradient(ellipse 130% 65% at 100%   0%, var(--sb-tr) 0%, transparent 65%),
-    radial-gradient(ellipse 130% 65% at   0% 100%, var(--sb-bl) 0%, transparent 65%),
-    radial-gradient(ellipse 130% 65% at 100% 100%, var(--sb-br) 0%, transparent 65%),
-    #222;
+  /* --sb-base is blended from the artwork's ultraBlur corner colours (set via
+     JS). It's the colour the backdrop image dissolves INTO — the whole panel
+     sits on this tint so the fade looks seamless instead of fading to grey. */
+  --sb-base:#222;
+  background:var(--sb-base);
   border:1px solid rgba(255,251,248,0.1);
   border-radius:20px;
   transform:scale(0.94);
@@ -349,7 +343,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryBackdrop::after {
   content:'';
   position:absolute; inset:0;
-  background:linear-gradient(180deg, rgba(34,34,34,0) 45%, rgba(34,34,34,0.6) 78%, #222 100%);
+  /* Fade the image into --sb-base (the ultraBlur-derived panel colour) so the
+     artwork melts seamlessly into the card background below it. */
+  background:linear-gradient(180deg, transparent 35%, var(--sb-base) 85%);
 }
 #summaryBox.has-backdrop #summaryBackdrop,
 #summaryBox.loading-backdrop #summaryBackdrop { display:block; }
@@ -1415,17 +1411,21 @@ function updateCloseAdaptation() {
 // text keeps a comfortable contrast ratio over it) and a `fade` (that glow
 // composited over the #222 base, used by the cast-row edge fades so they
 // blend seamlessly into the tinted bottom corners).
-function ubTint(hex) {
-  const rgb = hexToRgb(hex);
-  if (!rgb) return null;
-  let [r, g, b] = rgb.map(c => Math.round(c * 0.4));
-  // Hard-cap perceptual luminance so even bright source colours stay dark
-  // enough for accessible white-on-tint text (contrast stays ~7:1+).
+// Blend all available ultraBlur corner hex strings into a single dark tinted
+// colour used as the panel's solid background — the colour the backdrop image
+// dissolves into. Averaging keeps the hue representative while the luminance
+// cap (≤72) ensures white text stays legible (~7:1 contrast or better).
+function ubBlend(hexCorners) {
+  const parsed = hexCorners.map(hexToRgb).filter(Boolean);
+  if (!parsed.length) return null;
+  let r = 0, g = 0, b = 0;
+  for (const c of parsed) { r += c[0]; g += c[1]; b += c[2]; }
+  r = Math.round(r / parsed.length * 0.42);
+  g = Math.round(g / parsed.length * 0.42);
+  b = Math.round(b / parsed.length * 0.42);
   const lum = (r * 299 + g * 587 + b * 114) / 1000;
-  if (lum > 64) { const k = 64 / lum; r = Math.round(r * k); g = Math.round(g * k); b = Math.round(b * k); }
-  const base = 34; // #222
-  const fade = c => Math.min(255, base + c);
-  return { glow: `rgb(${r},${g},${b})`, fade: `rgb(${fade(r)},${fade(g)},${fade(b)})` };
+  if (lum > 72) { const k = 72 / lum; r = Math.round(r*k); g = Math.round(g*k); b = Math.round(b*k); }
+  return `rgb(${r},${g},${b})`;
 }
 
 // Text titles start at full size and only shrink (down to a floor) when they'd
@@ -1689,19 +1689,10 @@ async function loadExtraInfo(item) {
     const artPath = meta && meta.art;
     const ub = (meta && (meta.UltraBlurColors || meta.ultraBlurColors))
       || item.ultraBlurColors || item.UltraBlurColors || null;
-    const tintTL = ub && (ub.topLeft    || ub.bottomLeft)  ? ubTint(ub.topLeft    || ub.bottomLeft)  : null;
-    const tintTR = ub && (ub.topRight   || ub.bottomRight) ? ubTint(ub.topRight   || ub.bottomRight) : null;
-    const tintBL = ub && (ub.bottomLeft || ub.topLeft)    ? ubTint(ub.bottomLeft || ub.topLeft)    : null;
-    const tintBR = ub && (ub.bottomRight|| ub.topRight)   ? ubTint(ub.bottomRight|| ub.topRight)   : null;
-    const anyTint = tintTL || tintTR || tintBL || tintBR;
+    const ubCorners = [ub.topLeft, ub.topRight, ub.bottomLeft, ub.bottomRight].filter(Boolean);
     item._extra = {
       year: (meta && meta.year) || null,
-      tint: anyTint ? {
-        tl: (tintTL || tintBL || tintTR || tintBR).glow,
-        tr: (tintTR || tintBR || tintTL || tintBL).glow,
-        bl: (tintBL || tintTL || tintBR || tintTR).glow,
-        br: (tintBR || tintTR || tintBL || tintTL).glow,
-      } : null,
+      tint: ubCorners.length ? ubBlend(ubCorners) : null,
       backdrop: artPath ? `${cfg.url}${artPath}?X-Plex-Token=${cfg.token}&width=700` : '',
       logo: logoImg && logoImg.url
         ? (/^https?:\/\//.test(logoImg.url) ? logoImg.url : `${cfg.url}${logoImg.url}?X-Plex-Token=${cfg.token}`)
@@ -1733,8 +1724,7 @@ function openSummary() {
   box.style.height = '';
   backdrop.classList.remove('on');
   backdropImg.removeAttribute('src');
-  box.style.removeProperty('--sb-tl'); box.style.removeProperty('--sb-tr');
-  box.style.removeProperty('--sb-bl'); box.style.removeProperty('--sb-br');
+  box.style.removeProperty('--sb-base');
   const closeBtn = document.getElementById('summaryClose');
   closeBtn.classList.remove('on-light');
   closeBtn._backdropIsLight = false;
@@ -1835,10 +1825,7 @@ function openSummary() {
     // Paint the bottom corners with the artwork's ultraBlur tint (or clear it
     // for items without that metadata).
     if (extra.tint) {
-      box.style.setProperty('--sb-tl', extra.tint.tl);
-      box.style.setProperty('--sb-tr', extra.tint.tr);
-      box.style.setProperty('--sb-bl', extra.tint.bl);
-      box.style.setProperty('--sb-br', extra.tint.br);
+      box.style.setProperty('--sb-base', extra.tint);
     }
 
     // Backdrop + logo go together: no backdrop means we keep the plain
