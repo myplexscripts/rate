@@ -282,11 +282,10 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   position:fixed;
   inset:0;
   z-index:500;
-  display:flex; align-items:center; justify-content:center;
-  /* Small, safe-area-aware gutter so the panel can grow nearly full-height.
-     The MAIN surface never scrolls (html/body are fixed + overflow:hidden);
-     when the panel's own content is taller than this, it scrolls internally. */
-  padding:max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  display:flex; align-items:flex-start; justify-content:center;
+  /* Top matches the poster top (safe-top + 64px) so the summary panel always
+     opens at the same vertical position as the artwork it's describing. */
+  padding:calc(var(--safe-top) + 64px) 16px max(16px, env(safe-area-inset-bottom));
   background:rgba(0,0,0,0.6);
   backdrop-filter:blur(4px);
   opacity:0; pointer-events:none;
@@ -296,14 +295,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryBox {
   position:relative;
   width:100%; max-width:440px;
-  /* The box's height is locked (via JS, right after it first settles) to
-     whatever it needed for its initially-known content, capped at the
-     available space. That gives short items a compact panel and long ones
-     a capped, internally-scrollable one — and crucially means later growth
-     (trailer expanding inline, async content streaming in) can never visibly
-     stretch/reflow the panel: it only ever changes what's scrollable inside
-     the fixed #summaryScroll viewport. */
-  max-height:100%;
+  /* Always fill the full available height so every item opens the same-sized
+     panel — short summaries don't produce a smaller card than long ones. */
+  height:100%;
   display:flex; flex-direction:column;
   overflow:hidden;
   /* --sb-base is blended from the artwork's ultraBlur corner colours (set via
@@ -324,11 +318,14 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
      the whole sheet — scroll chaining and overscroll glow stay inside the
      panel instead of leaking out to (or bouncing back from) the page edge. */
   overscroll-behavior:contain;
+  scrollbar-width:none;
+  -ms-overflow-style:none;
   padding:26px 24px 24px;
   text-align:center;
   -webkit-overflow-scrolling:touch;
   touch-action:pan-y;
 }
+#summaryScroll::-webkit-scrollbar { display:none; }
 #summaryBackdrop {
   display:none;
   position:relative;
@@ -1740,7 +1737,7 @@ function openSummary() {
   const backdrop = document.getElementById('summaryBackdrop');
   const backdropImg = document.getElementById('summaryBackdropImg');
   box.classList.remove('has-backdrop');
-  box.style.height = '';
+
   backdrop.classList.remove('on');
   backdropImg.removeAttribute('src');
   box.style.removeProperty('--sb-base');
@@ -1828,14 +1825,6 @@ function openSummary() {
   document.getElementById('toast').classList.remove('on');
   document.getElementById('summaryOverlay').classList.add('on');
   document.getElementById('summaryClose').focus();
-  // Lock the panel to its just-settled height (capped by max-height above).
-  // From this point on it's a fixed-size window — opening the trailer or
-  // streaming in a long summary can only ever change what's scrollable
-  // *inside* #summaryScroll, never the panel's own footprint or position.
-  requestAnimationFrame(() => {
-    if (queue[0] !== item) return;
-    box.style.height = box.getBoundingClientRect().height + 'px';
-  });
 
   const applyExtra = extra => {
     if (queue[0] !== item) return;
