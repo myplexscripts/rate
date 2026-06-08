@@ -398,6 +398,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   font-size:0.875rem;
 }
 #trailerError i { font-size:1.3rem; }
+#trailerVideo.hidden, #trailerError.hidden, #trailerSkeleton.hidden { display:none; }
 #trailerClose {
   position:absolute; top:16px; right:16px;
   width:32px; height:32px;
@@ -859,7 +860,7 @@ function openTrailer() {
   video.classList.add('hidden');
   skel.classList.remove('hidden');
   video.onerror = () => { skel.classList.add('hidden'); video.classList.add('hidden'); errEl.classList.remove('hidden'); };
-  video.onloadeddata = () => { skel.classList.add('hidden'); video.classList.remove('hidden'); };
+  video.onloadeddata = () => { skel.classList.add('hidden'); errEl.classList.add('hidden'); video.classList.remove('hidden'); };
   overlay.classList.add('on');
   video.src = item._trailer.url;
   video.play().catch(err => console.warn('[trailer] play() rejected', err));
