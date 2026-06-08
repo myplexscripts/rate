@@ -257,6 +257,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryText {
   font-size:0.88rem; font-weight:400;
   line-height:1.65; color:rgba(255,251,248,0.75);
+  min-height:2.9em;
 }
 #summaryGenres {
   display:flex; gap:8px; margin-top:16px;
@@ -905,13 +906,14 @@ function preloadAhead() {
   }
 }
 
-// Quietly warm the summary-popup data (extra info + trailer lookup) for the
-// next couple of titles so it's already cached on the item by the time the
-// user opens the popup. queue[1]/queue[2] are "up next" regardless of whether
-// we're in chronological or shuffled order, since shuffle simply reorders the
-// queue itself — the lookahead logic doesn't need to know which mode it's in.
+// Quietly warm the summary-popup data (extra info + trailer lookup + cast
+// photos) for the current item plus the next couple of titles, so it's
+// already cached by the time the user opens the popup. queue[0] is included
+// because the very first title shown has no "previous" item to have preloaded
+// it. queue[1]/queue[2] are "up next" regardless of chronological vs shuffled
+// order, since shuffle simply reorders the queue itself.
 function preloadInfo() {
-  for (let i = 1; i <= 2; i++) {
+  for (let i = 0; i <= 2; i++) {
     const item = queue[i];
     if (!item) continue;
     loadExtraInfo(item).then(extra => {
@@ -1048,10 +1050,14 @@ function doSkip() {
 function celebrate(n) {
   toast(n + ' Titles Rated!', true);
   if (typeof confetti !== 'function') return;
-  const colors = ['#ebaf00', '#fffbf8', '#7ecb8f', '#e07272'];
-  confetti({ particleCount: 130, spread: 80, startVelocity: 45, origin: { y: 0.75 }, colors });
-  setTimeout(() => confetti({ particleCount: 90, spread: 110, startVelocity: 35, origin: { y: 0.7, x: 0.3 }, colors }), 180);
-  setTimeout(() => confetti({ particleCount: 90, spread: 110, startVelocity: 35, origin: { y: 0.7, x: 0.7 }, colors }), 320);
+  const colors = ['#F7C600', '#15A9FC', '#F74366', '#69DD58'];
+  // Bursts fired from the left and right edges, angled inward toward centre.
+  confetti({ particleCount: 110, spread: 70, startVelocity: 50, angle: 60, origin: { x: 0, y: 0.75 }, colors });
+  confetti({ particleCount: 110, spread: 70, startVelocity: 50, angle: 120, origin: { x: 1, y: 0.75 }, colors });
+  setTimeout(() => {
+    confetti({ particleCount: 80, spread: 90, startVelocity: 40, angle: 60, origin: { x: 0, y: 0.7 }, colors });
+    confetti({ particleCount: 80, spread: 90, startVelocity: 40, angle: 120, origin: { x: 1, y: 0.7 }, colors });
+  }, 200);
 }
 
 // ── Advance ───────────────────────────────────────────────
