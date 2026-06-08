@@ -204,7 +204,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   height:46svh;
   flex-shrink:1;
   min-height:0;
-  margin-bottom:72px;
+  margin-bottom:20px;
 }
 /* img sized to its own content (no letterbox box) so rounding shows on the real poster */
 .poster {
@@ -482,13 +482,16 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 /* TOAST — pinned to the top, clear of all centred UI & the progress ring */
 #toast {
   position:fixed;
-  top:calc(var(--safe-top) + 16px);
   left:50%;
   transform:translateX(-50%) translateY(-6px);
   max-width:min(calc(100vw - 100px), 320px);
-  background:rgba(35,35,35,0.95);
-  border:1px solid rgba(255,251,248,0.1);
-  backdrop-filter:blur(16px);
+  /* "Liquid Glass" — translucent, saturated blur with a soft inner highlight
+     so it reads as frosted material rather than a flat dark chip. */
+  background:linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.06));
+  border:1px solid rgba(255,255,255,0.28);
+  backdrop-filter:blur(22px) saturate(180%);
+  -webkit-backdrop-filter:blur(22px) saturate(180%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.25), 0 8px 28px rgba(0,0,0,0.3);
   color:var(--text);
   padding:9px 20px; border-radius:50px;
   font-size:0.78rem; font-weight:600;
@@ -1688,11 +1691,11 @@ function fmtDate(ms) {
 
 function toast(msg, isCelebrate) {
   const t = document.getElementById('toast');
-  // Sit in the empty gap directly below the poster stack (its margin-bottom)
-  // so the toast never overlaps the poster, title, stars or actions.
+  // Float just above the poster stack, in the open space below the
+  // counters/filters, so it never overlaps the poster, title, stars or actions.
   const stackRect = document.getElementById('posterStack').getBoundingClientRect();
   if (stackRect.height) {
-    t.style.top = (stackRect.bottom + 18) + 'px';
+    t.style.top = (stackRect.top - 46) + 'px';
     t.style.bottom = 'auto';
   }
   t.textContent = msg;
