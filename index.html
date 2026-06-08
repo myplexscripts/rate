@@ -57,6 +57,23 @@
   -webkit-tap-highlight-color:transparent;
 }
 
+/* Visible keyboard-focus ring (WCAG 2.4.7 / Apple HIG focus states) —
+   only shown for keyboard/AT users, not on pointer taps. */
+button:focus-visible, [tabindex]:focus-visible, a:focus-visible {
+  outline:2px solid var(--star);
+  outline-offset:3px;
+  border-radius:4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration:0.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:0.01ms !important;
+    scroll-behavior:auto !important;
+  }
+}
+
 html, body {
   width:100%; height:100%;
   overflow:hidden;
@@ -281,6 +298,12 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   padding-right:36px;
   color:var(--text);
 }
+.summaryLogo {
+  display:block;
+  max-width:60%;
+  max-height:64px;
+  object-fit:contain;
+}
 #summaryText {
   font-size:0.88rem; font-weight:400;
   line-height:1.65; color:rgba(255,251,248,0.75);
@@ -351,9 +374,11 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   overflow:hidden;
 }
 #summaryClose {
+  /* Small controls like this read better as full circles than as
+     near-square corners — concentricity math only pays off at larger sizes. */
   position:absolute; top:16px; right:16px;
   width:32px; height:32px;
-  border:none; border-radius:4px;
+  border:none; border-radius:50%;
   background:rgba(255,251,248,0.1);
   color:var(--text);
   display:flex; align-items:center; justify-content:center;
@@ -519,7 +544,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #typeFilter {
   position:fixed;
   top:calc(var(--safe-top) + 16px + 36px + 12px);
-  right:15px;
+  right:11px;
   z-index:60;
   display:flex; flex-direction:column; align-items:center; gap:4px;
   padding:4px;
@@ -532,7 +557,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #typeFilter.on { opacity:0.55; pointer-events:all; }
 #typeFilter.on:hover { opacity:1; }
 .filter-btn {
-  width:32px; height:32px;
+  /* ~44px hit target per Apple HIG / WCAG 2.5.5 minimum tap-target guidance */
+  width:40px; height:40px;
   display:flex; align-items:center; justify-content:center;
   background:none; border:none;
   /* outer radius (14) − container padding (4) keeps the corners concentric */
@@ -542,7 +568,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   transition:background 0.15s, color 0.15s, transform 0.12s;
   -webkit-tap-highlight-color:transparent;
 }
-.filter-btn .icon { width:1.05rem; height:1.05rem; }
+.filter-btn .icon { width:1.15rem; height:1.15rem; }
 .filter-btn:active { transform:scale(0.9); }
 .filter-btn.active { background:var(--star); color:#191919; }
 #toast.celebrate {
@@ -602,54 +628,54 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     <div id="info">
       <div id="iTitle">—</div>
       <div id="iDate"></div>
-      <div id="iSummary" onclick="openSummary()"></div>
+      <div id="iSummary" onclick="openSummary()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openSummary();}" aria-label="View full summary, cast and trailer"></div>
     </div>
     <div id="starRow"></div>
     <div id="actions">
-      <button class="act-btn" id="btnBack" onclick="goBack()" disabled title="Back">
-        <svg class="icon"><use href="#icon-back"/></svg>
+      <button class="act-btn" id="btnBack" onclick="goBack()" disabled title="Back" aria-label="Go back to previous title">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-back"/></svg>
       </button>
-      <button class="act-btn" id="btnShuffle" onclick="toggleShuffle()" title="Shuffle">
-        <svg class="icon"><use href="#icon-shuffle"/></svg>
+      <button class="act-btn" id="btnShuffle" onclick="toggleShuffle()" title="Shuffle" aria-label="Shuffle queue order" aria-pressed="false">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-shuffle"/></svg>
       </button>
-      <button class="act-btn" onclick="doSkip()" title="Skip">
-        <svg class="icon"><use href="#icon-skip"/></svg>
+      <button class="act-btn" onclick="doSkip()" title="Skip" aria-label="Skip this title">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-skip"/></svg>
       </button>
     </div>
   </div>
 </div>
 
-<div id="toast"></div>
+<div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<div id="progress" title="Items left to rate">
-  <svg viewBox="0 0 36 36">
+<div id="progress" title="Items left to rate" role="img" aria-label="Items left to rate">
+  <svg viewBox="0 0 36 36" aria-hidden="true" focusable="false">
     <circle class="ring-track" cx="18" cy="18" r="15.5"></circle>
     <circle class="ring-bar" cx="18" cy="18" r="15.5"></circle>
   </svg>
-  <span id="progressCount">0</span>
+  <span id="progressCount" aria-hidden="true">0</span>
 </div>
 
-<div id="typeFilter">
-  <button id="filterMovie" class="filter-btn" onclick="setTypeFilter('movie')" title="Movies only">
-    <svg class="icon"><use href="#icon-movies"/></svg>
+<div id="typeFilter" role="group" aria-label="Filter by type">
+  <button id="filterMovie" class="filter-btn" onclick="setTypeFilter('movie')" title="Movies only" aria-label="Show movies only" aria-pressed="false">
+    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-movies"/></svg>
   </button>
-  <button id="filterShow" class="filter-btn" onclick="setTypeFilter('show')" title="TV shows only">
-    <svg class="icon"><use href="#icon-television"/></svg>
+  <button id="filterShow" class="filter-btn" onclick="setTypeFilter('show')" title="TV shows only" aria-label="Show TV shows only" aria-pressed="false">
+    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-television"/></svg>
   </button>
 </div>
 
-<div id="summaryOverlay" onclick="closeSummaryFromOverlay(event)">
+<div id="summaryOverlay" onclick="closeSummaryFromOverlay(event)" role="dialog" aria-modal="true" aria-labelledby="summaryTitle">
   <div id="summaryBox">
-    <button id="summaryClose" onclick="closeSummary()"><svg class="icon"><use href="#icon-x"/></svg></button>
+    <button id="summaryClose" onclick="closeSummary()" aria-label="Close summary"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-x"/></svg></button>
     <div id="summaryTitle"></div>
     <div id="summaryYear"></div>
     <button id="btnTrailer" class="hidden" onclick="playInlineTrailer()" title="Watch trailer">
-      <svg class="icon"><use href="#icon-movies"/></svg> Trailer
+      <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-movies"/></svg> Trailer
     </button>
     <div id="trailerInline" class="hidden">
       <div id="trailerSkeleton" class="skeleton hidden"></div>
       <video id="trailerVideo" controls playsinline></video>
-      <div id="trailerError" class="hidden"><svg class="icon"><use href="#icon-television"/></svg> Trailer unavailable</div>
+      <div id="trailerError" class="hidden"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-television"/></svg> Trailer unavailable</div>
     </div>
     <div id="summaryText"></div>
     <div id="summaryGenres" class="hidden"></div>
@@ -668,7 +694,6 @@ const PLEX_PRODUCT = 'Rate It';
 const STORE_TOKEN = 'rateit_token';
 const STORE_URL   = 'rateit_url';
 const STORE_CLIENT= 'rateit_clientId';
-const STORE_FILTER= 'rateit_typeFilter';
 
 function getClientId() {
   let id = localStorage.getItem(STORE_CLIENT);
@@ -690,11 +715,14 @@ let hist  = [];
 let allItems = [];
 let chronological = [];
 let shuffled = false;
-let typeFilter = localStorage.getItem(STORE_FILTER) || 'all';
+// Always starts unfiltered — the user opts into a movies/TV-only view each session.
+let typeFilter = 'all';
 let rating = 0;
 let ratingTimer = null;
 let busy = false;
 let ratedCount = 0;   // RATED items only (not skips)
+
+const escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 const H = () => ({ 'X-Plex-Token': cfg.token, 'Accept': 'application/json' });
 const plexHeaders = () => ({
@@ -883,18 +911,23 @@ function rebuildQueueFromFilter() {
     : allItems.filter(it => it.libType === typeFilter);
   queue = chronological.slice();
   shuffled = false;
-  document.getElementById('btnShuffle').classList.remove('active');
+  const shuffleBtn = document.getElementById('btnShuffle');
+  shuffleBtn.classList.remove('active');
+  shuffleBtn.setAttribute('aria-pressed', 'false');
 }
 
 function updateFilterButtons() {
-  document.getElementById('filterMovie').classList.toggle('active', typeFilter === 'movie');
-  document.getElementById('filterShow').classList.toggle('active', typeFilter === 'show');
+  const movieBtn = document.getElementById('filterMovie');
+  const showBtn  = document.getElementById('filterShow');
+  movieBtn.classList.toggle('active', typeFilter === 'movie');
+  movieBtn.setAttribute('aria-pressed', String(typeFilter === 'movie'));
+  showBtn.classList.toggle('active', typeFilter === 'show');
+  showBtn.setAttribute('aria-pressed', String(typeFilter === 'show'));
 }
 
 function setTypeFilter(type) {
   if (busy) return;
   typeFilter = (typeFilter === type) ? 'all' : type;
-  localStorage.setItem(STORE_FILTER, typeFilter);
   updateFilterButtons();
   clearTimeout(ratingTimer);
   hist = [];
@@ -928,6 +961,7 @@ function rebuild() {
   for (let i = top3.length - 1; i >= 0; i--) {
     const img = document.createElement('img');
     img.className = 'poster p' + i + ' skeleton';
+    img.alt = top3[i].title || '';
     stack.appendChild(img);
     loadPoster(top3[i], img, i === 0);
   }
@@ -1282,6 +1316,7 @@ function advance(dir) {
   if (next) {
     const img = document.createElement('img');
     img.className = 'poster p2 skeleton';
+    img.alt = next.title || '';
     stack.insertBefore(img, stack.firstChild);
     loadPoster(next, img, false);
   }
@@ -1347,8 +1382,12 @@ async function loadExtraInfo(item) {
   try {
     const d = await plexGet(`/library/metadata/${item.ratingKey}`);
     const meta = (d.MediaContainer.Metadata || [])[0];
+    const logoImg = (meta && meta.Image || []).find(i => i.type === 'clearLogo');
     item._extra = {
       year: (meta && meta.year) || null,
+      logo: logoImg && logoImg.url
+        ? (/^https?:\/\//.test(logoImg.url) ? logoImg.url : `${cfg.url}${logoImg.url}?X-Plex-Token=${cfg.token}`)
+        : '',
       genres: (meta && meta.Genre || []).map(g => g.tag).slice(0, 2),
       cast: (meta && meta.Role || []).slice(0, 6).map(r => ({
         name: r.tag,
@@ -1358,14 +1397,16 @@ async function loadExtraInfo(item) {
       }))
     };
   } catch (e) {
-    item._extra = { year: null, genres: [], cast: [] };
+    item._extra = { year: null, logo: '', genres: [], cast: [] };
   }
   return item._extra;
 }
 
+let summaryOpener = null;
 function openSummary() {
   const item = queue[0];
   if (!item || !item.summary) return;
+  summaryOpener = document.activeElement;
   document.getElementById('summaryTitle').textContent = item.title || '';
   document.getElementById('summaryYear').textContent = '';
   document.getElementById('summaryText').textContent = item.summary;
@@ -1400,7 +1441,7 @@ function openSummary() {
     if (queue[0] !== item) return;
     trailerBtn.classList.remove('skeleton');
     if (trailer && trailer.url) {
-      trailerBtn.innerHTML = '<svg class="icon"><use href="#icon-movies"/></svg> Trailer';
+      trailerBtn.innerHTML = '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-movies"/></svg> Trailer';
     } else {
       trailerBtn.classList.add('hidden');
     }
@@ -1409,19 +1450,26 @@ function openSummary() {
   // Hide any lingering toast so it can't sit on top of the popup.
   document.getElementById('toast').classList.remove('on');
   document.getElementById('summaryOverlay').classList.add('on');
+  document.getElementById('summaryClose').focus();
   loadExtraInfo(item).then(extra => {
     if (queue[0] !== item) return;
     document.getElementById('summaryYear').textContent = extra.year || '';
+    const titleEl = document.getElementById('summaryTitle');
+    if (extra.logo) {
+      titleEl.innerHTML = `<img src="${extra.logo}" alt="${escHtml(item.title || '')}" class="summaryLogo">`;
+    } else {
+      titleEl.textContent = item.title || '';
+    }
     if (extra.genres.length) {
-      genresEl.innerHTML = extra.genres.map(g => `<span class="genrePill">${g}</span>`).join('');
+      genresEl.innerHTML = extra.genres.map(g => `<span class="genrePill">${escHtml(g)}</span>`).join('');
     } else {
       genresEl.classList.add('hidden');
     }
     if (extra.cast.length) {
       castEl.innerHTML = extra.cast.map(c => `
         <div class="castMember">
-          <img class="castPhoto skeleton" loading="lazy">
-          <span class="castName">${c.name}</span>
+          <img class="castPhoto skeleton" loading="lazy" alt="${escHtml(c.name)}">
+          <span class="castName">${escHtml(c.name)}</span>
         </div>`).join('');
       const imgs = castEl.querySelectorAll('.castPhoto');
       extra.cast.forEach((c, i) => { if (c.photo) loadCastPhoto(c.photo, imgs[i]); });
@@ -1442,6 +1490,8 @@ function updateCastFades() {
 function closeSummary() {
   document.getElementById('summaryOverlay').classList.remove('on');
   stopInlineTrailer();
+  if (summaryOpener && summaryOpener.focus) summaryOpener.focus();
+  summaryOpener = null;
 }
 function closeSummaryFromOverlay(e) {
   if (e.target === document.getElementById('summaryOverlay')) closeSummary();
@@ -1467,6 +1517,7 @@ function goBack() {
   // Returning poster re-enters from the side it originally exited toward
   const img = document.createElement('img');
   img.className = 'poster p0 skeleton';
+  img.alt = item.title || '';
   img.style.transition = 'none';
   img.style.zIndex = 5;
   const x = dir === 'left' ? '-130%' : '130%';
@@ -1511,7 +1562,9 @@ function toggleShuffle() {
   if (busy || queue.length < 2) return;
   clearTimeout(ratingTimer);
   shuffled = !shuffled;
-  document.getElementById('btnShuffle').classList.toggle('active', shuffled);
+  const shuffleBtn = document.getElementById('btnShuffle');
+  shuffleBtn.classList.toggle('active', shuffled);
+  shuffleBtn.setAttribute('aria-pressed', String(shuffled));
 
   const [current, ...rest] = queue;
   let reordered;
@@ -1594,6 +1647,12 @@ document.addEventListener('touchend', e => {
 document.addEventListener('touchmove', e => {
   if (e.scale && e.scale !== 1) e.preventDefault();
 }, { passive: false });
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('summaryOverlay').classList.contains('on')) {
+    closeSummary();
+  }
+});
 
 // ── Boot ──────────────────────────────────────────────────
 if (cfg.token && cfg.url) {
