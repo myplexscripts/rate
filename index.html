@@ -302,6 +302,43 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #btnTrailer:active { transform:scale(0.96); }
 #btnTrailer.hidden { display:none; }
 
+#trailerOverlay {
+  position:fixed; inset:0;
+  z-index:500;
+  display:flex; align-items:center; justify-content:center;
+  padding:24px;
+  background:rgba(0,0,0,0.8);
+  backdrop-filter:blur(4px);
+  opacity:0; pointer-events:none;
+  transition:opacity 0.2s;
+}
+#trailerOverlay.on { opacity:1; pointer-events:all; }
+#trailerBox {
+  position:relative;
+  width:100%; max-width:520px;
+  transform:scale(0.94);
+  transition:transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
+}
+#trailerOverlay.on #trailerBox { transform:scale(1); }
+#trailerVideo {
+  width:100%;
+  aspect-ratio:16/9;
+  border-radius:14px;
+  background:#000;
+  display:block;
+}
+#trailerClose {
+  position:absolute; top:-44px; right:0;
+  width:32px; height:32px;
+  border:none; border-radius:50%;
+  background:rgba(255,251,248,0.12);
+  color:var(--text);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer;
+  transition:background 0.15s;
+}
+#trailerClose:hover { background:rgba(255,251,248,0.22); }
+#trailerClose i { font-size:1.3rem; }
 
 /* STARS */
 #starRow {
@@ -476,6 +513,13 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     <div id="summaryText"></div>
     <div id="summaryGenres" class="hidden"></div>
     <div id="summaryCast" class="hidden"></div>
+  </div>
+</div>
+
+<div id="trailerOverlay" onclick="closeTrailerFromOverlay(event)">
+  <div id="trailerBox">
+    <button id="trailerClose" onclick="closeTrailer()"><i class='bx bx-x'></i></button>
+    <video id="trailerVideo" controls playsinline></video>
   </div>
 </div>
 
@@ -709,12 +753,6 @@ function setInfo(item) {
 }
 
 // ── Trailer ───────────────────────────────────────────────
-// Plex's media endpoints send an Access-Control-Allow-Origin that only
-// permits app.plex.tv, so fetch()/XHR from this app is always blocked by
-// CORS (and <video src> is blocked by Opaque Response Blocking on top of
-// that) — there's no way to play it inline. A top-level navigation isn't
-// subject to CORS though, so we open the file directly in a new tab and
-// let the browser's native player handle it.
 async function loadTrailer(item) {
   if (item._trailer !== undefined) return item._trailer;
   try {
@@ -733,19 +771,22 @@ async function loadTrailer(item) {
 function openTrailer() {
   const item = queue[0];
   if (!item || !item._trailer) return;
-  // Plex's media endpoints only allow CORS from app.plex.tv, so the file
-  // can't be fetched/embedded inline — only a top-level navigation can
-  // load it. Opening it as a sized popup window (rather than a full new
-  // tab) keeps it feeling close to an in-app overlay.
-  const w = Math.min(window.innerWidth - 40, 480);
-  const h = Math.round(w * 9 / 16) + 60;
-  const left = Math.round((window.screen.width - w) / 2);
-  const top = Math.round((window.screen.height - h) / 2);
-  window.open(
-    item._trailer.url,
-    'trailerPopup',
-    `popup=yes,noopener,noreferrer,width=${w},height=${h},left=${left},top=${top}`
-  );
+  const overlay = document.getElementById('trailerOverlay');
+  const video = document.getElementById('trailerVideo');
+  overlay.classList.add('on');
+  video.src = item._trailer.url;
+  video.play().catch(err => console.warn('[trailer] play() rejected', err));
+}
+function closeTrailer() {
+  const overlay = document.getElementById('trailerOverlay');
+  const video = document.getElementById('trailerVideo');
+  overlay.classList.remove('on');
+  video.pause();
+  video.removeAttribute('src');
+  video.load();
+}
+function closeTrailerFromOverlay(e) {
+  if (e.target === document.getElementById('trailerOverlay')) closeTrailer();
 }
 
 // Cache loaded poster blob URLs + extracted glow colours by ratingKey so
