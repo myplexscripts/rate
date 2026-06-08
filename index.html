@@ -301,13 +301,16 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   max-height:100%;
   display:flex; flex-direction:column;
   overflow:hidden;
-  /* Bottom-corner tints (set from the backdrop's ultraBlur colours) glow up
-     from the two bottom corners over the base, giving the panel depth that
-     echoes the artwork while staying dark enough for white text. */
+  /* ultraBlur corner tints — fill the whole panel so the artwork's palette
+     colours the card rather than just accenting the very bottom edges.
+     Four gradients radiate from each corner and overlap in the centre. */
+  --sb-tl:transparent; --sb-tr:transparent;
   --sb-bl:transparent; --sb-br:transparent;
   background:
-    radial-gradient(125% 80% at 0% 100%, var(--sb-bl) 0%, transparent 62%),
-    radial-gradient(125% 80% at 100% 100%, var(--sb-br) 0%, transparent 62%),
+    radial-gradient(ellipse 130% 65% at   0%   0%, var(--sb-tl) 0%, transparent 65%),
+    radial-gradient(ellipse 130% 65% at 100%   0%, var(--sb-tr) 0%, transparent 65%),
+    radial-gradient(ellipse 130% 65% at   0% 100%, var(--sb-bl) 0%, transparent 65%),
+    radial-gradient(ellipse 130% 65% at 100% 100%, var(--sb-br) 0%, transparent 65%),
     #222;
   border:1px solid rgba(255,251,248,0.1);
   border-radius:20px;
@@ -1686,13 +1689,18 @@ async function loadExtraInfo(item) {
     const artPath = meta && meta.art;
     const ub = (meta && (meta.UltraBlurColors || meta.ultraBlurColors))
       || item.ultraBlurColors || item.UltraBlurColors || null;
-    const tintBL = ub && ub.bottomLeft ? ubTint(ub.bottomLeft) : null;
-    const tintBR = ub && ub.bottomRight ? ubTint(ub.bottomRight) : null;
+    const tintTL = ub && (ub.topLeft    || ub.bottomLeft)  ? ubTint(ub.topLeft    || ub.bottomLeft)  : null;
+    const tintTR = ub && (ub.topRight   || ub.bottomRight) ? ubTint(ub.topRight   || ub.bottomRight) : null;
+    const tintBL = ub && (ub.bottomLeft || ub.topLeft)    ? ubTint(ub.bottomLeft || ub.topLeft)    : null;
+    const tintBR = ub && (ub.bottomRight|| ub.topRight)   ? ubTint(ub.bottomRight|| ub.topRight)   : null;
+    const anyTint = tintTL || tintTR || tintBL || tintBR;
     item._extra = {
       year: (meta && meta.year) || null,
-      tint: (tintBL || tintBR) ? {
-        bl: (tintBL || tintBR).glow, br: (tintBR || tintBL).glow,
-        fl: (tintBL || tintBR).fade, fr: (tintBR || tintBL).fade
+      tint: anyTint ? {
+        tl: (tintTL || tintBL || tintTR || tintBR).glow,
+        tr: (tintTR || tintBR || tintTL || tintBL).glow,
+        bl: (tintBL || tintTL || tintBR || tintTR).glow,
+        br: (tintBR || tintTR || tintBL || tintTL).glow,
       } : null,
       backdrop: artPath ? `${cfg.url}${artPath}?X-Plex-Token=${cfg.token}&width=700` : '',
       logo: logoImg && logoImg.url
@@ -1725,8 +1733,8 @@ function openSummary() {
   box.style.height = '';
   backdrop.classList.remove('on');
   backdropImg.removeAttribute('src');
+  box.style.removeProperty('--sb-tl'); box.style.removeProperty('--sb-tr');
   box.style.removeProperty('--sb-bl'); box.style.removeProperty('--sb-br');
-  box.style.removeProperty('--sb-fade-l'); box.style.removeProperty('--sb-fade-r');
   const closeBtn = document.getElementById('summaryClose');
   closeBtn.classList.remove('on-light');
   closeBtn._backdropIsLight = false;
@@ -1827,10 +1835,10 @@ function openSummary() {
     // Paint the bottom corners with the artwork's ultraBlur tint (or clear it
     // for items without that metadata).
     if (extra.tint) {
+      box.style.setProperty('--sb-tl', extra.tint.tl);
+      box.style.setProperty('--sb-tr', extra.tint.tr);
       box.style.setProperty('--sb-bl', extra.tint.bl);
       box.style.setProperty('--sb-br', extra.tint.br);
-      box.style.setProperty('--sb-fade-l', extra.tint.fl);
-      box.style.setProperty('--sb-fade-r', extra.tint.fr);
     }
 
     // Backdrop + logo go together: no backdrop means we keep the plain
