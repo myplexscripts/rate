@@ -167,8 +167,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #posterStack {
   position:relative;
   width:100%;
-  height:42vh;
-  height:42svh;
+  height:46vh;
+  height:46svh;
   flex-shrink:1;
   min-height:0;
   margin-bottom:72px;
@@ -363,7 +363,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   width:104px; height:34px;
 }
 
-#trailerInline { margin:14px 0 4px; }
+#trailerInline { margin:14px 0 18px; }
 #trailerInline.hidden { display:none; }
 #trailerVideo {
   width:100%;
@@ -914,7 +914,9 @@ function preloadInfo() {
   for (let i = 1; i <= 2; i++) {
     const item = queue[i];
     if (!item) continue;
-    loadExtraInfo(item);
+    loadExtraInfo(item).then(extra => {
+      extra.cast.forEach(c => { if (c.photo) prefetchCastPhoto(c.photo); });
+    });
     loadTrailer(item);
   }
 }
@@ -1120,6 +1122,18 @@ async function loadCastPhoto(url, img) {
   }
 }
 
+// Silently warms castPhotoCache (no <img> involved) so by the time the
+// summary popup renders the real photo elements, loadCastPhoto hits cache.
+async function prefetchCastPhoto(url) {
+  if (!url || castPhotoCache.has(url) || !url.startsWith(cfg.url)) return;
+  try {
+    const resp = await fetch(url, { headers: H() });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const blob = await resp.blob();
+    castPhotoCache.set(url, URL.createObjectURL(blob));
+  } catch {}
+}
+
 async function loadExtraInfo(item) {
   if (item._extra !== undefined) return item._extra;
   try {
@@ -1164,6 +1178,7 @@ function openSummary() {
       <div class="castName skel-text skeleton" style="width:100%;height:11px;margin-top:6px;"></div>
     </div>`).join('');
   castEl.onscroll = null;
+  castEl.scrollLeft = 0;
   castWrap.classList.remove('hidden');
   document.getElementById('castFadeL').classList.remove('show');
   document.getElementById('castFadeR').classList.remove('show');
