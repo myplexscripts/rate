@@ -436,7 +436,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryYear:empty { display:none; }
 #summaryMeta {
   display:flex; gap:8px; justify-content:center; flex-wrap:wrap;
-  margin-bottom:10px; margin-top:4px;
+  margin-bottom:10px; margin-top:14px;
 }
 #summaryMeta.hidden { display:none; }
 .metaPill {
@@ -1869,7 +1869,6 @@ function openSummary() {
   // immediately — that keeps its row from popping in later and nudging layout.
   document.getElementById('summaryYear').textContent = '';
   document.getElementById('summaryText').textContent = item.summary;
-  const genresEl = document.getElementById('summaryGenres');
   const castWrap = document.getElementById('summaryCastWrap');
   const castEl = document.getElementById('summaryCast');
   const trailerBtn = document.getElementById('btnTrailer');
@@ -1883,10 +1882,6 @@ function openSummary() {
   // When it is (the common case, thanks to prefetch), we render the real
   // content synchronously below so the panel never resizes after it appears.
   if (!known) {
-    genresEl.innerHTML = `
-      <span class="genrePill skeleton skel-text" style="width:64px;height:13px;"></span>
-      <span class="genrePill skeleton skel-text" style="width:80px;height:13px;"></span>`;
-    genresEl.classList.remove('hidden');
     castEl.innerHTML = Array.from({ length: 6 }).map(() => `
       <div class="castMember">
         <div class="castPhoto skeleton"></div>
@@ -1939,13 +1934,9 @@ function openSummary() {
     if (extra.contentRating) metaParts.push(`<span class="metaPill metaPill--rating">${escHtml(extra.contentRating)}</span>`);
     if (extra.seasonCount) metaParts.push(`<span class="metaPill">${extra.seasonCount} Season${extra.seasonCount !== 1 ? 's' : ''}</span>`);
     if (extra.episodeCount) metaParts.push(`<span class="metaPill">${extra.episodeCount} Episodes</span>`);
-    if (extra.country) metaParts.push(`<span class="metaPill">${escHtml(extra.country)}</span>`);
     if (metaParts.length) { metaEl.innerHTML = metaParts.join(''); metaEl.classList.remove('hidden'); }
     else metaEl.classList.add('hidden');
-    // Year and genres are now in the meta row — clear the old standalone elements.
     document.getElementById('summaryYear').textContent = '';
-    document.getElementById('summaryGenres').innerHTML = '';
-    document.getElementById('summaryGenres').classList.add('hidden');
 
     // Ratings row
     const ratingsEl = document.getElementById('summaryRatings');
