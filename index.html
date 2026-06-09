@@ -345,32 +345,30 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 /* Fade the image into the ultraBlur — bottom dissolve + vignette that creeps
    in from all edges with the meniscus bulging up in the centre bottom. */
 #summaryBackdrop {
-  -webkit-mask-image:
-    linear-gradient(to bottom,
-      black 0%, black 44%,
-      rgba(0,0,0,0.9) 56%,
-      rgba(0,0,0,0.65) 68%,
-      rgba(0,0,0,0.28) 82%,
-      transparent 100%),
-    radial-gradient(ellipse 70% 80% at 50% 50%,
-      black 40%,
-      rgba(0,0,0,0.85) 60%,
-      rgba(0,0,0,0.5) 78%,
-      transparent 100%);
-  -webkit-mask-composite: source-in;
-  mask-image:
-    linear-gradient(to bottom,
-      black 0%, black 44%,
-      rgba(0,0,0,0.9) 56%,
-      rgba(0,0,0,0.65) 68%,
-      rgba(0,0,0,0.28) 82%,
-      transparent 100%),
-    radial-gradient(ellipse 70% 80% at 50% 50%,
-      black 40%,
-      rgba(0,0,0,0.85) 60%,
-      rgba(0,0,0,0.5) 78%,
-      transparent 100%);
-  mask-composite: intersect;
+  /* Bottom linear fade — top is untouched */
+  -webkit-mask-image: linear-gradient(to bottom,
+    black 0%, black 44%,
+    rgba(0,0,0,0.9) 56%,
+    rgba(0,0,0,0.65) 68%,
+    rgba(0,0,0,0.28) 82%,
+    transparent 100%);
+  mask-image: linear-gradient(to bottom,
+    black 0%, black 44%,
+    rgba(0,0,0,0.9) 56%,
+    rgba(0,0,0,0.65) 68%,
+    rgba(0,0,0,0.28) 82%,
+    transparent 100%);
+}
+/* Corner vignette as an overlay — radials anchored at bottom corners so they
+   can never reach the top edges of the image. */
+#summaryBackdrop::after {
+  content:'';
+  position:absolute; inset:0;
+  pointer-events:none;
+  background:
+    radial-gradient(ellipse 65% 60% at 0% 100%,   rgba(0,0,0,0.7) 0%, transparent 100%),
+    radial-gradient(ellipse 65% 60% at 100% 100%, rgba(0,0,0,0.7) 0%, transparent 100%),
+    radial-gradient(ellipse 70% 35% at 50% 100%,  rgba(0,0,0,0.35) 0%, transparent 100%);
 }
 #summaryBox.has-backdrop #summaryBackdrop,
 #summaryBox.loading-backdrop #summaryBackdrop { display:block; }
@@ -452,7 +450,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryGenres {
   font-size:0.78rem; font-weight:500;
   color:rgba(255,251,248,0.5);
-  margin-bottom:14px;
+  margin-bottom:10px;
   text-align:center;
 }
 #summaryGenres.hidden { display:none; }
@@ -475,7 +473,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   object-fit:contain;
   flex-shrink:0;
 }
-.ratingBadge .rLabel { color:rgba(255,251,248,0.6); font-weight:600; }
 #summaryCredits {
   margin-top:20px;
   padding-top:16px;
@@ -888,8 +885,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
       <div id="summaryTitle"></div>
       <div id="summaryRowYearRating" class="hidden"></div>
       <div id="summaryRowDuration" class="hidden"></div>
-      <div id="summaryRatings" class="hidden"></div>
       <div id="summaryGenres" class="hidden"></div>
+      <div id="summaryRatings" class="hidden"></div>
       <button id="btnTrailer" class="hidden" onclick="playInlineTrailer()" title="Watch trailer">
         <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-movies"/></svg> Trailer
       </button>
@@ -1965,8 +1962,8 @@ function openSummary() {
     const cb = ratingBadge(extra.criticRatingImage, extra.criticRating);
     const ab = ratingBadge(extra.audienceRatingImage, extra.audienceRating);
     const mkBadge = b => {
-      const img = b.imgSrc ? `<img src="${b.imgSrc}" class="rIcon" alt="" onerror="this.style.display='none'">` : '';
-      return `<span class="ratingBadge">${img}<span class="rLabel">${escHtml(b.label)}:</span> ${escHtml(b.score)}</span>`;
+      const img = b.imgSrc ? `<img src="${b.imgSrc}" class="rIcon" alt="${escHtml(b.label)}" onerror="this.style.display='none'">` : '';
+      return `<span class="ratingBadge">${img}${escHtml(b.score)}</span>`;
     };
     if (cb) ratingParts.push(mkBadge(cb));
     if (ab) ratingParts.push(mkBadge(ab));
