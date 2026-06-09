@@ -565,31 +565,31 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryBox.has-backdrop #summaryClose.on-light:hover { background:rgba(0,0,0,0.45); }
 #summaryClose .icon { width:1.3rem; height:1.3rem; }
 
-/* TRAILER */
+/* TRAILER — styled like the nav controls (bare icon + drop-shadow) rather than
+   a filled chip. Rides at the end of the ratings row. */
 #btnTrailer {
   display:inline-flex; align-items:center; justify-content:center;
-  margin:0;
-  width:34px; height:34px; flex-shrink:0;
-  background:var(--star);
+  margin:0; padding:2px;
+  flex-shrink:0;
+  background:none;
   border:none;
-  color:#191919;
-  border-radius:50%;
-  padding:0;
+  color:var(--text);
   cursor:pointer;
-  transition:background 0.15s, opacity 0.2s, transform 0.15s;
+  transition:opacity 0.2s, transform 0.15s;
 }
-#btnTrailer .icon { width:0.95rem; height:0.95rem; margin-left:1px; /* optical centring of the play glyph */ }
-#btnTrailer:hover  { transform:scale(1.06); }
-#btnTrailer:active { transform:scale(0.94); }
+#btnTrailer .icon { width:1.5rem; height:1.5rem; filter:drop-shadow(0 1px 3px rgba(0,0,0,0.6)); }
+#btnTrailer:hover  { transform:scale(1.08); }
+#btnTrailer:active { transform:scale(0.9); }
 #btnTrailer.hidden { display:none; }
 #btnTrailer.skeleton {
+  width:1.5rem; height:1.5rem; padding:0;
   background-color:rgba(255,251,248,0.06);
   background-image:linear-gradient(100deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0) 70%);
   background-size:468px 100%;
   animation:shimmer 1.5s ease-in-out infinite;
   color:transparent;
   pointer-events:none;
-  border-radius:50%;
+  border-radius:6px;
 }
 
 #trailerInline { margin:22px 0 18px; position:relative; }
@@ -828,7 +828,16 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
      always visible — they're a fraction of the viewport (never collapse to 0),
      so the whole site, bars included, always fits inside the viewport. The
      band between them holds ALL content on the left + the backdrop on the right. */
-  :root { --bar: clamp(44px, 8vh, 104px); }
+  :root {
+    --bar: clamp(44px, 8vh, 104px);
+    /* Distance from the band's top edge down to the top of the floating
+       trailer player. The left content column reuses this as its top padding
+       so the LOGO's top lines up exactly with the video player's top. */
+    --vplayer-top: clamp(18px, 4vh, 48px);
+    /* One shared gap for an even rhythm down the column:
+       logo · meta · genres · ratings · summary. */
+    --stack-gap: clamp(15px, 2.3vh, 24px);
+  }
 
   #glowBg { display:none; }
 
@@ -895,7 +904,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     align-items:flex-start;
     /* top block sits at the top, cast/personal anchor to the bottom (see the
        auto margins on #summaryText), so every screen lines up identically. */
-    padding:clamp(22px, 4.5vh, 54px) 46% clamp(22px, 4.5vh, 54px) 64px;
+    padding:var(--vplayer-top) 46% clamp(22px, 4.5vh, 54px) 64px;
     text-align:left; overflow:hidden;
     background-color:var(--sb-base);
     transition:background-color 0.45s ease;
@@ -985,39 +994,42 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 
   #summaryTitle {
     --title-fs: clamp(1.9rem, 3.2vw, 3.2rem);
-    justify-content:flex-start; align-items:flex-end;
+    justify-content:flex-start; align-items:flex-start;
     padding:0; width:100%;
-    /* Box matches the logo height exactly so the logo's TOP sits at the band's
-       top padding — making its distance from the top equal the stats' distance
-       from the bottom (paddings are symmetric). */
-    min-height:clamp(66px, 10.5vh, 110px);
-    /* Big, deliberate gap between the logo and the meta row. */
-    margin-bottom:clamp(52px, 8vh, 104px);
+    /* The box hugs the logo and top-aligns it, so the logo's TOP sits exactly
+       at the band's top padding (var(--vplayer-top)) — level with the top of
+       the video player on the right, whatever the logo's aspect ratio. */
+    min-height:0;
+    /* Same gap down to the meta row as between every other block. */
+    margin-bottom:var(--stack-gap);
   }
   #summaryBox.has-backdrop #summaryTitle,
   #summaryBox.loading-backdrop #summaryTitle {
-    margin-top:0; padding:0;
+    /* Override the mobile has-backdrop rule (min-height:116px, margin-bottom:2px)
+       so the box keeps hugging the logo with the shared gap beneath it. */
+    margin-top:0; margin-bottom:var(--stack-gap); padding:0;
+    min-height:0;
   }
-  /* Dynamic logo sizing: drive height so small logos scale UP to the target,
-     while max-width + object-fit:contain bound (and never distort) wide ones. */
+  /* Dynamic logo sizing: max-height + max-width with auto on both lets the box
+     shrink to the rendered logo, so its top edge is exact for any aspect ratio.
+     object-fit:contain never distorts it. */
   #summaryTitle img,
   #summaryBox.has-backdrop #summaryTitle img,
   #summaryBox.loading-backdrop #summaryTitle img {
     margin:0;
-    height:clamp(66px, 10.5vh, 110px); width:auto;
+    height:auto; width:auto;
+    max-height:clamp(66px, 10.5vh, 110px);
     max-width:min(88%, 440px);
-    object-fit:contain; object-position:left bottom;
-    /* Dual halo so the logo separates on EITHER a light or a dark backdrop:
-       a soft dark drop for light art, a thin light edge for dark art/logos. */
-    filter:
-      drop-shadow(0 2px 10px rgba(0,0,0,0.55))
-      drop-shadow(0 0 2px rgba(255,255,255,0.45));
+    object-fit:contain; object-position:left top;
+    /* Soft dark drop for legibility on light art — no light halo/glow. */
+    filter:drop-shadow(0 2px 8px rgba(0,0,0,0.45));
   }
 
-  /* Even vertical rhythm between the meta blocks so the column breathes. */
-  #summaryRowYearRating { justify-content:flex-start; gap:9px; margin-top:0; margin-bottom:14px; }
-  #summaryGenres        { text-align:left; margin-bottom:16px; }
-  #summaryRatings       { justify-content:flex-start; gap:10px; margin-bottom:0; }
+  /* Even vertical rhythm: every block carries the same gap beneath it, so the
+     spacing logo→meta→genres→ratings→summary is identical. */
+  #summaryRowYearRating { justify-content:flex-start; gap:9px; margin-top:0; margin-bottom:var(--stack-gap); }
+  #summaryGenres        { text-align:left; margin-bottom:var(--stack-gap); }
+  #summaryRatings       { justify-content:flex-start; gap:10px; margin-bottom:var(--stack-gap); }
 
 
   /* Summary butts directly under the ratings row, then takes all the remaining
@@ -1025,7 +1037,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
      the band bottom). Long blurbs get room; short ones just leave space. */
   #summaryText {
     text-align:left; min-height:0;
-    margin-top:clamp(16px, 2.5vh, 28px); margin-bottom:auto;
+    /* Gap comes from the ratings row's margin-bottom, keeping the rhythm even. */
+    margin-top:0; margin-bottom:auto;
     font-size:0.92rem; line-height:1.62; max-width:620px;
     display:-webkit-box; -webkit-box-orient:vertical;
     -webkit-line-clamp:6; overflow:hidden;
@@ -1180,7 +1193,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   <symbol id="icon-skip" viewBox="0 0 256 256"><path d="M141.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L124.69,128,50.34,53.66A8,8,0,0,1,61.66,42.34l80,80A8,8,0,0,1,141.66,133.66Zm80-11.32-80-80a8,8,0,0,0-11.32,11.32L204.69,128l-74.35,74.34a8,8,0,0,0,11.32,11.32l80-80A8,8,0,0,0,221.66,122.34Z"/></symbol>
   <symbol id="icon-shuffle" viewBox="0 0 256 256"><path d="M237.66,178.34a8,8,0,0,1,0,11.32l-24,24a8,8,0,0,1-11.32-11.32L212.69,192H200.94a72.12,72.12,0,0,1-58.59-30.15l-41.72-58.4A56.1,56.1,0,0,0,55.06,80H32a8,8,0,0,1,0-16H55.06a72.12,72.12,0,0,1,58.59,30.15l41.72,58.4A56.1,56.1,0,0,0,200.94,176h11.75l-10.35-10.34a8,8,0,0,1,11.32-11.32ZM143,107a8,8,0,0,0,11.16-1.86l1.2-1.67A56.1,56.1,0,0,1,200.94,80h11.75L202.34,90.34a8,8,0,0,0,11.32,11.32l24-24a8,8,0,0,0,0-11.32l-24-24a8,8,0,0,0-11.32,11.32L212.69,64H200.94a72.12,72.12,0,0,0-58.59,30.15l-1.2,1.67A8,8,0,0,0,143,107Zm-30,42a8,8,0,0,0-11.16,1.86l-1.2,1.67A56.1,56.1,0,0,1,55.06,176H32a8,8,0,0,0,0,16H55.06a72.12,72.12,0,0,0,58.59-30.15l1.2-1.67A8,8,0,0,0,113,149Z"/></symbol>
   <symbol id="icon-x" viewBox="0 0 256 256"><path d="M208.49,191.51a12,12,0,0,1-17,17L128,145,64.49,208.49a12,12,0,0,1-17-17L111,128,47.51,64.49a12,12,0,0,1,17-17L128,111l63.51-63.52a12,12,0,0,1,17,17L145,128Z"/></symbol>
-  <symbol id="icon-trailer" viewBox="0 0 256 256"><path d="M232.43 114.49 84.65 26.08A15.91 15.91 0 0 0 60 39.6v176.81a15.91 15.91 0 0 0 24.65 13.52l147.78-88.41a15.78 15.78 0 0 0 0-26.91Z"/></symbol>
+  <symbol id="icon-trailer" viewBox="0 0 256 256"><path d="M232,216H183.36A103.95,103.95,0,1,0,128,232H232a8,8,0,0,0,0-16ZM40,128a88,88,0,1,1,88,88A88.1,88.1,0,0,1,40,128Zm88-24a24,24,0,1,0-24-24A24,24,0,0,0,128,104Zm0-32a8,8,0,1,1-8,8A8,8,0,0,1,128,72Zm24,104a24,24,0,1,0-24,24A24,24,0,0,0,152,176Zm-32,0a8,8,0,1,1,8,8A8,8,0,0,1,120,176Zm56-24a24,24,0,1,0-24-24A24,24,0,0,0,176,152Zm0-32a8,8,0,1,1-8,8A8,8,0,0,1,176,120ZM80,104a24,24,0,1,0,24,24A24,24,0,0,0,80,104Zm0,32a8,8,0,1,1,8-8A8,8,0,0,1,80,136Z"/></symbol>
   <symbol id="icon-movies" viewBox="0 0 32 32"><path d="M5 5v22q0 0.4 0.15 0.77 0.16 0.36 0.44 0.64 0.28 0.28 0.64 0.44 0.37 0.15 0.77 0.15h18q0.4 0 0.77-0.15 0.36-0.16 0.64-0.44 0.28-0.28 0.44-0.64 0.15-0.37 0.15-0.77v-22q0-0.4-0.15-0.77-0.16-0.36-0.44-0.64-0.28-0.28-0.64-0.44-0.37-0.15-0.77-0.15h-18q-0.4 0-0.77 0.15-0.36 0.16-0.64 0.44-0.28 0.28-0.44 0.64-0.15 0.37-0.15 0.77zm6 22v-10h10v10zm-2-12h-2v-4h2zm0 2v4h-2v-4zm14 0h2v4h-2zm0-2v-4h2v4zm-2 0h-10v-10h10zm-12-10v4h-2v-4zm-2 18h2v4h-2zm16 4v-4h2v4zm2-22v4h-2v-4z"/></symbol>
   <symbol id="icon-television" viewBox="0 0 256 256"><path d="M208,40H48A24,24,0,0,0,24,64V176a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V64A24,24,0,0,0,208,40Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V64a8,8,0,0,1,8-8H208a8,8,0,0,1,8,8Zm-48,48a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,224Z"/></symbol>
   <symbol id="icon-star-empty" viewBox="0 0 256 256"><path d="M239.18,97.26A16.38,16.38,0,0,0,224.92,86l-59-4.76L143.14,26.15a16.36,16.36,0,0,0-30.27,0L90.11,81.23,31.08,86a16.46,16.46,0,0,0-9.37,28.86l45,38.83L53,211.75a16.38,16.38,0,0,0,24.5,17.82L128,198.49l50.53,31.08A16.4,16.4,0,0,0,203,211.75l-13.76-58.07,45-38.83A16.43,16.43,0,0,0,239.18,97.26Zm-15.34,5.47-48.7,42a8,8,0,0,0-2.56,7.91l14.88,62.8a.37.37,0,0,1-.17.48c-.18.14-.23.11-.38,0l-54.72-33.65a8,8,0,0,0-8.38,0L69.09,215.94c-.15.09-.19.12-.38,0a.37.37,0,0,1-.17-.48l14.88-62.8a8,8,0,0,0-2.56-7.91l-48.7-42c-.12-.1-.23-.19-.13-.5s.18-.27.33-.29l63.92-5.16A8,8,0,0,0,103,91.86l24.62-59.61c.08-.17.11-.25.35-.25s.27.08.35.25L153,91.86a8,8,0,0,0,6.75,4.92l63.92,5.16c.15,0,.24,0,.33.29S224,102.63,223.84,102.73Z"/></symbol>
