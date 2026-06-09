@@ -342,23 +342,45 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   width:100%; height:100%;
   object-fit:cover; display:block;
 }
-/* Fade the image into the ultraBlur background. Starts gently around the
-   midpoint and eases in so it feels organic rather than like a hard overlay. */
+/* Fade the image into the ultraBlur background — bottom fade + side/corner
+   vignette that creeps in from the edges, strongest at bottom corners. */
 #summaryBackdrop {
-  -webkit-mask-image:linear-gradient(to bottom,
-    black 0%, black 48%,
-    rgba(0,0,0,0.92) 58%,
-    rgba(0,0,0,0.72) 68%,
-    rgba(0,0,0,0.38) 80%,
-    rgba(0,0,0,0.08) 91%,
-    transparent 100%);
-  mask-image:linear-gradient(to bottom,
-    black 0%, black 48%,
-    rgba(0,0,0,0.92) 58%,
-    rgba(0,0,0,0.72) 68%,
-    rgba(0,0,0,0.38) 80%,
-    rgba(0,0,0,0.08) 91%,
-    transparent 100%);
+  -webkit-mask-image:
+    linear-gradient(to bottom,
+      black 0%, black 44%,
+      rgba(0,0,0,0.9) 56%,
+      rgba(0,0,0,0.65) 68%,
+      rgba(0,0,0,0.28) 82%,
+      transparent 100%),
+    linear-gradient(to right,
+      rgba(0,0,0,0.55) 0%,
+      black 18%,
+      black 82%,
+      rgba(0,0,0,0.55) 100%),
+    radial-gradient(ellipse 80% 60% at 50% 100%,
+      transparent 0%,
+      transparent 30%,
+      rgba(0,0,0,0.4) 60%,
+      black 100%);
+  -webkit-mask-composite: source-in, source-in;
+  mask-image:
+    linear-gradient(to bottom,
+      black 0%, black 44%,
+      rgba(0,0,0,0.9) 56%,
+      rgba(0,0,0,0.65) 68%,
+      rgba(0,0,0,0.28) 82%,
+      transparent 100%),
+    linear-gradient(to right,
+      rgba(0,0,0,0.55) 0%,
+      black 18%,
+      black 82%,
+      rgba(0,0,0,0.55) 100%),
+    radial-gradient(ellipse 80% 60% at 50% 100%,
+      transparent 0%,
+      transparent 30%,
+      rgba(0,0,0,0.4) 60%,
+      black 100%);
+  mask-composite: intersect;
 }
 #summaryBox.has-backdrop #summaryBackdrop,
 #summaryBox.loading-backdrop #summaryBackdrop { display:block; }
