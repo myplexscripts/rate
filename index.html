@@ -368,7 +368,11 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryBox.has-backdrop #summaryTitle,
 #summaryBox.loading-backdrop #summaryTitle {
   position:relative; z-index:1;
-  margin-top:-50px; margin-bottom:6px;
+  /* Pull the title up so the backdrop's bottom edge sits at the vertical
+     midpoint of the title/logo box. With min-height:100px the midpoint is
+     at 50px; the backdrop has margin-bottom:16px so we need -66px net:
+     16 - 66 = -50px → backdrop bottom exactly at the 50px midpoint. */
+  margin-top:-66px; margin-bottom:6px;
   padding:0 12px;
   min-height:100px;
 }
@@ -448,10 +452,10 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryCast::-webkit-scrollbar { display:none; }
 #summaryCast .castMember {
   display:flex; flex-direction:column; align-items:center;
-  width:64px; flex-shrink:0; text-align:center;
+  width:70px; flex-shrink:0; text-align:center;
 }
 #summaryCast .castPhoto {
-  width:56px; height:56px; border-radius:50%;
+  width:62px; height:62px; border-radius:50%;
   object-fit:cover; background:rgba(255,251,248,0.1);
   border:1px solid rgba(255,251,248,0.13);
 }
