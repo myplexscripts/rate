@@ -314,27 +314,140 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryOverlay.on #summaryBox { transform:scale(1); }
 
 /* ── Desktop split-view ───────────────────────────────────── */
+/* ── Desktop hero layout ─────────────────────────────────── */
 @media (min-width:960px) {
+  /* Ambient glow hidden — backdrop + --sb-base fill the bg role */
+  #glowBg { display:none; }
+
+  /* Stage becomes a transparent pointer-events-none layer;
+     only #card at the bottom is interactive */
   #stage {
-    right:50%;
-    left:0;
-  }
-  #summaryOverlay {
-    left:50%;
     right:0;
-    top:0; bottom:0;
-    padding:calc(var(--safe-top) + 64px) 24px max(24px, env(safe-area-inset-bottom));
+    background:transparent;
+    z-index:550;
+    pointer-events:none;
+    align-items:flex-end;
+    justify-content:center;
+  }
+  #card {
+    max-width:none;
+    width:100%;
+    height:auto;
+    padding:0 0 40px;
+    gap:14px;
+    background:transparent;
+    pointer-events:all;
+    align-items:center;
+  }
+  #posterStack, #info { display:none; }
+  .act-btn { width:44px; height:44px; font-size:1.05rem; }
+
+  /* Hero overlay — full screen, always visible when .on */
+  #summaryOverlay {
+    inset:0; left:0;
+    padding:0;
     background:none;
     backdrop-filter:none;
-    justify-content:center;
-    align-items:flex-start;
   }
-  #summaryOverlay:not(.on) { opacity:0; pointer-events:none; }
   #summaryOverlay.on { opacity:1; pointer-events:all; }
+
+  /* Summary box — full screen, no card chrome */
   #summaryBox {
-    max-width:480px;
+    max-width:none;
+    width:100%; height:100%;
+    border-radius:0;
     transform:none !important;
+    overflow:hidden;
   }
+
+  /* Backdrop: absolute full-screen, image anchored right, fades left */
+  #summaryBox.has-backdrop #summaryBackdrop,
+  #summaryBox.loading-backdrop #summaryBackdrop {
+    display:block;
+    position:absolute;
+    inset:0;
+    width:100%; height:100%;
+    aspect-ratio:auto;
+    margin:0;
+    border-radius:0;
+    opacity:1;
+    /* Fade image in from the right — left side shows --sb-base */
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.25) 28%, rgba(0,0,0,0.75) 48%, black 62%);
+    mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.25) 28%, rgba(0,0,0,0.75) 48%, black 62%);
+  }
+  #summaryBackdrop img { object-position:right center; }
+  /* Replace corner vignettes with a bottom gradient for text legibility */
+  #summaryBackdrop::after {
+    background:
+      linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.5) 20%, rgba(0,0,0,0.15) 45%, transparent 65%),
+      linear-gradient(to right, var(--sb-base,#222) 0%, transparent 55%);
+  }
+
+  /* Content scroll area — left column, content anchored to bottom */
+  #summaryScroll {
+    position:relative; z-index:2;
+    display:flex; flex-direction:column; justify-content:flex-end;
+    padding:0 40px 110px 60px;
+    text-align:left;
+    overflow:hidden;
+    max-width:52%;
+    height:100%;
+  }
+
+  /* Title — larger, left-aligned */
+  #summaryTitle {
+    --title-fs: clamp(1.8rem, 3.2vw, 3.2rem);
+    justify-content:flex-start;
+    padding:0;
+    margin-bottom:10px;
+  }
+  /* Cancel the backdrop-overlap negative margin used in mobile */
+  #summaryBox.has-backdrop #summaryTitle,
+  #summaryBox.loading-backdrop #summaryTitle {
+    margin-top:0;
+    min-height:0;
+    padding:0;
+  }
+  /* Logo: left-aligned, slightly larger */
+  #summaryTitle img, #summaryBox.has-backdrop #summaryTitle img,
+  #summaryBox.loading-backdrop #summaryTitle img {
+    margin:0;
+    max-height:110px;
+    max-width:80%;
+  }
+
+  /* Meta rows — left-aligned */
+  #summaryRowYearRating { justify-content:flex-start; margin-top:0; }
+  #summaryRowDuration   { justify-content:flex-start; }
+  #summaryGenres        { text-align:left; }
+  #summaryRatings       { justify-content:flex-start; }
+
+  /* Summary text — left-aligned, 3 lines max */
+  #summaryText {
+    text-align:left;
+    display:-webkit-box;
+    -webkit-line-clamp:3;
+    -webkit-box-orient:vertical;
+    overflow:hidden;
+    min-height:0;
+    font-size:0.9rem;
+  }
+
+  /* Trailer button — left-aligned */
+  #btnTrailer { align-self:flex-start; }
+
+  /* Cast strip — reset negative bleed margin */
+  #summaryCastWrap { margin:16px 0 0; }
+  #summaryCast { padding:0; }
+
+  /* Personal data — compact, inline */
+  #summaryPersonal {
+    flex-direction:row; flex-wrap:wrap; gap:4px 18px;
+    border-top:none; padding-top:0; margin-top:12px;
+    text-align:left;
+  }
+
+  /* No close button */
   #summaryClose { display:none !important; }
 }
 #summaryScroll {
