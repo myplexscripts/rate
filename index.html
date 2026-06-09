@@ -793,30 +793,20 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
    DESKTOP / LARGE-SCREEN HERO LAYOUT
    Placed at the end of the stylesheet so these rules win over the
    mobile base rules (media queries add no specificity — source
-   order decides). Full-screen backdrop anchored right, fading left
-   into the artwork's ultraBlur tint; content sits lower-left; the
-   rating controls float at the bottom-left.
+   order decides). Hard letterbox bars (solid black) frame a central
+   "band": ALL content lives in the band's left half, the backdrop
+   fills its right half with only the LEFT edge dissolving into the
+   artwork's ultraBlur tint; rating controls sit at the band's
+   bottom-left.
    ════════════════════════════════════════════════════════════ */
 @media (min-width:960px) {
+  /* --bar = hard letterbox bar height. Everything between the two bars (the
+     "band") holds ALL content on the left and the backdrop on the right. The
+     bars themselves are solid black with crisp edges. */
+  :root { --bar: clamp(40px, 8vh, 96px); }
+
   #glowBg { display:none; }
 
-  /* Stage is a transparent top layer; only the control cluster is clickable */
-  #stage { z-index:550; pointer-events:none; }
-  #card {
-    position:absolute; left:0; bottom:0;
-    width:auto; max-width:none; height:auto;
-    flex-direction:column; align-items:flex-start;
-    padding:0 0 44px 64px; gap:16px;
-    background:transparent;
-    pointer-events:all;
-  }
-  #posterStack, #info { display:none; }
-  #starRow { margin:0; }
-  .star { font-size:2.1rem; }
-  #actions { width:auto; justify-content:flex-start; gap:20px; padding:0; }
-  .act-btn .icon { width:1.7rem; height:1.7rem; }
-
-  /* Hero overlay fills the whole screen */
   #summaryOverlay {
     inset:0; padding:0;
     background:none; backdrop-filter:none;
@@ -826,80 +816,75 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   #summaryBox {
     max-width:none; width:100%; height:100%;
     border-radius:0; transform:none !important;
+    background:#000;                 /* the solid letterbox bars */
   }
 
-  /* Backdrop container fills the screen. The mask moves off the container (set
-     to none) so the blurred ambient ::before — which fills the cinematic bars —
-     stays fully visible; only the crisp <img> frame is masked. */
+  /* Stage is a transparent top layer; only the control cluster is clickable.
+     Controls sit bottom-LEFT inside the band, just above the bottom bar. */
+  #stage { z-index:550; pointer-events:none; }
+  #card {
+    position:absolute; left:0; bottom:calc(var(--bar) + 20px);
+    width:auto; max-width:none; height:auto;
+    flex-direction:column; align-items:flex-start;
+    padding:0 0 0 64px; gap:13px;
+    background:transparent;
+    pointer-events:all;
+  }
+  #posterStack, #info { display:none; }
+  #starRow { margin:0; }
+  .star { font-size:1.85rem; }
+  #actions { width:auto; justify-content:flex-start; gap:18px; padding:0; }
+  .act-btn .icon { width:1.55rem; height:1.55rem; }
+
+  /* The band: a horizontal strip between the two hard bars, tinted with the
+     artwork's ultraBlur colour. Holds the text content on the left. */
+  #summaryScroll {
+    position:absolute; left:0; right:0;
+    top:var(--bar); bottom:var(--bar);
+    height:auto; width:auto; max-width:none;
+    flex:none;
+    display:flex; flex-direction:column; justify-content:flex-start;
+    align-items:flex-start;
+    padding:clamp(18px, 4.5vh, 56px) 46% 130px 64px;
+    text-align:left; overflow:hidden;
+    background-color:var(--sb-base);
+    transition:background-color 0.35s ease;
+    z-index:1;
+  }
+  /* Content paints above the backdrop within the band. */
+  #summaryScroll > :not(#summaryBackdrop) { position:relative; z-index:1; }
+
+  /* Backdrop fills the band on the RIGHT. Its top/bottom are HARD (flush with
+     the bars); only the LEFT edge is masked so it dissolves into --sb-base. */
   #summaryBox.has-backdrop #summaryBackdrop,
   #summaryBox.loading-backdrop #summaryBackdrop {
     display:block;
     position:absolute; inset:0; z-index:0;
     width:100%; height:100%;
-    aspect-ratio:auto; margin:0; border-radius:0; opacity:1;
+    aspect-ratio:auto; margin:0; border-radius:0;
     overflow:hidden;
     -webkit-mask-image:none; mask-image:none;
   }
-  /* Ambient fill: a heavily blurred, darkened copy of the artwork covering the
-     whole viewport — this is what shows through the letterbox bars so they read
-     as cinematic rather than flat black. */
-  #summaryBox.has-backdrop #summaryBackdrop::before {
-    content:'';
-    position:absolute; inset:0; z-index:0;
-    background-image:var(--bd-img);
-    background-size:cover; background-position:center;
-    filter:blur(40px) brightness(0.4) saturate(1.3);
-    transform:scale(1.2);
-  }
-  /* Crisp 16:9 frame, anchored right and vertically centred so equal bars sit
-     above and below. width is capped to 64% of the screen, but also shrunk on
-     short viewports so the 16:9 height always fits (leaving the bars). The left
-     edge dissolves into the ambient layer; top/bottom feather into the bars. */
   #summaryBackdrop img {
     position:absolute;
-    right:0; top:50%;
-    transform:translateY(-50%);
-    width:min(64%, calc((100vh - 120px) * 16 / 9));
-    height:auto; aspect-ratio:16/9;
+    right:0; top:0; bottom:0;
+    height:100%; width:60%;
     object-fit:cover; object-position:center;
     z-index:1;
-    -webkit-mask-image:
-      linear-gradient(to right, transparent 0%, rgba(0,0,0,0.18) 18%, #000 44%),
-      linear-gradient(to bottom, transparent 0%, #000 9%, #000 91%, transparent 100%);
-    mask-image:
-      linear-gradient(to right, transparent 0%, rgba(0,0,0,0.18) 18%, #000 44%),
-      linear-gradient(to bottom, transparent 0%, #000 9%, #000 91%, transparent 100%);
-    -webkit-mask-composite:source-in;
-    mask-composite:intersect;
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.2) 16%, #000 44%);
+    mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.2) 16%, #000 44%);
   }
-  /* Contrast overlay: darken the bottom for the controls + feather the left
-     third so the lower-left text stays legible over any artwork. */
+  /* Light left-side darkening so the lower-left text stays legible over the
+     faded edge of the artwork. */
   #summaryBackdrop::after {
     z-index:2;
-    background:
-      linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 16%, rgba(0,0,0,0.1) 40%, transparent 60%),
-      linear-gradient(to right, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 42%);
+    background:linear-gradient(to right, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 40%);
   }
-
-  /* Content column, anchored to the lower-left. The huge right padding keeps
-     text in the left half while the absolute backdrop still fills the screen.
-     Bottom padding clears the floating control cluster. */
-  #summaryScroll {
-    position:relative; z-index:2;
-    flex:none;
-    display:flex; flex-direction:column; justify-content:flex-end;
-    align-items:flex-start;
-    width:100%; height:100%; max-width:none;
-    padding:0 50% 200px 64px;
-    text-align:left; overflow:hidden;
-  }
-  /* Content paints above the (positioned) backdrop */
-  #summaryScroll > :not(#summaryBackdrop) { position:relative; z-index:1; }
 
   #summaryTitle {
-    --title-fs: clamp(2rem, 3.4vw, 3.4rem);
+    --title-fs: clamp(1.9rem, 3.2vw, 3.2rem);
     justify-content:flex-start; align-items:flex-end;
-    padding:0; margin-bottom:14px; width:100%;
+    padding:0; margin-bottom:12px; width:100%;
   }
   #summaryBox.has-backdrop #summaryTitle,
   #summaryBox.loading-backdrop #summaryTitle {
@@ -908,28 +893,28 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   #summaryTitle img,
   #summaryBox.has-backdrop #summaryTitle img,
   #summaryBox.loading-backdrop #summaryTitle img {
-    margin:0; max-height:155px; max-width:100%;
+    margin:0; max-height:135px; max-width:100%;
   }
 
-  #summaryRowYearRating { justify-content:flex-start; margin-top:0; margin-bottom:8px; }
-  #summaryRowDuration   { justify-content:flex-start; margin-bottom:8px; }
-  #summaryGenres        { text-align:left; margin-bottom:12px; }
-  #summaryRatings       { justify-content:flex-start; margin-bottom:14px; }
+  #summaryRowYearRating { justify-content:flex-start; margin-top:0; margin-bottom:7px; }
+  #summaryRowDuration   { justify-content:flex-start; margin-bottom:7px; }
+  #summaryGenres        { text-align:left; margin-bottom:11px; }
+  #summaryRatings       { justify-content:flex-start; margin-bottom:13px; }
 
   #summaryText {
     text-align:left; min-height:0;
-    font-size:0.95rem; line-height:1.6; max-width:620px;
+    font-size:0.92rem; line-height:1.55; max-width:600px;
     -webkit-line-clamp:3;
   }
 
-  #btnTrailer { align-self:flex-start; margin:16px 0 0; }
+  #btnTrailer { align-self:flex-start; margin:14px 0 0; }
 
-  #summaryCastWrap { margin:20px 0 0; width:100%; max-width:620px; }
+  #summaryCastWrap { margin:18px 0 0; width:100%; max-width:600px; }
   #summaryCast { padding:0; }
 
   #summaryPersonal {
     flex-direction:row; flex-wrap:wrap; gap:2px 22px;
-    border-top:none; padding-top:0; margin-top:16px;
+    border-top:none; padding-top:0; margin-top:14px;
     text-align:left;
   }
 
