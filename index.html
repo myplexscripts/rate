@@ -862,27 +862,11 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     pointer-events:none; /* pass clicks through to #btnTrailer etc. */
   }
   #posterStack, #info { display:none; }
-  #starRow {
-    margin:0; pointer-events:all; cursor:pointer;
-    filter:drop-shadow(0 2px 12px rgba(0,0,0,0.65));
-  }
-  .star { font-size:3.6rem; }
+  #starRow { margin:0; pointer-events:all; cursor:pointer; }
+  /* Subtle drop-shadow on the star icons themselves for contrast over artwork */
+  .star { font-size:3.6rem; filter:drop-shadow(0 1px 3px rgba(0,0,0,0.6)); }
   #actions { width:auto; justify-content:center; gap:22px; padding:0; pointer-events:all; }
-  .act-btn .icon { width:1.55rem; height:1.55rem; }
-  .act-btn { filter:drop-shadow(0 2px 6px rgba(0,0,0,0.5)); }
-
-  /* Subtle radial scrim behind the rating cluster so stars/buttons stay legible
-     against any bright artwork without masking the backdrop image itself. */
-  #card::before {
-    content:'';
-    position:absolute;
-    inset:-56px -80px -36px -80px; /* bleed generously around the cluster */
-    z-index:-1;
-    pointer-events:none;
-    background:radial-gradient(ellipse at center bottom,
-      rgba(0,0,0,0.52) 0%, rgba(0,0,0,0.22) 55%, transparent 100%);
-    border-radius:50%;
-  }
+  .act-btn .icon { width:1.55rem; height:1.55rem; filter:drop-shadow(0 1px 3px rgba(0,0,0,0.6)); }
 
   /* The band: a horizontal strip between the two hard bars, tinted with the
      artwork's ultraBlur colour. Holds the text content on the left. */
@@ -1072,9 +1056,11 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     display:block;
     position:absolute;
     right:clamp(28px, 3.5vw, 72px);
-    top:50%;
-    transform:translateY(-50%);
-    width:min(48%, calc((100vh - 2 * var(--bar) - 80px) * 16 / 9));
+    /* Anchored toward the TOP of the band, with the bottom reserving room for
+       the rating cluster so the player never touches the stars. */
+    top:clamp(18px, 4vh, 48px);
+    transform:none;
+    width:min(46%, calc((100vh - 2 * var(--bar) - 210px) * 16 / 9));
     margin:0; padding:0;
     z-index:5;
     animation:trailerIn 0.4s cubic-bezier(0.22,1,0.36,1) both;
@@ -1085,8 +1071,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   }
   #summaryBox.playing-trailer #trailerClose { display:flex; }
   @keyframes trailerIn {
-    from { opacity:0; transform:translateY(-50%) scale(0.95); }
-    to   { opacity:1; transform:translateY(-50%) scale(1); }
+    from { opacity:0; transform:scale(0.95); }
+    to   { opacity:1; transform:scale(1); }
   }
 }
 
