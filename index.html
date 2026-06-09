@@ -67,9 +67,9 @@ button:focus-visible, [tabindex]:focus-visible, a:focus-visible {
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
-    animation-duration:0.01ms !important;
+    animation-duration:0ms !important;
     animation-iteration-count:1 !important;
-    transition-duration:0.01ms !important;
+    transition-duration:0ms !important;
     scroll-behavior:auto !important;
   }
 }
@@ -211,12 +211,14 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   min-height:0;
   margin-bottom:28px;
 }
-/* img sized to its own content (no letterbox box) so rounding shows on the real poster */
+/* img sized to its own content — aspect-ratio:2/3 keeps skeleton and loaded
+   poster the same shape so layout never shifts when the image loads. */
 .poster {
   position:absolute;
   left:50%; top:50%;
   max-width:100%; max-height:100%;
   width:auto; height:auto;
+  aspect-ratio:2/3;
   border-radius:18px;
   transform-origin:center center;
   transition:transform 0.38s cubic-bezier(0.4,0,0.2,1), opacity 0.38s ease, filter 0.38s ease;
@@ -287,7 +289,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
      opens at the same vertical position as the artwork it's describing. */
   padding:calc(var(--safe-top) + 64px) 16px max(16px, env(safe-area-inset-bottom));
   background:rgba(0,0,0,0.6);
-  backdrop-filter:blur(4px);
+  backdrop-filter:blur(2px);
   opacity:0; pointer-events:none;
   transition:opacity 0.2s;
 }
@@ -473,13 +475,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   object-fit:contain;
   flex-shrink:0;
 }
-#summaryCredits {
-  margin-top:20px;
-  padding-top:16px;
-  border-top:1px solid rgba(255,251,248,0.08);
-  text-align:center;
-}
-#summaryCredits.hidden { display:none; }
 #summaryPersonal {
   margin-top:20px;
   padding-top:16px;
@@ -497,13 +492,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   color:rgba(255,251,248,0.68);
   font-weight:600;
 }
-#summaryStudio {
-  font-size:0.75rem; font-weight:500;
-  color:rgba(255,251,248,0.45);
-  line-height:1.4;
-}
-#summaryStudio.hidden { display:none; }
-#summaryStudio span { color:rgba(255,251,248,0.75); font-weight:600; }
 /* Full-bleed to the panel edges: the row's first avatar lines up with the
    body text (via padding), but avatars scroll straight off the left/right
    edges and clip there — a clear cue that the row keeps going. */
@@ -908,12 +896,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
         <div id="trailerError" class="hidden"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-television"/></svg> Trailer unavailable</div>
       </div>
       <div id="summaryText"></div>
-      <div id="summaryYear" style="display:none"></div>
       <div id="summaryCastWrap" class="hidden">
         <div id="summaryCast"></div>
-      </div>
-      <div id="summaryCredits" class="hidden">
-        <div id="summaryStudio" class="hidden"></div>
       </div>
       <div id="summaryPersonal" class="hidden"></div>
     </div>
@@ -1047,10 +1031,9 @@ async function signIn() {
       code: pin.code,
       'context[device][product]': PLEX_PRODUCT
     });
-    const authWindow = window.open(`https://app.plex.tv/auth#?${authParams.toString()}`, '_blank');
+    window.open(`https://app.plex.tv/auth#?${authParams.toString()}`, '_blank', 'noopener,noreferrer');
 
     const token = await pollForToken(pin.id);
-    if (authWindow && !authWindow.closed) authWindow.close();
     if (!token) throw new Error('Sign-in timed out');
 
     cfg.token = token;
@@ -1078,20 +1061,24 @@ async function signIn() {
 }
 
 function pollForToken(pinId) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const start = Date.now();
     const timeoutMs = 3 * 60 * 1000;
+    let errors = 0;
     const tick = async () => {
       if (Date.now() - start > timeoutMs) return resolve(null);
       try {
-        const r = await fetch(`https://plex.tv/api/v2/pins/${pinId}`, {
-          headers: plexHeaders()
-        });
+        const r = await fetch(`https://plex.tv/api/v2/pins/${pinId}`, { headers: plexHeaders() });
         if (r.ok) {
           const data = await r.json();
           if (data.authToken) return resolve(data.authToken);
+          errors = 0;
+        } else {
+          if (++errors >= 5) return resolve(null);
         }
-      } catch {}
+      } catch {
+        if (++errors >= 5) return resolve(null);
+      }
       setTimeout(tick, 2000);
     };
     tick();
@@ -1255,10 +1242,7 @@ function rebuild() {
   preloadAhead();
 }
 
-let infoItem = null;
-
 function setInfo(item) {
-  infoItem = item;
   document.getElementById('iTitleText').textContent = item.title || '';
   document.getElementById('iDate').textContent = item.lastViewedAt
     ? 'Watched ' + fmtDate(item.lastViewedAt * 1000) : '';
@@ -1330,13 +1314,23 @@ const PLACEHOLDER_CAST = 'data:image/svg+xml;utf8,' + encodeURIComponent(
     <path d="M20 92 Q50 62 80 92 Z" fill="#555"/>
   </svg>`);
 
-// Cache loaded poster blob URLs + extracted glow colours by ratingKey so
-// revisiting an item (e.g. via Back or Shuffle) shows it instantly instead
-// of re-fetching — and never appears to "lose" the previous poster.
+// Cache poster blob URLs + glow colours — max 30 entries to cap memory use.
+// Oldest entries are evicted (with URL.revokeObjectURL to free the blob) when
+// the limit is reached, which happens naturally during long sessions.
 const posterCache = new Map();
+const POSTER_CACHE_MAX = 30;
+function posterCacheSet(key, val) {
+  if (posterCache.size >= POSTER_CACHE_MAX) {
+    const oldest = posterCache.keys().next().value;
+    URL.revokeObjectURL(posterCache.get(oldest).url);
+    posterCache.delete(oldest);
+  }
+  posterCache.set(key, val);
+}
 
 async function loadPoster(item, img, isTop) {
   const key = item.ratingKey;
+  if (posterCache.has(key + '_pending')) return;
   const cached = posterCache.get(key);
   if (cached) {
     img._glow = cached.glow;
@@ -1348,22 +1342,25 @@ async function loadPoster(item, img, isTop) {
   const url = posterUrl(item);
   const ultraBlur = getUltraBlurColors(item);
   img.onerror = () => { img.onerror = null; img.classList.remove('skeleton'); img.src = PLACEHOLDER_POSTER; };
+  posterCache.set(key + '_pending', true);
   try {
     const resp = await fetch(url, { headers: H() });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const blob = await resp.blob();
     const obj = URL.createObjectURL(blob);
+    posterCache.delete(key + '_pending');
     img.onload = async () => {
       img.classList.remove('skeleton');
       // Prefer Plex's own ultraBlurColors (server-extracted, matches its UI);
       // fall back to sampling pixels ourselves if the metadata lacks it.
       const c = ultraBlur || await getEdgeColors(img);
       img._glow = c;
-      posterCache.set(key, { url: obj, glow: c });
+      posterCacheSet(key, { url: obj, glow: c });
       if (isTop) setGlow(c);
     };
     img.src = obj;
   } catch {
+    posterCache.delete(key + '_pending');
     img.classList.remove('skeleton');
     img.src = PLACEHOLDER_POSTER;
   }
@@ -1383,7 +1380,11 @@ function preloadAhead() {
   if (isMeteredConnection()) return;
   for (let i = 3; i <= 4; i++) {
     const item = queue[i];
-    if (item) { const im = new Image(); im.src = posterUrl(item); }
+    if (!item) continue;
+    const link = document.createElement('link');
+    link.rel = 'preload'; link.as = 'image';
+    link.href = posterUrl(item);
+    document.head.appendChild(link);
   }
 }
 
@@ -1406,12 +1407,10 @@ function preloadInfo() {
     loadExtraInfo(item).then(extra => {
       if (metered) return;
       extra.cast.forEach(c => { if (c.photo) prefetchCastPhoto(c.photo); });
-      // Warm the browser cache for the backdrop + logo so they appear the
-      // instant the popup opens, rather than after a visible blank beat.
       if (extra.backdrop) { const im = new Image(); im.src = extra.backdrop; }
       if (extra.logo) { const im = new Image(); im.src = extra.logo; }
-    });
-    loadTrailer(item);
+    }).catch(e => console.warn('[preload]', e));
+    loadTrailer(item).catch(e => console.warn('[preload trailer]', e));
   }
 }
 
@@ -1420,7 +1419,7 @@ function preloadInfo() {
 // poster so the page glow can blend the two, mirroring the artwork.
 function getEdgeColors(imgEl) {
   return new Promise(resolve => {
-    try {
+    const run = () => { try {
       const W = 100, H = 80;
       const canvas = document.createElement('canvas');
       canvas.width = W; canvas.height = H;
@@ -1451,7 +1450,8 @@ function getEdgeColors(imgEl) {
     } catch {
       const c = [40, 40, 60];
       resolve({ tl: c, bl: c, tr: c, br: c });
-    }
+    } };
+    (typeof requestIdleCallback === 'function') ? requestIdleCallback(run) : setTimeout(run, 0);
   });
 }
 
@@ -1650,10 +1650,11 @@ async function submitRating() {
   const r = rating;
   let ok = true;
   try {
-    await fetch(
+    const res = await fetch(
       `${cfg.url}/:/rate?key=${item.ratingKey}&identifier=com.plexapp.plugins.library&rating=${r * 2}`,
       { method: 'PUT', headers: H() }
     );
+    if (!res.ok) throw new Error('HTTP ' + res.status);
   } catch { ok = false; }
 
   if (ok) {
@@ -1811,7 +1812,7 @@ async function loadExtraInfo(item) {
     const artPath = meta && meta.art;
     const ub = (meta && (meta.UltraBlurColors || meta.ultraBlurColors))
       || item.ultraBlurColors || item.UltraBlurColors || null;
-    const ubCorners = [ub.topLeft, ub.topRight, ub.bottomLeft, ub.bottomRight].filter(Boolean);
+    const ubCorners = ub ? [ub.topLeft, ub.topRight, ub.bottomLeft, ub.bottomRight].filter(Boolean) : [];
     item._extra = {
       year: (meta && meta.year) || null,
       tint: ubCorners.length ? ubBlend(ubCorners) : null,
@@ -1876,12 +1877,11 @@ function openSummary() {
   closeBtn._backdropIsLight = false;
 
   ['summaryRowYearRating','summaryRowDuration','summaryRatings','summaryGenres',
-   'summaryStudio','summaryPersonal'].forEach(id => {
+   'summaryPersonal'].forEach(id => {
     const el = document.getElementById(id);
     el.innerHTML = '';
     el.classList.add('hidden');
   });
-  document.getElementById('summaryCredits').classList.add('hidden');
 
   // Background prefetch (preloadInfo) usually has the extra info cached by the
   // time the popup opens, so we know up front whether a backdrop exists. Only
@@ -1904,7 +1904,6 @@ function openSummary() {
   }
   // Year is known up front whenever the extra info is cached, so we can set it
   // immediately — that keeps its row from popping in later and nudging layout.
-  document.getElementById('summaryYear').textContent = '';
   document.getElementById('summaryText').textContent = item.summary;
   const castWrap = document.getElementById('summaryCastWrap');
   const castEl = document.getElementById('summaryCast');
@@ -1985,7 +1984,7 @@ function openSummary() {
     const cb = ratingBadge(extra.criticRatingImage, extra.criticRating);
     const ab = ratingBadge(extra.audienceRatingImage, extra.audienceRating);
     const mkBadge = b => {
-      const img = b.imgSrc ? `<img src="${b.imgSrc}" class="rIcon" alt="${escHtml(b.label)}" onerror="this.style.display='none'">` : '';
+      const img = b.imgSrc ? `<img src="${escHtml(b.imgSrc)}" class="rIcon" alt="${escHtml(b.label)}" onerror="this.style.display='none'">` : '';
       return `<span class="ratingBadge">${img}${escHtml(b.score)}</span>`;
     };
     if (cb) ratingParts.push(mkBadge(cb));
@@ -1997,14 +1996,6 @@ function openSummary() {
     const genresEl = document.getElementById('summaryGenres');
     if (extra.genres && extra.genres.length) { genresEl.textContent = extra.genres.join(' · '); genresEl.classList.remove('hidden'); }
     else genresEl.classList.add('hidden');
-
-    const stuEl = document.getElementById('summaryStudio');
-    if (extra.studio) { stuEl.innerHTML = `Studio: <span>${escHtml(extra.studio)}</span>`; stuEl.classList.remove('hidden'); }
-    else stuEl.classList.add('hidden');
-
-    const creditsEl = document.getElementById('summaryCredits');
-    if (extra.studio) creditsEl.classList.remove('hidden');
-    else creditsEl.classList.add('hidden');
 
     // Personal data section
     const personalEl = document.getElementById('summaryPersonal');
@@ -2254,6 +2245,7 @@ function toast(msg, isCelebrate) {
 );
 let lastTouch = 0;
 document.addEventListener('touchend', e => {
+  if (e.target.closest('button,[role="button"],a,input,select,textarea')) return;
   const now = Date.now();
   if (now - lastTouch <= 300) e.preventDefault();
   lastTouch = now;
@@ -2264,11 +2256,21 @@ document.addEventListener('touchmove', e => {
 
 document.addEventListener('keydown', e => {
   const summaryOpen = document.getElementById('summaryOverlay').classList.contains('on');
-  if (e.key === 'Escape' && summaryOpen) {
-    closeSummary();
+  if (e.key === 'Escape' && summaryOpen) { closeSummary(); return; }
+  if (summaryOpen) {
+    if (e.key === 'Tab') {
+      const box = document.getElementById('summaryBox');
+      const focusable = Array.from(box.querySelectorAll(
+        'button:not([disabled]),[href],[tabindex]:not([tabindex="-1"]),video'
+      )).filter(el => el.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0], last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
     return;
   }
-  if (summaryOpen || busy || !queue[0]) return;
+  if (busy || !queue[0]) return;
 
   // Number keys rate in whole stars; hold Shift for the half-star below
   // (e.g. "3" = 3 stars, Shift+"3" = 2.5 stars) — mirrors the star slider's granularity.
