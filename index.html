@@ -497,18 +497,13 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   color:rgba(255,251,248,0.68);
   font-weight:600;
 }
-#summaryDirector, #summaryWriters, #summaryStudio {
+#summaryStudio {
   font-size:0.75rem; font-weight:500;
   color:rgba(255,251,248,0.45);
-  margin-top:7px;
   line-height:1.4;
 }
-#summaryDirector:first-child, #summaryWriters:first-child, #summaryStudio:first-child { margin-top:0; }
-#summaryDirector.hidden, #summaryWriters.hidden, #summaryStudio.hidden { display:none; }
-#summaryDirector span, #summaryWriters span, #summaryStudio span {
-  color:rgba(255,251,248,0.75);
-  font-weight:600;
-}
+#summaryStudio.hidden { display:none; }
+#summaryStudio span { color:rgba(255,251,248,0.75); font-weight:600; }
 /* Full-bleed to the panel edges: the row's first avatar lines up with the
    body text (via padding), but avatars scroll straight off the left/right
    edges and clip there — a clear cue that the row keeps going. */
@@ -918,8 +913,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
         <div id="summaryCast"></div>
       </div>
       <div id="summaryCredits" class="hidden">
-        <div id="summaryDirector" class="hidden"></div>
-        <div id="summaryWriters" class="hidden"></div>
         <div id="summaryStudio" class="hidden"></div>
       </div>
       <div id="summaryPersonal" class="hidden"></div>
@@ -1883,7 +1876,7 @@ function openSummary() {
   closeBtn._backdropIsLight = false;
 
   ['summaryRowYearRating','summaryRowDuration','summaryRatings','summaryGenres',
-   'summaryDirector','summaryWriters','summaryStudio','summaryPersonal'].forEach(id => {
+   'summaryStudio','summaryPersonal'].forEach(id => {
     const el = document.getElementById(id);
     el.innerHTML = '';
     el.classList.add('hidden');
@@ -2005,22 +1998,12 @@ function openSummary() {
     if (extra.genres && extra.genres.length) { genresEl.textContent = extra.genres.join(' · '); genresEl.classList.remove('hidden'); }
     else genresEl.classList.add('hidden');
 
-    // Credits below cast
-    const dirEl = document.getElementById('summaryDirector');
-    if (extra.directors && extra.directors.length) { dirEl.innerHTML = `Directed by <span>${extra.directors.map(escHtml).join(', ')}</span>`; dirEl.classList.remove('hidden'); }
-    else dirEl.classList.add('hidden');
-
-    const wriEl = document.getElementById('summaryWriters');
-    if (extra.writers && extra.writers.length) { wriEl.innerHTML = `Written by <span>${extra.writers.map(escHtml).join(', ')}</span>`; wriEl.classList.remove('hidden'); }
-    else wriEl.classList.add('hidden');
-
     const stuEl = document.getElementById('summaryStudio');
     if (extra.studio) { stuEl.innerHTML = `Studio: <span>${escHtml(extra.studio)}</span>`; stuEl.classList.remove('hidden'); }
     else stuEl.classList.add('hidden');
 
     const creditsEl = document.getElementById('summaryCredits');
-    const hasCredits = (extra.directors && extra.directors.length) || (extra.writers && extra.writers.length) || extra.studio;
-    if (hasCredits) creditsEl.classList.remove('hidden');
+    if (extra.studio) creditsEl.classList.remove('hidden');
     else creditsEl.classList.add('hidden');
 
     // Personal data section
