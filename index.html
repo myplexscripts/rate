@@ -1278,7 +1278,10 @@ function setInfo(item) {
     ? 'Watched ' + fmtDate(item.lastViewedAt * 1000) : '';
   document.getElementById('iSummary').textContent = item.summary || '';
   preloadInfo();
-  if (isDesktop()) openSummary();
+  // On desktop, the swipe handler calls openSummary(queue[1]) immediately so
+  // the summary transitions in sync with the poster. Only open here if it
+  // hasn't already been opened for this item (initial load, goBack, etc.).
+  if (isDesktop() && summaryItem !== item) openSummary(item);
 }
 
 // ── Trailer ───────────────────────────────────────────────
@@ -1773,8 +1776,11 @@ function advance(dir) {
   if (after) { const im = new Image(); im.src = posterUrl(after); }
 
   resetRating();
-  // Kick off preload for upcoming items now so the 400ms animation gives
-  // loadExtraInfo a head start before openSummary needs it.
+  // Open summary for the next item immediately so it transitions in sync with
+  // the poster animation rather than waiting 400ms for the shift to complete.
+  if (queue[1]) {
+    if (isDesktop()) openSummary(queue[1]);
+  }
   preloadInfo();
 
   setTimeout(() => {
@@ -1937,9 +1943,11 @@ async function loadExtraInfo(item) {
 }
 
 let summaryOpener = null;
-function openSummary() {
-  const item = queue[0];
+let summaryItem = null; // tracks which item the summary is currently showing
+function openSummary(forItem) {
+  const item = forItem || queue[0];
   if (!item || !item.summary) return;
+  summaryItem = item;
   summaryOpener = document.activeElement;
   const titleEl = document.getElementById('summaryTitle');
   const box = document.getElementById('summaryBox');
@@ -2022,7 +2030,7 @@ function openSummary() {
     }
   }
   loadTrailer(item).then(trailer => {
-    if (queue[0] !== item) return;
+    if (summaryItem !== item) return;
     trailerBtn.classList.remove('skeleton');
     if (trailer && trailer.url) {
       trailerBtn.innerHTML = '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-movies"/></svg> Trailer';
@@ -2038,7 +2046,7 @@ function openSummary() {
   if (!isDesktop()) document.getElementById('summaryClose').focus();
 
   const applyExtra = extra => {
-    if (queue[0] !== item) return;
+    if (summaryItem !== item) return;
 
     // Row 1: year + content rating
     const yearRatingEl = document.getElementById('summaryRowYearRating');
@@ -2118,15 +2126,15 @@ function openSummary() {
     // text-title layout untouched, even if a logo happens to be available.
     if (extra.backdrop) {
       const applyBackdropBlob = blobUrl => {
-        if (queue[0] !== item) return;
+        if (summaryItem !== item) return;
         backdropImg.onload = () => {
-          if (queue[0] !== item) return;
+          if (summaryItem !== item) return;
           backdrop.classList.remove('skeleton');
           box.classList.remove('loading-backdrop');
           box.classList.add('has-backdrop');
           requestAnimationFrame(() => backdrop.classList.add('on'));
           sampleCornerBrightness(backdropImg).then(light => {
-            if (queue[0] !== item) return;
+            if (summaryItem !== item) return;
             const closeBtn = document.getElementById('summaryClose');
             closeBtn._backdropIsLight = light;
             updateCloseAdaptation();
@@ -2135,7 +2143,7 @@ function openSummary() {
         backdropImg.src = blobUrl;
       };
       const onBackdropError = () => {
-        if (queue[0] !== item) return;
+        if (summaryItem !== item) return;
         backdrop.classList.remove('skeleton');
         box.classList.remove('loading-backdrop', 'has-backdrop');
         backdrop.classList.remove('on');
@@ -2152,10 +2160,10 @@ function openSummary() {
 
       if (extra.logo) {
         const applyLogo = src => {
-          if (queue[0] !== item) return;
+          if (summaryItem !== item) return;
           const logoImg = new Image();
           logoImg.alt = item.title || '';
-          logoImg.onload = () => { if (queue[0] !== item) return; titleEl.innerHTML = ''; titleEl.appendChild(logoImg); };
+          logoImg.onload = () => { if (summaryItem !== item) return; titleEl.innerHTML = ''; titleEl.appendChild(logoImg); };
           logoImg.onerror = () => { titleEl.textContent = item.title || ''; fitTitle(titleEl); };
           logoImg.src = src;
         };
@@ -2165,7 +2173,7 @@ function openSummary() {
           fetch(extra.logo, { headers: H() })
             .then(r => r.ok ? r.blob() : Promise.reject())
             .then(blob => { item._logoBlobUrl = URL.createObjectURL(blob); applyLogo(item._logoBlobUrl); })
-            .catch(() => { if (queue[0] === item) { titleEl.textContent = item.title || ''; fitTitle(titleEl); } });
+            .catch(() => { if (summaryItem === item) { titleEl.textContent = item.title || ''; fitTitle(titleEl); } });
         }
       }
     } else {
