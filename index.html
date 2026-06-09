@@ -307,7 +307,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
      sits on this tint so the fade looks seamless instead of fading to grey. */
   --sb-base:#222;
   background:var(--sb-base);
-  border:1px solid rgba(255,251,248,0.1);
   border-radius:20px;
   transform:scale(0.94);
   transition:transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
@@ -465,10 +464,14 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   display:flex; align-items:center; gap:5px;
   font-size:0.78rem; font-weight:700;
   color:var(--text);
-  background:rgba(255,251,248,0.07);
+  background-color:rgba(255,251,248,0.07);
+  background-image:linear-gradient(to right, var(--badge-fill,rgba(255,251,248,0.13)) 100%, transparent 0);
+  background-size:0% 100%;
+  background-repeat:no-repeat;
   border:1px solid rgba(255,251,248,0.11);
   border-radius:8px;
   padding:5px 10px;
+  transition:background-size 0.9s cubic-bezier(0.25,1,0.5,1);
 }
 .ratingBadge .rIcon {
   width:18px; height:18px;
@@ -1792,18 +1795,19 @@ function formatDuration(ms) {
 function ratingBadge(imageStr, score) {
   if (!imageStr || score == null) return null;
   const s = String(imageStr).toLowerCase();
+  const pct = Math.min(100, Math.round(score * 10));
   if (s.includes('rottentomatoes')) {
     const isAudience = s.includes('audience') || s.includes('upright') || s.includes('popcorn') || s.includes('want');
     if (isAudience) {
       const fresh = s.includes('upright') || s.includes('want') || s.includes('fresh');
-      return { imgSrc: `images/icons/ui/${fresh ? 'Rotten_Tomatoes_Popcorn' : 'Rotten_Tomatoes_Popcorn_tipped'}.svg`, label: 'Audience', score: Math.round(score * 10) + '%' };
+      return { imgSrc: `images/icons/ui/${fresh ? 'Rotten_Tomatoes_Popcorn' : 'Rotten_Tomatoes_Popcorn_tipped'}.svg`, label: 'Audience', score: Math.round(score * 10) + '%', pct, fillColor: fresh ? 'rgba(255,120,30,0.22)' : 'rgba(130,130,130,0.18)' };
     }
     const fresh = s.includes('ripe') || s.includes('certified') || s.includes('fresh');
-    return { imgSrc: `images/icons/ui/${fresh ? 'Certified_Fresh' : 'Rotten_Tomatoes_rotten'}.svg`, label: 'RT', score: Math.round(score * 10) + '%' };
+    return { imgSrc: `images/icons/ui/${fresh ? 'Certified_Fresh' : 'Rotten_Tomatoes_rotten'}.svg`, label: 'RT', score: Math.round(score * 10) + '%', pct, fillColor: fresh ? 'rgba(250,60,20,0.22)' : 'rgba(130,130,130,0.18)' };
   }
-  if (s.includes('themoviedb')) return { imgSrc: 'images/icons/ui/TMDB.svg', label: 'TMDb', score: score.toFixed(1) };
-  if (s.includes('imdb')) return { imgSrc: 'images/icons/ui/IMDB.svg', label: 'IMDb', score: score.toFixed(1) };
-  return { imgSrc: null, label: '★', score: score.toFixed(1) };
+  if (s.includes('themoviedb')) return { imgSrc: 'images/icons/ui/TMDB.svg', label: 'TMDb', score: score.toFixed(1), pct, fillColor: 'rgba(1,180,228,0.2)' };
+  if (s.includes('imdb')) return { imgSrc: 'images/icons/ui/IMDB.svg', label: 'IMDb', score: score.toFixed(1), pct, fillColor: 'rgba(245,197,24,0.22)' };
+  return { imgSrc: null, label: '★', score: score.toFixed(1), pct, fillColor: 'rgba(255,251,248,0.13)' };
 }
 
 async function loadExtraInfo(item) {
@@ -1994,11 +1998,19 @@ function openSummary() {
     const ratingsEl = document.getElementById('summaryRatings');
     const mkBadge = b => {
       const img = b.imgSrc ? `<img src="${escHtml(b.imgSrc)}" class="rIcon" alt="${escHtml(b.label)}" onerror="this.style.display='none'">` : '';
-      return `<span class="ratingBadge">${img}${escHtml(b.score)}</span>`;
+      return `<span class="ratingBadge" data-pct="${b.pct}" style="--badge-fill:${b.fillColor}">${img}${escHtml(b.score)}</span>`;
     };
-    const ratingParts = (extra.ratings || []).map(r => ratingBadge(r.image, r.value)).filter(Boolean).map(mkBadge);
-    if (ratingParts.length) { ratingsEl.innerHTML = ratingParts.join(''); ratingsEl.classList.remove('hidden'); }
-    else ratingsEl.classList.add('hidden');
+    const badges = (extra.ratings || []).map(r => ratingBadge(r.image, r.value)).filter(Boolean);
+    if (badges.length) {
+      ratingsEl.innerHTML = badges.map(mkBadge).join('');
+      ratingsEl.classList.remove('hidden');
+      // Trigger fill animation on next frame so the transition fires from 0
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        ratingsEl.querySelectorAll('.ratingBadge').forEach(el => {
+          el.style.backgroundSize = el.dataset.pct + '% 100%';
+        });
+      }));
+    } else ratingsEl.classList.add('hidden');
 
     // Row 4: genres as plain text
     const genresEl = document.getElementById('summaryGenres');
