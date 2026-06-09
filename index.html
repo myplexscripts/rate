@@ -1772,7 +1772,6 @@ function advance(dir) {
   const after = queue[4];
   if (after) { const im = new Image(); im.src = posterUrl(after); }
 
-  if (queue[1]) setInfo(queue[1]);
   resetRating();
 
   setTimeout(() => {
@@ -1781,6 +1780,7 @@ function advance(dir) {
     if (hist.length > 30) hist.shift();
     document.getElementById('btnBack').disabled = hist.length === 0;
     updateProgress();
+    if (queue[0]) setInfo(queue[0]);
     busy = false;
     if (!queue.length) { hideStage(); setState('done'); }
   }, 400);
