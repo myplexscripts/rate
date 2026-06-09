@@ -1847,10 +1847,19 @@ async function loadExtraInfo(item) {
       episodeCount: (meta && meta.leafCount != null) ? meta.leafCount : null,
       addedAt: item.addedAt || (meta && meta.addedAt) || null,
       lastViewedAt: item.lastViewedAt || (meta && meta.lastViewedAt) || null,
-      viewCount: item.viewCount || (meta && meta.viewCount) || null
+      viewCount: item.viewCount || (meta && meta.viewCount) || null,
+      firstViewedAt: null
     };
+    // Fetch first-viewed timestamp from watch history (separate call, only if watched)
+    if (item._extra.viewCount > 0) {
+      try {
+        const hist = await plexGet(`/status/sessions/history/all?metadataItemID=${item.ratingKey}&sort=viewedAt%3Aasc&X-Plex-Container-Size=1&X-Plex-Container-Start=0`);
+        const first = (hist.MediaContainer.Metadata || hist.MediaContainer.Video || [])[0];
+        if (first && first.viewedAt) item._extra.firstViewedAt = first.viewedAt;
+      } catch (_) {}
+    }
   } catch (e) {
-    item._extra = { year: null, tint: null, backdrop: '', logo: '', genres: [], cast: [], runtime: null, contentRating: null, audienceRating: null, audienceRatingImage: null, criticRating: null, criticRatingImage: null, directors: [], writers: [], studio: null, country: null, seasonCount: null, episodeCount: null, addedAt: item.addedAt || null, lastViewedAt: item.lastViewedAt || null, viewCount: item.viewCount || null };
+    item._extra = { year: null, tint: null, backdrop: '', logo: '', genres: [], cast: [], runtime: null, contentRating: null, audienceRating: null, audienceRatingImage: null, criticRating: null, criticRatingImage: null, directors: [], writers: [], studio: null, country: null, seasonCount: null, episodeCount: null, addedAt: item.addedAt || null, lastViewedAt: item.lastViewedAt || null, viewCount: item.viewCount || null, firstViewedAt: null };
   }
   return item._extra;
 }
@@ -2022,7 +2031,8 @@ function openSummary() {
       return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     };
     if (extra.addedAt) personalRows.push(`<div class="personalRow">Added to library <span>${fmtTs(extra.addedAt)}</span></div>`);
-    if (extra.lastViewedAt) personalRows.push(`<div class="personalRow">Last watched <span>${fmtTs(extra.lastViewedAt)}</span></div>`);
+    if (extra.firstViewedAt) personalRows.push(`<div class="personalRow">First watched <span>${fmtTs(extra.firstViewedAt)}</span></div>`);
+    if (extra.lastViewedAt && extra.lastViewedAt !== extra.firstViewedAt) personalRows.push(`<div class="personalRow">Last watched <span>${fmtTs(extra.lastViewedAt)}</span></div>`);
     if (extra.viewCount > 1) personalRows.push(`<div class="personalRow">Watched <span>${extra.viewCount} times</span></div>`);
     if (personalRows.length) { personalEl.innerHTML = personalRows.join(''); personalEl.classList.remove('hidden'); }
     else personalEl.classList.add('hidden');
