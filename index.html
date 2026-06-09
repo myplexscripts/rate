@@ -413,10 +413,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   object-fit:contain;
   margin:0 auto;
 }
-#summaryBox.has-backdrop #summaryTitle img,
-#summaryBox.loading-backdrop #summaryTitle img {
-  filter:drop-shadow(0 2px 10px rgba(0,0,0,0.5));
-}
+/* Filter is set inline by logoFilter() — JS owns it so the value
+   adapts to the backdrop brightness rather than being a fixed shadow. */
 #summaryText {
   font-size:0.88rem; font-weight:400;
   line-height:1.65; color:rgba(255,251,248,0.75);
@@ -1532,7 +1530,43 @@ function ubBlend(hexCorners) {
   return `rgb(${r},${g},${b})`;
 }
 
-// Text titles start at full size and only shrink (down to a floor) when they'd
+// Returns the perceptual luminance (0–1) of the backdrop area where the logo
+// sits, using the top two ultraBlur corners. We use the top corners because
+// that's where the logo lives in both mobile and desktop layouts.
+// sRGB → linear → weighted sum (ITU-R BT.709).
+function bgLuminance(item) {
+  const ub = item.ultraBlurColors || item.UltraBlurColors;
+  if (!ub) return null;
+  const corners = [ub.topLeft, ub.topRight].map(hexToRgb).filter(Boolean);
+  if (!corners.length) return null;
+  let lumSum = 0;
+  for (const [r, g, b] of corners) {
+    const lin = c => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+    lumSum += 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  }
+  return lumSum / corners.length;
+}
+
+// Build the CSS filter for a logo image given the backdrop's luminance.
+// Very dark bg (< 0.06): full invert — turns any black logo white.
+// Mid-dark bg (0.06–0.22): partial brightness lift + invert blend.
+// Light/mid bg (> 0.22): just the dual halo, no tonal change.
+function logoFilter(luma) {
+  const shadows = 'drop-shadow(0 2px 10px rgba(0,0,0,0.55)) drop-shadow(0 0 3px rgba(255,255,255,0.45))';
+  if (luma === null) return shadows;
+  if (luma < 0.06) return `brightness(0) invert(1) ${shadows}`;
+  if (luma < 0.22) {
+    // Interpolate: at luma=0.06 → fully inverted, at luma=0.22 → no change.
+    // We do this with a brightness lift: dark logos get pushed toward white
+    // proportionally without going fully white on near-dark backgrounds.
+    const t = (luma - 0.06) / (0.22 - 0.06); // 0 at darkest, 1 at threshold
+    const bri = 1 + (1 - t) * 2.5; // up to ~3.5× brightness boost at luma=0.06
+    return `brightness(${bri.toFixed(2)}) ${shadows}`;
+  }
+  return shadows;
+}
+
+
 // otherwise spill past two lines — so most titles stay big and legible, and
 // only the genuinely long ones scale down to fit. No-ops for logo titles.
 // The text lives in an inner <span> so we measure the text's own height rather
@@ -2072,6 +2106,12 @@ function openSummary() {
         logoImg.onload = () => {
           if (queue[0] !== item) return;
           titleEl.innerHTML = '';
+          const ar = logoImg.naturalWidth / (logoImg.naturalHeight || 1);
+          titleEl.classList.toggle('logo-compact', ar < 2.5);
+          // Adapt the logo's appearance to the backdrop brightness so dark
+          // logos don't disappear into dark blurs (and vice versa).
+          const luma = bgLuminance(item);
+          logoImg.style.filter = logoFilter(luma);
           titleEl.appendChild(logoImg);
         };
         logoImg.onerror = () => { titleEl.textContent = item.title || ''; fitTitle(titleEl); };
