@@ -312,6 +312,35 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   transition:transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
 }
 #summaryOverlay.on #summaryBox { transform:scale(1); }
+
+/* ── Desktop split-view ───────────────────────────────────── */
+@media (min-width:960px) {
+  #stage {
+    right:50%;
+    left:0;
+  }
+  #summaryOverlay {
+    left:50%;
+    right:0;
+    top:0; bottom:0;
+    padding:0;
+    background:none;
+    backdrop-filter:none;
+    opacity:1;
+    pointer-events:all;
+  }
+  /* Keep it visible even without .on — desktop summary is always shown */
+  #summaryOverlay:not(.on) { pointer-events:none; opacity:0; }
+  #summaryOverlay.on { opacity:1; pointer-events:all; }
+  #summaryBox {
+    max-width:none;
+    border-radius:0;
+    transform:none !important;
+    border-left:1px solid rgba(255,251,248,0.07);
+  }
+  #summaryClose { display:none !important; }
+  #summaryBackdrop { border-radius:0; }
+}
 #summaryScroll {
   flex:1; min-height:0;
   overflow-y:auto;
@@ -1245,12 +1274,15 @@ function rebuild() {
   preloadAhead();
 }
 
+function isDesktop() { return window.matchMedia('(min-width:960px)').matches; }
+
 function setInfo(item) {
   document.getElementById('iTitleText').textContent = item.title || '';
   document.getElementById('iDate').textContent = item.lastViewedAt
     ? 'Watched ' + fmtDate(item.lastViewedAt * 1000) : '';
   document.getElementById('iSummary').textContent = item.summary || '';
   preloadInfo();
+  if (isDesktop()) openSummary();
 }
 
 // ── Trailer ───────────────────────────────────────────────
@@ -1986,7 +2018,7 @@ function openSummary() {
   // Hide any lingering toast so it can't sit on top of the popup.
   document.getElementById('toast').classList.remove('on');
   document.getElementById('summaryOverlay').classList.add('on');
-  document.getElementById('summaryClose').focus();
+  if (!isDesktop()) document.getElementById('summaryClose').focus();
 
   const applyExtra = extra => {
     if (queue[0] !== item) return;
@@ -2151,12 +2183,14 @@ function openSummary() {
   else loadExtraInfo(item).then(applyExtra);
 }
 function closeSummary() {
+  if (isDesktop()) return;
   document.getElementById('summaryOverlay').classList.remove('on');
   stopInlineTrailer();
   if (summaryOpener && summaryOpener.focus) summaryOpener.focus();
   summaryOpener = null;
 }
 function closeSummaryFromOverlay(e) {
+  if (isDesktop()) return;
   if (e.target === document.getElementById('summaryOverlay')) closeSummary();
 }
 
