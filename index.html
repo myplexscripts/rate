@@ -866,7 +866,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
      portion of the backdrop. Big stars on top, nav controls beneath. */
   #card {
     position:absolute; left:auto; top:auto;
-    right:clamp(48px, 7vw, 150px); bottom:calc(var(--bar) + 34px);
+    /* bottom matches the band's bottom padding so the nav row lines up with the
+       cast/personal block on the left. */
+    right:clamp(48px, 7vw, 150px); bottom:calc(var(--bar) + clamp(22px, 4.5vh, 54px));
     width:auto; max-width:none; height:auto;
     flex-direction:column; align-items:center;
     padding:0; gap:18px;
@@ -889,7 +891,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     flex:none;
     display:flex; flex-direction:column; justify-content:flex-start;
     align-items:flex-start;
-    padding:clamp(18px, 4vh, 50px) 46% 112px 64px;
+    /* top block sits at the top, cast/personal anchor to the bottom (see the
+       auto margins on #summaryText), so every screen lines up identically. */
+    padding:clamp(22px, 4.5vh, 54px) 46% clamp(22px, 4.5vh, 54px) 64px;
     text-align:left; overflow:hidden;
     background-color:var(--sb-base);
     transition:background-color 0.45s ease;
@@ -925,9 +929,19 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   #summaryScroll.lsx-fade-in > :not(#summaryBackdrop):nth-child(8)  { animation-delay:0.22s; }
   #summaryScroll.lsx-fade-in > :not(#summaryBackdrop):nth-child(n+9){ animation-delay:0.24s; }
 
-  /* Rating cluster in #card mirrors the fade */
-  #stage.lsx-fade-out { opacity:0; transition:opacity 0.18s ease; }
-  #stage.lsx-fade-in  { opacity:0; animation:lsxFadeIn 0.32s 0.18s ease forwards; }
+  /* Star "reset" pulse: a left-to-right ripple when the rating clears between
+     items, so the cluster feels alive without fading in/out. */
+  @keyframes starReset {
+    0%   { transform:scale(1); }
+    35%  { transform:scale(0.8); }
+    100% { transform:scale(1); }
+  }
+  #starRow.resetting .star { animation:starReset 0.45s cubic-bezier(0.34,1.56,0.64,1) both; }
+  #starRow.resetting .star:nth-child(1){ animation-delay:0.00s; }
+  #starRow.resetting .star:nth-child(2){ animation-delay:0.05s; }
+  #starRow.resetting .star:nth-child(3){ animation-delay:0.10s; }
+  #starRow.resetting .star:nth-child(4){ animation-delay:0.15s; }
+  #starRow.resetting .star:nth-child(5){ animation-delay:0.20s; }
 
   /* Backdrop fills the band on the RIGHT. Its top/bottom are HARD (flush with
      the bars); only the LEFT edge is masked so it dissolves into --sb-base. */
@@ -985,11 +999,16 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   #summaryGenres        { text-align:left; margin-bottom:16px; }
   #summaryRatings       { justify-content:flex-start; gap:10px; margin-bottom:0; }
 
-  /* Trailer button now leads the lower block (summary + cast). */
-  #btnTrailer { align-self:flex-start; margin:20px 0 16px; }
+  /* Trailer button closes the top block (logo · meta · genres · ratings · trailer). */
+  #btnTrailer { align-self:flex-start; margin:20px 0 0; }
 
+  /* Summary sits centered in the gap between the top block and the bottom block
+     (cast + personal). Auto margins absorb the free space equally, so a long
+     blurb has room and a short one stays centered — everything else holds its
+     anchored position regardless. */
   #summaryText {
     text-align:left; min-height:0;
+    margin-top:auto; margin-bottom:auto;
     font-size:0.92rem; line-height:1.6; max-width:620px;
     display:-webkit-box; -webkit-box-orient:vertical;
     -webkit-line-clamp:4; overflow:hidden;
@@ -1003,7 +1022,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   }
   #summaryText.clamped:hover { color:rgba(255,251,248,0.95); }
 
-  #summaryCastWrap { margin:18px 0 0; width:100%; max-width:600px; }
+  /* Cast + personal stats are the bottom block — anchored to the band bottom. */
+  #summaryCastWrap { margin:0; width:100%; max-width:600px; }
   #summaryCast { padding:0; }
 
   #summaryPersonal {
@@ -2072,6 +2092,7 @@ function setGlow({ tl, tr, bl, br }) {
 
 function setRating(n) {
   rating = n;
+  document.getElementById('starRow').classList.remove('resetting');
   document.querySelectorAll('.star').forEach(s => {
     const sn = parseInt(s.dataset.n);
     const use = s.querySelector('use');
@@ -2098,6 +2119,15 @@ function resetRating() {
     s.setAttribute('class', 'icon star');
     s.querySelector('use').setAttribute('href', '#icon-star-empty');
   });
+  // Smooth left-to-right "reset" ripple on desktop (the cluster doesn't fade).
+  if (isDesktop()) {
+    const row = document.getElementById('starRow');
+    row.classList.remove('resetting');
+    void row.offsetWidth;          // restart the animation
+    row.classList.add('resetting');
+    clearTimeout(row._resetTimer);
+    row._resetTimer = setTimeout(() => row.classList.remove('resetting'), 700);
+  }
 }
 
 async function submitRating() {
@@ -2359,23 +2389,18 @@ let _lsxFadeTimer = null;
 function lsxTransition(populate) {
   if (!isDesktop()) { populate(); return; }
   const scroll = document.getElementById('summaryScroll');
-  const stage  = document.getElementById('stage');
-  // Fade out
+  // Only the content column fades — the nav/star cluster stays anchored in
+  // place (it gets its own "reset" pulse via resetRating instead).
   scroll.classList.remove('lsx-fade-in');
   scroll.classList.add('lsx-fade-out');
-  stage.classList.remove('lsx-fade-in');
-  stage.classList.add('lsx-fade-out');
   clearTimeout(_lsxFadeTimer);
   _lsxFadeTimer = setTimeout(() => {
     populate();
     scroll.classList.remove('lsx-fade-out');
     scroll.classList.add('lsx-fade-in');
-    stage.classList.remove('lsx-fade-out');
-    stage.classList.add('lsx-fade-in');
     // Clean up animation classes once they've played
     setTimeout(() => {
       scroll.classList.remove('lsx-fade-in');
-      stage.classList.remove('lsx-fade-in');
     }, 500);
   }, 180);
 }
