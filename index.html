@@ -1278,9 +1278,15 @@ function setInfo(item) {
     ? 'Watched ' + fmtDate(item.lastViewedAt * 1000) : '';
   document.getElementById('iSummary').textContent = item.summary || '';
   preloadInfo();
-  // On desktop the Detail panel is always open; refresh it for this item
-  // unless it's already showing (guard avoids a redundant re-render).
-  if (isDesktop() && summaryItem !== item) openSummary(item);
+  if (isDesktop() && summaryItem !== item) {
+    if (item._extra) {
+      openSummary(item);
+    } else {
+      // On first load _extra isn't cached yet — wait for it so the Detail
+      // panel doesn't flash an empty black box before the data arrives.
+      loadExtraInfo(item).then(() => { if (summaryItem !== item) openSummary(item); });
+    }
+  }
 }
 
 // ── Trailer ───────────────────────────────────────────────
