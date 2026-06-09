@@ -323,23 +323,19 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     left:50%;
     right:0;
     top:0; bottom:0;
-    padding:0;
+    padding:calc(var(--safe-top) + 64px) 24px max(24px, env(safe-area-inset-bottom));
     background:none;
     backdrop-filter:none;
-    opacity:1;
-    pointer-events:all;
+    justify-content:center;
+    align-items:flex-start;
   }
-  /* Keep it visible even without .on — desktop summary is always shown */
-  #summaryOverlay:not(.on) { pointer-events:none; opacity:0; }
+  #summaryOverlay:not(.on) { opacity:0; pointer-events:none; }
   #summaryOverlay.on { opacity:1; pointer-events:all; }
   #summaryBox {
-    max-width:none;
-    border-radius:0;
+    max-width:480px;
     transform:none !important;
-    border-left:1px solid rgba(255,251,248,0.07);
   }
   #summaryClose { display:none !important; }
-  #summaryBackdrop { border-radius:0; }
 }
 #summaryScroll {
   flex:1; min-height:0;
