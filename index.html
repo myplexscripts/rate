@@ -454,6 +454,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   padding:2px 7px;
   letter-spacing:0.03em;
 }
+.metaDot { color:rgba(255,251,248,0.3); font-weight:600; }
 /* Genres row — plain text separated by dots */
 #summaryGenres {
   font-size:0.78rem; font-weight:500;
@@ -849,19 +850,26 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   /* Stage is a transparent top layer; only the control cluster is clickable.
      Controls sit bottom-LEFT inside the band, just above the bottom bar. */
   #stage { z-index:550; pointer-events:none; }
+  /* Rating cluster lives in the bottom-RIGHT of the band, over the lower
+     portion of the backdrop. Big stars on top, nav controls beneath. */
   #card {
-    position:absolute; left:0; bottom:calc(var(--bar) + 20px);
+    position:absolute; left:auto; top:auto;
+    right:clamp(48px, 7vw, 150px); bottom:calc(var(--bar) + 34px);
     width:auto; max-width:none; height:auto;
-    flex-direction:column; align-items:flex-start;
-    padding:0 0 0 64px; gap:13px;
+    flex-direction:column; align-items:center;
+    padding:0; gap:18px;
     background:transparent;
     pointer-events:none; /* pass clicks through to #btnTrailer etc. */
   }
   #posterStack, #info { display:none; }
-  #starRow { margin:0; pointer-events:all; cursor:pointer; }
-  .star { font-size:3rem; }
-  #actions { width:auto; justify-content:flex-start; gap:18px; padding:0; pointer-events:all; }
+  #starRow {
+    margin:0; pointer-events:all; cursor:pointer;
+    filter:drop-shadow(0 3px 10px rgba(0,0,0,0.55));
+  }
+  .star { font-size:3.6rem; }
+  #actions { width:auto; justify-content:center; gap:22px; padding:0; pointer-events:all; }
   .act-btn .icon { width:1.55rem; height:1.55rem; }
+  .act-btn { filter:drop-shadow(0 2px 6px rgba(0,0,0,0.5)); }
 
   /* The band: a horizontal strip between the two hard bars, tinted with the
      artwork's ultraBlur colour. Holds the text content on the left. */
@@ -923,19 +931,28 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     margin:0; max-height:clamp(80px, 13vh, 130px); max-width:100%;
   }
 
-  #summaryRowYearRating { justify-content:flex-start; margin-top:0; margin-bottom:7px; }
-  #summaryRowDuration   { justify-content:flex-start; margin-bottom:7px; }
-  #summaryGenres        { text-align:left; margin-bottom:11px; }
-  #summaryRatings       { justify-content:flex-start; margin-bottom:13px; }
+  /* Even vertical rhythm between the meta blocks so the column breathes. */
+  #summaryRowYearRating { justify-content:flex-start; gap:9px; margin-top:0; margin-bottom:14px; }
+  #summaryGenres        { text-align:left; margin-bottom:16px; }
+  #summaryRatings       { justify-content:flex-start; gap:10px; margin-bottom:0; }
+
+  /* Trailer button now leads the lower block (summary + cast). */
+  #btnTrailer { align-self:flex-start; margin:20px 0 16px; }
 
   #summaryText {
     text-align:left; min-height:0;
-    font-size:0.92rem; line-height:1.55; max-width:600px;
+    font-size:0.92rem; line-height:1.6; max-width:620px;
     display:-webkit-box; -webkit-box-orient:vertical;
-    -webkit-line-clamp:3; overflow:hidden;
+    -webkit-line-clamp:4; overflow:hidden;
   }
-
-  #btnTrailer { align-self:flex-start; margin:14px 0 0; }
+  /* When the blurb is too long to fit the clamp, it becomes a clickable
+     affordance that opens the full description in a popup. */
+  #summaryText.clamped {
+    cursor:pointer;
+    -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 60%, transparent 100%);
+  }
+  #summaryText.clamped:hover { color:rgba(255,251,248,0.95); }
 
   #summaryCastWrap { margin:18px 0 0; width:100%; max-width:600px; }
   #summaryCast { padding:0; }
@@ -948,25 +965,29 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 
   #summaryClose { display:none !important; }
 
-  /* Counters + filter live IN the top letterbox bar, right-aligned */
+  /* Counters + filter live IN the top letterbox bar, right-aligned, with
+     generous spacing so they read as three distinct controls. */
   #ratedCounter, #progress, #typeFilter { z-index:600; }
   #ratedCounter {
-    top:calc(var(--bar) / 2 - 10px);
-    left:auto; right:130px;
+    top:calc(var(--bar) / 2 - 11px);
+    left:auto; right:230px;
+    font-size:0.95rem; gap:7px;
     opacity:0.8;
   }
+  #ratedCounter .icon { width:18px; height:18px; }
   #progress {
-    top:calc(var(--bar) / 2 - 18px);
-    right:80px;
+    top:calc(var(--bar) / 2 - 19px);
+    right:148px;
+    width:38px; height:38px;
   }
   #progress.on { opacity:0.8; }
   #typeFilter {
     top:calc(var(--bar) / 2 - 22px);
-    right:16px;
+    right:32px;
     flex-direction:row;
     opacity:0;
     backdrop-filter:none; -webkit-backdrop-filter:none;
-    background:none; border:none; box-shadow:none; padding:0; gap:2px;
+    background:none; border:none; box-shadow:none; padding:0; gap:10px;
   }
   #typeFilter.on { opacity:0.8; }
   #typeFilter.on:hover { opacity:1; }
@@ -1002,6 +1023,49 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     from { opacity:0; transform:translateY(-50%) scale(0.95); }
     to   { opacity:1; transform:translateY(-50%) scale(1); }
   }
+}
+
+/* ── Full-description popup (super-long blurbs) ──────────────
+   Opened by clicking a clamped #summaryText. Centered modal over a scrim. */
+#descPopup {
+  position:fixed; inset:0; z-index:700;
+  display:flex; align-items:center; justify-content:center;
+  padding:40px;
+  background:rgba(0,0,0,0.62);
+  -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+  opacity:0; pointer-events:none;
+  transition:opacity 0.22s ease;
+}
+#descPopup.on { opacity:1; pointer-events:all; }
+#descPopupBox {
+  position:relative;
+  max-width:560px; width:100%; max-height:80vh;
+  overflow-y:auto;
+  background:rgba(24,24,28,0.96);
+  border:1px solid rgba(255,251,248,0.12);
+  border-radius:18px;
+  padding:30px 32px 32px;
+  box-shadow:0 30px 80px rgba(0,0,0,0.55);
+  transform:scale(0.95); transition:transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
+  scrollbar-width:thin;
+}
+#descPopup.on #descPopupBox { transform:scale(1); }
+#descPopupClose {
+  position:absolute; top:16px; right:16px;
+  width:32px; height:32px; border:none; border-radius:50%;
+  background:rgba(255,251,248,0.1); color:var(--text);
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+  transition:background 0.15s;
+}
+#descPopupClose:hover { background:rgba(255,251,248,0.2); }
+#descPopupClose .icon { width:1.2rem; height:1.2rem; }
+#descPopupTitle {
+  font-weight:900; font-size:1.2rem; letter-spacing:-0.02em;
+  color:var(--text); margin:0 36px 14px 0; line-height:1.2;
+}
+#descPopupText {
+  font-size:0.95rem; line-height:1.65;
+  color:rgba(255,251,248,0.82);
 }
 </style>
 </head>
@@ -1115,12 +1179,20 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
         <video id="trailerVideo" controls playsinline></video>
         <div id="trailerError" class="hidden"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-television"/></svg> Trailer unavailable</div>
       </div>
-      <div id="summaryText"></div>
+      <div id="summaryText" onclick="openDescPopup()"></div>
       <div id="summaryCastWrap" class="hidden">
         <div id="summaryCast"></div>
       </div>
       <div id="summaryPersonal" class="hidden"></div>
     </div>
+  </div>
+</div>
+
+<div id="descPopup" onclick="closeDescPopupFromOverlay(event)" role="dialog" aria-modal="true" aria-label="Full description">
+  <div id="descPopupBox">
+    <button id="descPopupClose" onclick="closeDescPopup()" aria-label="Close description"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-x"/></svg></button>
+    <div id="descPopupTitle"></div>
+    <div id="descPopupText"></div>
   </div>
 </div>
 
@@ -2237,7 +2309,19 @@ function openSummary(forItem) {
   }
   // Year is known up front whenever the extra info is cached, so we can set it
   // immediately — that keeps its row from popping in later and nudging layout.
-  document.getElementById('summaryText').textContent = item.summary;
+  const summaryTextEl = document.getElementById('summaryText');
+  summaryTextEl.textContent = item.summary;
+  // On desktop the blurb is line-clamped; if it overflows, mark it clickable
+  // so the full text can be read in a popup. Checked after layout settles.
+  summaryTextEl.classList.remove('clamped');
+  if (isDesktop()) {
+    requestAnimationFrame(() => {
+      if (summaryItem !== item) return;
+      if (summaryTextEl.scrollHeight - summaryTextEl.clientHeight > 4) {
+        summaryTextEl.classList.add('clamped');
+      }
+    });
+  }
   const castWrap = document.getElementById('summaryCastWrap');
   const castEl = document.getElementById('summaryCast');
   const trailerBtn = document.getElementById('btnTrailer');
@@ -2294,22 +2378,25 @@ function openSummary(forItem) {
   const applyExtra = extra => {
     if (summaryItem !== item) return;
 
-    // Row 1: year + content rating
+    // Row 1: year · content-rating · duration · seasons · episodes (single line).
+    // Year + the content-rating pill stay grouped (just a space); everything
+    // else is dot-separated so the row reads "2021 PG-13 · 2h 18m · 2 Seasons".
     const yearRatingEl = document.getElementById('summaryRowYearRating');
-    const yearRatingParts = [];
-    if (extra.year) yearRatingParts.push(`<span class="metaText">${escHtml(String(extra.year))}</span>`);
-    if (extra.contentRating) yearRatingParts.push(`<span class="metaPill">${escHtml(extra.contentRating)}</span>`);
-    if (yearRatingParts.length) { yearRatingEl.innerHTML = yearRatingParts.join(''); yearRatingEl.classList.remove('hidden'); }
-    else yearRatingEl.classList.add('hidden');
+    const lead = [];
+    if (extra.year) lead.push(`<span class="metaText">${escHtml(String(extra.year))}</span>`);
+    if (extra.contentRating) lead.push(`<span class="metaPill">${escHtml(extra.contentRating)}</span>`);
+    const segs = [];
+    if (lead.length) segs.push(lead.join(' '));
+    if (extra.runtime) segs.push(`<span class="metaText">${escHtml(extra.runtime)}</span>`);
+    if (extra.seasonCount) segs.push(`<span class="metaText">${extra.seasonCount} Season${extra.seasonCount !== 1 ? 's' : ''}</span>`);
+    if (extra.episodeCount) segs.push(`<span class="metaText">${extra.episodeCount} Episodes</span>`);
+    if (segs.length) {
+      yearRatingEl.innerHTML = segs.join('<span class="metaDot">·</span>');
+      yearRatingEl.classList.remove('hidden');
+    } else yearRatingEl.classList.add('hidden');
 
-    // Row 2: duration / season / episode count
-    const durEl = document.getElementById('summaryRowDuration');
-    const durParts = [];
-    if (extra.runtime) durParts.push(`<span class="metaText">${escHtml(extra.runtime)}</span>`);
-    if (extra.seasonCount) durParts.push(`<span class="metaText">${extra.seasonCount} Season${extra.seasonCount !== 1 ? 's' : ''}</span>`);
-    if (extra.episodeCount) durParts.push(`<span class="metaText">${extra.episodeCount} Episodes</span>`);
-    if (durParts.length) { durEl.innerHTML = durParts.join('<span class="metaText" style="opacity:0.3"> · </span>'); durEl.classList.remove('hidden'); }
-    else durEl.classList.add('hidden');
+    // The duration row is now folded into row 1 above; keep it empty/hidden.
+    document.getElementById('summaryRowDuration').classList.add('hidden');
 
     // Row 3: ratings
     const ratingsEl = document.getElementById('summaryRatings');
@@ -2468,6 +2555,24 @@ function closeSummaryFromOverlay(e) {
   if (e.target === document.getElementById('summaryOverlay')) closeSummary();
 }
 
+// ── Full-description popup ────────────────────────────────
+function openDescPopup() {
+  const el = document.getElementById('summaryText');
+  // Only when the blurb is actually clamped (otherwise it's fully visible).
+  if (!el.classList.contains('clamped')) return;
+  const item = summaryItem;
+  if (!item) return;
+  document.getElementById('descPopupTitle').textContent = item.title || '';
+  document.getElementById('descPopupText').textContent = item.summary || '';
+  document.getElementById('descPopup').classList.add('on');
+}
+function closeDescPopup() {
+  document.getElementById('descPopup').classList.remove('on');
+}
+function closeDescPopupFromOverlay(e) {
+  if (e.target === document.getElementById('descPopup')) closeDescPopup();
+}
+
 function goBack() {
   if (!hist.length || busy) return;
   busy = true;
@@ -2621,6 +2726,11 @@ document.addEventListener('touchmove', e => {
 }, { passive: false });
 
 document.addEventListener('keydown', e => {
+  // The description popup is the topmost layer — Escape closes it first.
+  if (document.getElementById('descPopup').classList.contains('on')) {
+    if (e.key === 'Escape') closeDescPopup();
+    return;
+  }
   const overlayOn = document.getElementById('summaryOverlay').classList.contains('on');
   const desktop = isDesktop();
 
