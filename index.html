@@ -864,12 +864,25 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   #posterStack, #info { display:none; }
   #starRow {
     margin:0; pointer-events:all; cursor:pointer;
-    filter:drop-shadow(0 3px 10px rgba(0,0,0,0.55));
+    filter:drop-shadow(0 2px 12px rgba(0,0,0,0.65));
   }
   .star { font-size:3.6rem; }
   #actions { width:auto; justify-content:center; gap:22px; padding:0; pointer-events:all; }
   .act-btn .icon { width:1.55rem; height:1.55rem; }
   .act-btn { filter:drop-shadow(0 2px 6px rgba(0,0,0,0.5)); }
+
+  /* Subtle radial scrim behind the rating cluster so stars/buttons stay legible
+     against any bright artwork without masking the backdrop image itself. */
+  #card::before {
+    content:'';
+    position:absolute;
+    inset:-56px -80px -36px -80px; /* bleed generously around the cluster */
+    z-index:-1;
+    pointer-events:none;
+    background:radial-gradient(ellipse at center bottom,
+      rgba(0,0,0,0.52) 0%, rgba(0,0,0,0.22) 55%, transparent 100%);
+    border-radius:50%;
+  }
 
   /* The band: a horizontal strip between the two hard bars, tinted with the
      artwork's ultraBlur colour. Holds the text content on the left. */
@@ -883,12 +896,42 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     padding:clamp(18px, 4vh, 50px) 46% 112px 64px;
     text-align:left; overflow:hidden;
     background-color:var(--sb-base);
-    transition:background-color 0.35s ease;
+    transition:background-color 0.45s ease;
     text-shadow:0 1px 14px rgba(0,0,0,0.45);
     z-index:1;
   }
   /* Content paints above the backdrop within the band. */
   #summaryScroll > :not(#summaryBackdrop) { position:relative; z-index:1; }
+
+  /* Cross-fade when switching items: the left content column fades out
+     instantly then the new content fades in. The backdrop's own opacity
+     transition handles the right side. */
+  #summaryScroll.lsx-fade-out > :not(#summaryBackdrop) {
+    opacity:0;
+    transition:opacity 0.18s ease;
+  }
+  #summaryScroll.lsx-fade-in > :not(#summaryBackdrop) {
+    opacity:0;
+    animation:lsxFadeIn 0.32s ease forwards;
+  }
+  @keyframes lsxFadeIn {
+    from { opacity:0; transform:translateY(6px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+
+  /* Stagger children so they rise in sequence like mobile's state screens */
+  #summaryScroll.lsx-fade-in > :not(#summaryBackdrop):nth-child(2)  { animation-delay:0.04s; }
+  #summaryScroll.lsx-fade-in > :not(#summaryBackdrop):nth-child(3)  { animation-delay:0.07s; }
+  #summaryScroll.lsx-fade-in > :not(#summaryBackdrop):nth-child(4)  { animation-delay:0.10s; }
+  #summaryScroll.lsx-fade-in > :not(#summaryBackdrop):nth-child(5)  { animation-delay:0.13s; }
+  #summaryScroll.lsx-fade-in > :not(#summaryBackdrop):nth-child(6)  { animation-delay:0.16s; }
+  #summaryScroll.lsx-fade-in > :not(#summaryBackdrop):nth-child(7)  { animation-delay:0.19s; }
+  #summaryScroll.lsx-fade-in > :not(#summaryBackdrop):nth-child(8)  { animation-delay:0.22s; }
+  #summaryScroll.lsx-fade-in > :not(#summaryBackdrop):nth-child(n+9){ animation-delay:0.24s; }
+
+  /* Rating cluster in #card mirrors the fade */
+  #stage.lsx-fade-out { opacity:0; transition:opacity 0.18s ease; }
+  #stage.lsx-fade-in  { opacity:0; animation:lsxFadeIn 0.32s 0.18s ease forwards; }
 
   /* Backdrop fills the band on the RIGHT. Its top/bottom are HARD (flush with
      the bars); only the LEFT edge is masked so it dissolves into --sb-base. */
@@ -928,8 +971,11 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   #summaryTitle img,
   #summaryBox.has-backdrop #summaryTitle img,
   #summaryBox.loading-backdrop #summaryTitle img {
-    margin:0; max-height:clamp(80px, 13vh, 130px); max-width:100%;
+    margin:0; max-height:clamp(58px, 9vh, 96px); max-width:80%;
   }
+
+  /* Space between logo/title and the first meta row */
+  #summaryTitle { margin-bottom:20px; }
 
   /* Even vertical rhythm between the meta blocks so the column breathes. */
   #summaryRowYearRating { justify-content:flex-start; gap:9px; margin-top:0; margin-bottom:14px; }
@@ -991,6 +1037,25 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   }
   #typeFilter.on { opacity:0.8; }
   #typeFilter.on:hover { opacity:1; }
+
+  /* ── LSX skeleton: shown while the very first item's extra data loads ── */
+  #lsxSkeleton {
+    display:none;
+    position:absolute; left:0; right:0;
+    top:var(--bar); bottom:var(--bar);
+    z-index:2; pointer-events:none;
+    padding:clamp(18px, 4vh, 50px) 46% 112px 64px;
+    flex-direction:column; gap:16px; justify-content:flex-start; align-items:flex-start;
+  }
+  #lsxSkeleton.on { display:flex; }
+  .lsx-skel-logo  { width:220px; height:clamp(44px,7vh,76px); border-radius:8px; }
+  .lsx-skel-line  { height:13px; border-radius:6px; }
+  .lsx-skel-wide  { width:260px; }
+  .lsx-skel-mid   { width:180px; }
+  .lsx-skel-narrow{ width:120px; }
+  .lsx-skel-block { height:56px; width:320px; border-radius:8px; margin-top:4px; }
+  .lsx-skel-cast  { display:flex; gap:14px; margin-top:8px; }
+  .lsx-skel-head  { width:56px; height:56px; border-radius:50%; flex-shrink:0; }
 
   /* ── Desktop trailer player ──────────────────────────────
      Clicking Trailer blurs the crisp backdrop into an ultraBlur backdrop and
@@ -1163,6 +1228,20 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 <div id="summaryOverlay" onclick="closeSummaryFromOverlay(event)" role="dialog" aria-modal="true" aria-labelledby="summaryTitle">
   <div id="summaryBox">
     <button id="summaryClose" onclick="closeSummary()" aria-label="Close summary"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-x"/></svg></button>
+    <!-- LSX skeleton: visible on desktop while the first item's data loads -->
+    <div id="lsxSkeleton" aria-hidden="true">
+      <div class="lsx-skel-logo skeleton"></div>
+      <div class="lsx-skel-line lsx-skel-wide skeleton"></div>
+      <div class="lsx-skel-line lsx-skel-narrow skeleton"></div>
+      <div class="lsx-skel-block skeleton"></div>
+      <div class="lsx-skel-cast">
+        <div class="lsx-skel-head skeleton"></div>
+        <div class="lsx-skel-head skeleton"></div>
+        <div class="lsx-skel-head skeleton"></div>
+        <div class="lsx-skel-head skeleton"></div>
+        <div class="lsx-skel-head skeleton"></div>
+      </div>
+    </div>
     <div id="summaryScroll">
       <div id="summaryBackdrop"><img id="summaryBackdropImg" alt=""></div>
       <div id="summaryTitle"></div>
@@ -1544,11 +1623,21 @@ function setInfo(item) {
   preloadInfo();
   if (isDesktop() && summaryItem !== item) {
     if (item._extra) {
-      openSummary(item);
+      // Extra cached — cross-fade straight to new content
+      lsxTransition(() => openSummary(item));
     } else {
-      // On first load _extra isn't cached yet — wait for it so the Detail
-      // panel doesn't flash an empty black box before the data arrives.
-      loadExtraInfo(item).then(() => { if (summaryItem !== item) openSummary(item); });
+      // First load or cache miss: show skeleton immediately, then fade in
+      // once the data arrives.
+      if (summaryItem === null) {
+        // Very first item: overlay isn't open yet — show skeleton while loading
+        document.getElementById('summaryOverlay').classList.add('on');
+        document.getElementById('lsxSkeleton').classList.add('on');
+      } else {
+        lsxTransition(() => {});  // fade out current content, leave blank briefly
+      }
+      loadExtraInfo(item).then(() => {
+        if (summaryItem !== item) openSummary(item);
+      });
     }
   }
 }
@@ -2261,6 +2350,32 @@ async function loadExtraInfo(item) {
 
 let summaryOpener = null;
 let summaryItem = null; // tracks which item the summary is currently showing
+let _lsxFadeTimer = null;
+
+function lsxTransition(populate) {
+  if (!isDesktop()) { populate(); return; }
+  const scroll = document.getElementById('summaryScroll');
+  const stage  = document.getElementById('stage');
+  // Fade out
+  scroll.classList.remove('lsx-fade-in');
+  scroll.classList.add('lsx-fade-out');
+  stage.classList.remove('lsx-fade-in');
+  stage.classList.add('lsx-fade-out');
+  clearTimeout(_lsxFadeTimer);
+  _lsxFadeTimer = setTimeout(() => {
+    populate();
+    scroll.classList.remove('lsx-fade-out');
+    scroll.classList.add('lsx-fade-in');
+    stage.classList.remove('lsx-fade-out');
+    stage.classList.add('lsx-fade-in');
+    // Clean up animation classes once they've played
+    setTimeout(() => {
+      scroll.classList.remove('lsx-fade-in');
+      stage.classList.remove('lsx-fade-in');
+    }, 500);
+  }, 180);
+}
+
 function openSummary(forItem) {
   const item = forItem || queue[0];
   if (!item || !item.summary) return;
@@ -2270,6 +2385,10 @@ function openSummary(forItem) {
   const box = document.getElementById('summaryBox');
   const backdrop = document.getElementById('summaryBackdrop');
   const backdropImg = document.getElementById('summaryBackdropImg');
+
+  // Hide LSX skeleton once real content is ready
+  document.getElementById('lsxSkeleton').classList.remove('on');
+
   box.classList.remove('has-backdrop');
 
   backdrop.classList.remove('on');
