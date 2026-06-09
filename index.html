@@ -382,9 +382,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
      midpoint of the title/logo box. With min-height:100px the midpoint is
      at 50px; the backdrop has margin-bottom:16px so we need -66px net:
      16 - 66 = -50px → backdrop bottom exactly at the 50px midpoint. */
-  margin-top:-86px; margin-bottom:6px;
+  margin-top:-74px; margin-bottom:2px;
   padding:0 12px;
-  min-height:140px;
+  min-height:116px;
 }
 #summaryTitle {
   /* --title-fs is driven down by fitTitle() only when the text would
@@ -480,6 +480,23 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   text-align:center;
 }
 #summaryCredits.hidden { display:none; }
+#summaryPersonal {
+  margin-top:20px;
+  padding-top:16px;
+  border-top:1px solid rgba(255,251,248,0.08);
+  text-align:center;
+  display:flex; flex-direction:column; gap:6px;
+}
+#summaryPersonal.hidden { display:none; }
+.personalRow {
+  font-size:0.74rem; font-weight:500;
+  color:rgba(255,251,248,0.4);
+  line-height:1.4;
+}
+.personalRow span {
+  color:rgba(255,251,248,0.68);
+  font-weight:600;
+}
 #summaryDirector, #summaryWriters, #summaryStudio {
   font-size:0.75rem; font-weight:500;
   color:rgba(255,251,248,0.45);
@@ -905,6 +922,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
         <div id="summaryWriters" class="hidden"></div>
         <div id="summaryStudio" class="hidden"></div>
       </div>
+      <div id="summaryPersonal" class="hidden"></div>
     </div>
   </div>
 </div>
@@ -1826,10 +1844,13 @@ async function loadExtraInfo(item) {
       studio: (meta && meta.studio) || null,
       country: (meta && meta.Country || []).map(c => c.tag)[0] || null,
       seasonCount: (meta && meta.childCount != null) ? meta.childCount : null,
-      episodeCount: (meta && meta.leafCount != null) ? meta.leafCount : null
+      episodeCount: (meta && meta.leafCount != null) ? meta.leafCount : null,
+      addedAt: item.addedAt || (meta && meta.addedAt) || null,
+      lastViewedAt: item.lastViewedAt || (meta && meta.lastViewedAt) || null,
+      viewCount: item.viewCount || (meta && meta.viewCount) || null
     };
   } catch (e) {
-    item._extra = { year: null, tint: null, backdrop: '', logo: '', genres: [], cast: [], runtime: null, contentRating: null, audienceRating: null, audienceRatingImage: null, criticRating: null, criticRatingImage: null, directors: [], writers: [], studio: null, country: null, seasonCount: null, episodeCount: null };
+    item._extra = { year: null, tint: null, backdrop: '', logo: '', genres: [], cast: [], runtime: null, contentRating: null, audienceRating: null, audienceRatingImage: null, criticRating: null, criticRatingImage: null, directors: [], writers: [], studio: null, country: null, seasonCount: null, episodeCount: null, addedAt: item.addedAt || null, lastViewedAt: item.lastViewedAt || null, viewCount: item.viewCount || null };
   }
   return item._extra;
 }
@@ -1853,7 +1874,7 @@ function openSummary() {
   closeBtn._backdropIsLight = false;
 
   ['summaryRowYearRating','summaryRowDuration','summaryRatings','summaryGenres',
-   'summaryDirector','summaryWriters','summaryStudio'].forEach(id => {
+   'summaryDirector','summaryWriters','summaryStudio','summaryPersonal'].forEach(id => {
     const el = document.getElementById(id);
     el.innerHTML = '';
     el.classList.add('hidden');
@@ -1992,6 +2013,19 @@ function openSummary() {
     const hasCredits = (extra.directors && extra.directors.length) || (extra.writers && extra.writers.length) || extra.studio;
     if (hasCredits) creditsEl.classList.remove('hidden');
     else creditsEl.classList.add('hidden');
+
+    // Personal data section
+    const personalEl = document.getElementById('summaryPersonal');
+    const personalRows = [];
+    const fmtTs = ts => {
+      const d = new Date(ts * 1000);
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    };
+    if (extra.addedAt) personalRows.push(`<div class="personalRow">Added to library <span>${fmtTs(extra.addedAt)}</span></div>`);
+    if (extra.lastViewedAt) personalRows.push(`<div class="personalRow">Last watched <span>${fmtTs(extra.lastViewedAt)}</span></div>`);
+    if (extra.viewCount > 1) personalRows.push(`<div class="personalRow">Watched <span>${extra.viewCount} times</span></div>`);
+    if (personalRows.length) { personalEl.innerHTML = personalRows.join(''); personalEl.classList.remove('hidden'); }
+    else personalEl.classList.add('hidden');
 
     // Paint the bottom corners with the artwork's ultraBlur tint (or clear it
     // for items without that metadata).
