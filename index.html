@@ -334,6 +334,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   touch-action:pan-y;
 }
 #summaryScroll::-webkit-scrollbar { display:none; }
+#sbBg { display:none; }
+#summaryBackdropImg2 { display:none; }  /* second crossfade layer: desktop only */
 #summaryBackdrop {
   display:none;
   position:relative;
@@ -847,6 +849,16 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     background:#000;                 /* the solid letterbox bars */
   }
 
+  /* Ultrablur mesh / letterbox-tint crossfade layer. Sits behind the band and
+     shows through in the bars. The incoming mesh fades in over the committed
+     one (held on #summaryBox background) for a smooth color transition. */
+  #sbBg {
+    display:block;
+    position:absolute; inset:0; z-index:0;
+    opacity:0; pointer-events:none;
+    transition:opacity 0.55s ease;
+  }
+
   /* Stage is a transparent top layer; only the control cluster is clickable.
      Controls sit bottom-LEFT inside the band, just above the bottom bar. */
   #stage { z-index:550; pointer-events:none; }
@@ -933,9 +945,16 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     right:0; top:0;
     height:100%; width:auto; /* natural 16:9 ratio, never cropped */
     z-index:1;
+    opacity:0; /* both layers start hidden; JS crossfades them */
+    transition:opacity 0.55s ease, filter 0.55s ease, transform 0.55s ease;
     -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.15) 16%, #000 44%);
     mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.15) 16%, #000 44%);
   }
+  #summaryBackdropImg2 { display:block; }  /* enable the second crossfade layer */
+  /* The currently-shown backdrop layer */
+  #summaryBackdrop img.bd-show { opacity:1; }
+  /* Keep the container fully shown on desktop; crossfade happens per-layer */
+  #summaryBox.has-backdrop #summaryBackdrop { opacity:1; }
   /* Light left-side darkening so the lower-left text stays legible over the
      faded edge of the artwork. */
   #summaryBackdrop::after {
@@ -1045,12 +1064,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
      Clicking Trailer blurs the crisp backdrop into an ultraBlur backdrop and
      floats a framed 16:9 player on the right (where the artwork was), so the
      content stays put on the left. */
-  #summaryBox.playing-trailer #summaryBackdrop img {
+  #summaryBox.playing-trailer #summaryBackdrop img.bd-show {
     filter:blur(34px) brightness(0.42) saturate(1.2);
     transform:scale(1.14);
-  }
-  #summaryBackdrop img {
-    transition:filter 0.55s ease, transform 0.55s ease, opacity 0.3s ease;
   }
   #summaryBox.playing-trailer #trailerInline {
     display:block;
@@ -1213,6 +1229,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 
 <div id="summaryOverlay" onclick="closeSummaryFromOverlay(event)" role="dialog" aria-modal="true" aria-labelledby="summaryTitle">
   <div id="summaryBox">
+    <!-- Crossfade layer for the ultraBlur mesh / letterbox tint (desktop) -->
+    <div id="sbBg" aria-hidden="true"></div>
     <button id="summaryClose" onclick="closeSummary()" aria-label="Close summary"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-x"/></svg></button>
     <!-- LSX skeleton: visible on desktop while the first item's data loads -->
     <div id="lsxSkeleton" aria-hidden="true">
@@ -1229,7 +1247,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
       </div>
     </div>
     <div id="summaryScroll">
-      <div id="summaryBackdrop"><img id="summaryBackdropImg" alt=""></div>
+      <div id="summaryBackdrop"><img id="summaryBackdropImg" alt=""><img id="summaryBackdropImg2" alt="" aria-hidden="true"></div>
       <div id="summaryTitle"></div>
       <div id="summaryRowYearRating" class="hidden"></div>
       <div id="summaryRowDuration" class="hidden"></div>
@@ -2362,6 +2380,28 @@ function lsxTransition(populate) {
   }, 180);
 }
 
+// Crossfade the ultrablur mesh / letterbox tint. The incoming mesh is painted
+// on the #sbBg overlay and faded in over the committed mesh (on #summaryBox),
+// then committed once the fade completes.
+let _meshTimer = null;
+function applySummaryMesh(box, meshCss) {
+  if (!isDesktop()) { box.style.background = meshCss; return; }
+  const bg = document.getElementById('sbBg');
+  bg.style.background = meshCss;
+  bg.style.opacity = '0';
+  void bg.offsetWidth;          // reflow so the 0→1 transition fires
+  bg.style.opacity = '1';
+  clearTimeout(_meshTimer);
+  _meshTimer = setTimeout(() => {
+    box.style.background = meshCss;
+    bg.style.opacity = '0';
+  }, 600);
+}
+
+// Tracks which of the two stacked backdrop <img> layers is currently shown,
+// so each new artwork can crossfade in over the previous one (desktop).
+let _bdShownId = 'summaryBackdropImg';
+
 function openSummary(forItem) {
   const item = forItem || queue[0];
   if (!item || !item.summary) return;
@@ -2375,13 +2415,17 @@ function openSummary(forItem) {
   // Hide LSX skeleton once real content is ready
   document.getElementById('lsxSkeleton').classList.remove('on');
 
-  box.classList.remove('has-backdrop');
-
-  backdrop.classList.remove('on');
-  backdropImg.removeAttribute('src');
-  backdrop.style.removeProperty('--bd-img');
-  box.style.removeProperty('--sb-base');
-  box.style.removeProperty('background');
+  // On desktop we crossfade between items, so we DON'T tear down the current
+  // backdrop / ultrablur here — the old visuals stay put and the new ones fade
+  // in over them. On mobile the popup is opened fresh each time, so reset fully.
+  if (!isDesktop()) {
+    box.classList.remove('has-backdrop');
+    backdrop.classList.remove('on');
+    backdropImg.removeAttribute('src');
+    backdrop.style.removeProperty('--bd-img');
+    box.style.removeProperty('--sb-base');
+    box.style.removeProperty('background');
+  }
   const closeBtn = document.getElementById('summaryClose');
   closeBtn.classList.remove('on-light');
   closeBtn._backdropIsLight = false;
@@ -2399,7 +2443,9 @@ function openSummary(forItem) {
   // otherwise the panel would visibly stretch then snap back when an item
   // turns out to have no backdrop.
   const known = item._extra;
-  if (!known || known.backdrop) {
+  // On desktop we keep the old backdrop visible and crossfade — so we skip the
+  // skeleton shimmer (it would flash over the whole band). Mobile reserves it.
+  if ((!known || known.backdrop) && !isDesktop()) {
     box.classList.add('loading-backdrop');
     backdrop.classList.add('skeleton');
   }
@@ -2541,11 +2587,11 @@ function openSummary(forItem) {
     else personalEl.classList.add('hidden');
 
     // Paint the bottom corners with the artwork's ultraBlur tint (or clear it
-    // for items without that metadata).
+    // for items without that metadata). The band reads --sb-base (which has its
+    // own background-color transition); the mesh on the box/letterbox crossfades
+    // via #sbBg so switching items fades the ambient colour smoothly.
     if (extra.ubTints) {
       const { tl, tr, bl, br } = extra.ubTints;
-      // 4-corner mesh: each corner radiates its colour inward, blending in the
-      // centre — much richer than a single flat tint.
       const validCorners = [tl, tr, bl, br].filter(Boolean);
       const avg = validCorners.length ? validCorners[Math.floor(validCorners.length / 2)] : '#222';
       box.style.setProperty('--sb-base', avg || '#222');
@@ -2555,9 +2601,13 @@ function openSummary(forItem) {
         bl ? `radial-gradient(ellipse at 0% 100%, ${bl} 0%, transparent 70%)` : '',
         br ? `radial-gradient(ellipse at 100% 100%, ${br} 0%, transparent 70%)` : '',
       ].filter(Boolean);
-      box.style.background = corners.length
-        ? `${corners.join(',')}, var(--sb-base)`
-        : 'var(--sb-base)';
+      // Bake the base colour literally so the committed (box) and incoming (#sbBg)
+      // layers are independent of the --sb-base var while crossfading.
+      const meshCss = corners.length ? `${corners.join(',')}, ${avg}` : avg;
+      applySummaryMesh(box, meshCss);
+    } else {
+      box.style.setProperty('--sb-base', '#222');
+      applySummaryMesh(box, '#161616');
     }
 
     // Backdrop + logo go together: no backdrop means we keep the plain
@@ -2565,6 +2615,38 @@ function openSummary(forItem) {
     if (extra.backdrop) {
       const applyBackdropBlob = blobUrl => {
         if (summaryItem !== item) return;
+        // Expose the URL so the desktop hero's ::before can render a blurred,
+        // darkened full-screen copy behind the crisp 16:9 frame (cinematic bars).
+        backdrop.style.setProperty('--bd-img', `url("${blobUrl}")`);
+
+        if (isDesktop()) {
+          // Crossfade: load the new art into the hidden layer, then fade it in
+          // over the currently-shown one.
+          const curId  = _bdShownId;
+          const nextId = curId === 'summaryBackdropImg' ? 'summaryBackdropImg2' : 'summaryBackdropImg';
+          const curEl  = document.getElementById(curId);
+          const nextEl = document.getElementById(nextId);
+          nextEl.onload = () => {
+            if (summaryItem !== item) return;
+            backdrop.classList.remove('skeleton');
+            box.classList.remove('loading-backdrop');
+            box.classList.add('has-backdrop');
+            requestAnimationFrame(() => {
+              nextEl.classList.add('bd-show');
+              curEl.classList.remove('bd-show');
+            });
+            _bdShownId = nextId;
+            sampleCornerBrightness(nextEl).then(light => {
+              if (summaryItem !== item) return;
+              const closeBtn = document.getElementById('summaryClose');
+              closeBtn._backdropIsLight = light;
+              updateCloseAdaptation();
+            });
+          };
+          nextEl.src = blobUrl;
+          return;
+        }
+
         backdropImg.onload = () => {
           if (summaryItem !== item) return;
           backdrop.classList.remove('skeleton');
@@ -2579,9 +2661,6 @@ function openSummary(forItem) {
           });
         };
         backdropImg.src = blobUrl;
-        // Expose the URL so the desktop hero's ::before can render a blurred,
-        // darkened full-screen copy behind the crisp 16:9 frame (cinematic bars).
-        backdrop.style.setProperty('--bd-img', `url("${blobUrl}")`);
       };
       const onBackdropError = () => {
         if (summaryItem !== item) return;
@@ -2620,6 +2699,12 @@ function openSummary(forItem) {
     } else {
       backdrop.classList.remove('skeleton');
       box.classList.remove('loading-backdrop');
+      // No backdrop for this item — fade the previous artwork out (desktop).
+      if (isDesktop()) {
+        document.getElementById('summaryBackdropImg').classList.remove('bd-show');
+        document.getElementById('summaryBackdropImg2').classList.remove('bd-show');
+        box.classList.remove('has-backdrop');
+      }
     }
 
     if (extra.cast.length) {
