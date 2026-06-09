@@ -1512,17 +1512,21 @@ function updateCloseAdaptation() {
 // colour used as the panel's solid background — the colour the backdrop image
 // dissolves into. Averaging keeps the hue representative while the luminance
 // cap (≤72) ensures white text stays legible (~7:1 contrast or better).
+// Darkens a single [r,g,b] corner from UltraBlurColors to panel-background level.
+function ubDarken(rgb) {
+  if (!rgb) return null;
+  let [r, g, b] = rgb.map(v => Math.round(v * 0.55));
+  const lum = (r * 299 + g * 587 + b * 114) / 1000;
+  if (lum > 88) { const k = 88 / lum; r = Math.round(r*k); g = Math.round(g*k); b = Math.round(b*k); }
+  return `rgb(${r},${g},${b})`;
+}
+// Fallback single average colour (used when only some corners are present).
 function ubBlend(hexCorners) {
   const parsed = hexCorners.map(hexToRgb).filter(Boolean);
   if (!parsed.length) return null;
   let r = 0, g = 0, b = 0;
   for (const c of parsed) { r += c[0]; g += c[1]; b += c[2]; }
-  r = Math.round(r / parsed.length * 0.55);
-  g = Math.round(g / parsed.length * 0.55);
-  b = Math.round(b / parsed.length * 0.55);
-  const lum = (r * 299 + g * 587 + b * 114) / 1000;
-  if (lum > 88) { const k = 88 / lum; r = Math.round(r*k); g = Math.round(g*k); b = Math.round(b*k); }
-  return `rgb(${r},${g},${b})`;
+  return ubDarken([r / parsed.length, g / parsed.length, b / parsed.length]);
 }
 
 // Text titles start at full size and only shrink (down to a floor) when they'd
@@ -1812,10 +1816,18 @@ async function loadExtraInfo(item) {
     const artPath = meta && meta.art;
     const ub = (meta && (meta.UltraBlurColors || meta.ultraBlurColors))
       || item.ultraBlurColors || item.UltraBlurColors || null;
-    const ubCorners = ub ? [ub.topLeft, ub.topRight, ub.bottomLeft, ub.bottomRight].filter(Boolean) : [];
+    const ubTints = ub ? {
+      tl: ub.topLeft    ? ubDarken(hexToRgb(ub.topLeft))    : null,
+      tr: ub.topRight   ? ubDarken(hexToRgb(ub.topRight))   : null,
+      bl: ub.bottomLeft ? ubDarken(hexToRgb(ub.bottomLeft)) : null,
+      br: ub.bottomRight? ubDarken(hexToRgb(ub.bottomRight)): null,
+    } : null;
+    // Ratings — prefer the Rating[] array (newer Plex) which carries all
+    // sources; fall back to the scalar fields for older servers.
+    const ratingArr = (meta && meta.Rating) || [];
     item._extra = {
       year: (meta && meta.year) || null,
-      tint: ubCorners.length ? ubBlend(ubCorners) : null,
+      ubTints,
       backdrop: artPath ? `${cfg.url}${artPath}?X-Plex-Token=${cfg.token}&width=700` : '',
       logo: logoImg && logoImg.url
         ? (/^https?:\/\//.test(logoImg.url) ? logoImg.url : `${cfg.url}${logoImg.url}?X-Plex-Token=${cfg.token}`)
@@ -1829,13 +1841,12 @@ async function loadExtraInfo(item) {
       })),
       runtime: (meta && meta.duration) ? formatDuration(meta.duration) : null,
       contentRating: (meta && meta.contentRating) || null,
-      audienceRating: (meta && meta.audienceRating != null) ? meta.audienceRating : null,
-      audienceRatingImage: (meta && meta.audienceRatingImage) || null,
-      criticRating: (meta && meta.rating != null) ? meta.rating : null,
-      criticRatingImage: (meta && meta.ratingImage) || null,
-      directors: (meta && meta.Director || []).map(d => d.tag).slice(0, 2),
-      writers: (meta && meta.Writer || []).map(w => w.tag).slice(0, 3),
-      studio: (meta && meta.studio) || null,
+      ratings: ratingArr.length
+        ? ratingArr
+        : [
+            (meta && meta.rating != null)         ? { image: meta.ratingImage,         value: meta.rating }         : null,
+            (meta && meta.audienceRating != null)  ? { image: meta.audienceRatingImage, value: meta.audienceRating } : null,
+          ].filter(Boolean),
       country: (meta && meta.Country || []).map(c => c.tag)[0] || null,
       seasonCount: (meta && meta.childCount != null) ? meta.childCount : null,
       episodeCount: (meta && meta.leafCount != null) ? meta.leafCount : null,
@@ -1853,7 +1864,7 @@ async function loadExtraInfo(item) {
       } catch (_) {}
     }
   } catch (e) {
-    item._extra = { year: null, tint: null, backdrop: '', logo: '', genres: [], cast: [], runtime: null, contentRating: null, audienceRating: null, audienceRatingImage: null, criticRating: null, criticRatingImage: null, directors: [], writers: [], studio: null, country: null, seasonCount: null, episodeCount: null, addedAt: item.addedAt || null, lastViewedAt: item.lastViewedAt || null, viewCount: item.viewCount || null, firstViewedAt: null };
+    item._extra = { year: null, ubTints: null, backdrop: '', logo: '', genres: [], cast: [], ratings: [], runtime: null, contentRating: null, country: null, seasonCount: null, episodeCount: null, addedAt: item.addedAt || null, lastViewedAt: item.lastViewedAt || null, viewCount: item.viewCount || null, firstViewedAt: null };
   }
   return item._extra;
 }
@@ -1872,6 +1883,7 @@ function openSummary() {
   backdrop.classList.remove('on');
   backdropImg.removeAttribute('src');
   box.style.removeProperty('--sb-base');
+  box.style.removeProperty('background');
   const closeBtn = document.getElementById('summaryClose');
   closeBtn.classList.remove('on-light');
   closeBtn._backdropIsLight = false;
@@ -1980,15 +1992,11 @@ function openSummary() {
 
     // Row 3: ratings
     const ratingsEl = document.getElementById('summaryRatings');
-    const ratingParts = [];
-    const cb = ratingBadge(extra.criticRatingImage, extra.criticRating);
-    const ab = ratingBadge(extra.audienceRatingImage, extra.audienceRating);
     const mkBadge = b => {
       const img = b.imgSrc ? `<img src="${escHtml(b.imgSrc)}" class="rIcon" alt="${escHtml(b.label)}" onerror="this.style.display='none'">` : '';
       return `<span class="ratingBadge">${img}${escHtml(b.score)}</span>`;
     };
-    if (cb) ratingParts.push(mkBadge(cb));
-    if (ab) ratingParts.push(mkBadge(ab));
+    const ratingParts = (extra.ratings || []).map(r => ratingBadge(r.image, r.value)).filter(Boolean).map(mkBadge);
     if (ratingParts.length) { ratingsEl.innerHTML = ratingParts.join(''); ratingsEl.classList.remove('hidden'); }
     else ratingsEl.classList.add('hidden');
 
@@ -2013,8 +2021,22 @@ function openSummary() {
 
     // Paint the bottom corners with the artwork's ultraBlur tint (or clear it
     // for items without that metadata).
-    if (extra.tint) {
-      box.style.setProperty('--sb-base', extra.tint);
+    if (extra.ubTints) {
+      const { tl, tr, bl, br } = extra.ubTints;
+      // 4-corner mesh: each corner radiates its colour inward, blending in the
+      // centre — much richer than a single flat tint.
+      const validCorners = [tl, tr, bl, br].filter(Boolean);
+      const avg = validCorners.length ? validCorners[Math.floor(validCorners.length / 2)] : '#222';
+      box.style.setProperty('--sb-base', avg || '#222');
+      const corners = [
+        tl ? `radial-gradient(ellipse at 0% 0%, ${tl} 0%, transparent 70%)` : '',
+        tr ? `radial-gradient(ellipse at 100% 0%, ${tr} 0%, transparent 70%)` : '',
+        bl ? `radial-gradient(ellipse at 0% 100%, ${bl} 0%, transparent 70%)` : '',
+        br ? `radial-gradient(ellipse at 100% 100%, ${br} 0%, transparent 70%)` : '',
+      ].filter(Boolean);
+      box.style.background = corners.length
+        ? `${corners.join(',')}, var(--sb-base)`
+        : 'var(--sb-base)';
     }
 
     // Backdrop + logo go together: no backdrop means we keep the plain
