@@ -1761,7 +1761,15 @@ function advance(dir) {
     p0.style.opacity = '0';
   }
 
-  if (p1) { p1.className = 'poster p0'; if (p1._glow) setGlow(p1._glow); }
+  if (p1) {
+    p1.className = 'poster p0';
+    // Defer the glow change by two frames so the browser commits the current
+    // (outgoing) glow as the transition's start value first — otherwise a
+    // synchronous set at swipe-time finishes its 0.7s fade before the new
+    // poster has even slid in, reading as an instant jump. goBack gets this
+    // deferral for free via the new poster's async img.onload.
+    if (p1._glow) requestAnimationFrame(() => requestAnimationFrame(() => setGlow(p1._glow)));
+  }
   if (p2) { p2.className = 'poster p1'; }
 
   const next = queue[3];
