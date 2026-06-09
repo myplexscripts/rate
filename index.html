@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#000000">
 <title>Rate It</title>
-<link rel="icon" type="image/png" href="app-icon.png">
-<link rel="apple-touch-icon" href="app-icon.png">
+<link rel="icon" type="image/png" href="images/icons/app-icon.png">
+<link rel="apple-touch-icon" href="images/icons/app-icon.png">
 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
 <style>
 @font-face { font-family:'Circular'; src:url('https://dvdbsh.github.io/fonts/Circular/Circular-Book.ttf') format('truetype'); font-weight:400; font-display:swap; }
@@ -18,12 +18,22 @@
 @font-face { font-family:'Circular'; src:url('https://dvdbsh.github.io/fonts/Circular/Circular-Bold.ttf') format('truetype'); font-weight:700; font-display:swap; }
 @font-face { font-family:'Circular'; src:url('https://dvdbsh.github.io/fonts/Circular/Circular-Black.ttf') format('truetype'); font-weight:900; font-display:swap; }
 
-@property --glow-left {
+@property --glow-tl {
   syntax: '<color>';
   inherits: false;
   initial-value: rgba(40,40,60,1);
 }
-@property --glow-right {
+@property --glow-tr {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: rgba(40,40,60,1);
+}
+@property --glow-bl {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: rgba(40,40,60,1);
+}
+@property --glow-br {
   syntax: '<color>';
   inherits: false;
   initial-value: rgba(40,40,60,1);
@@ -45,6 +55,23 @@
   -webkit-user-select:none;
   user-select:none;
   -webkit-tap-highlight-color:transparent;
+}
+
+/* Visible keyboard-focus ring (WCAG 2.4.7 / Apple HIG focus states) —
+   only shown for keyboard/AT users, not on pointer taps. */
+button:focus-visible, [tabindex]:focus-visible, a:focus-visible {
+  outline:2px solid var(--star);
+  outline-offset:3px;
+  border-radius:4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration:0.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:0.01ms !important;
+    scroll-behavior:auto !important;
+  }
 }
 
 html, body {
@@ -74,10 +101,12 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   animation:shimmer 1.5s ease-in-out infinite;
 }
 .poster.skeleton {
+  /* <img> with no src may collapse to 0 height and ignore aspect-ratio;
+     set height explicitly from the same width basis so 2:3 is guaranteed. */
   width:60vw;
   max-width:280px;
+  height:calc(min(60vw, 280px) * 3 / 2);
   aspect-ratio:2/3;
-  height:auto;
 }
 #trailerSkeleton {
   width:100%;
@@ -90,18 +119,25 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   vertical-align:middle;
 }
 
-/* GRADIENT BG */
+/* ULTRABLUR-STYLE GRADIENT BG — four corner blobs blended together,
+   mirroring Plex's own "ultraBlurColors" artwork-derived backgrounds. */
 #glowBg {
   position:fixed; inset:0;
   z-index:0;
   pointer-events:none;
-  --glow-left: rgba(40,40,60,1);
-  --glow-right: rgba(40,40,60,1);
-  background:linear-gradient(to right, var(--glow-left) 0%, var(--glow-right) 100%);
-  -webkit-mask-image:linear-gradient(to bottom, #000 0%, transparent 65%);
-  mask-image:linear-gradient(to bottom, #000 0%, transparent 65%);
+  --glow-tl: rgba(40,40,60,1);
+  --glow-tr: rgba(40,40,60,1);
+  --glow-bl: rgba(40,40,60,1);
+  --glow-br: rgba(40,40,60,1);
+  background:
+    radial-gradient(circle at 0% 0%,   var(--glow-tl) 0%, transparent 65%),
+    radial-gradient(circle at 100% 0%, var(--glow-tr) 0%, transparent 65%),
+    radial-gradient(circle at 0% 100%, var(--glow-bl) 0%, transparent 65%),
+    radial-gradient(circle at 100% 100%, var(--glow-br) 0%, transparent 65%);
+  -webkit-mask-image:linear-gradient(to bottom, #000 0%, #000 60%, transparent 100%);
+  mask-image:linear-gradient(to bottom, #000 0%, #000 60%, transparent 100%);
   opacity:0.6;
-  transition:--glow-left 0.7s ease, --glow-right 0.7s ease;
+  transition:--glow-tl 0.7s ease, --glow-tr 0.7s ease, --glow-bl 0.7s ease, --glow-br 0.7s ease;
 }
 
 /* STATES */
@@ -151,14 +187,17 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 }
 #stage.on { opacity:1; pointer-events:all; }
 
-/* CARD — vertically centred */
+/* CARD — top-anchored so the poster's top edge lines up with the filter box.
+   justify-content:flex-start (not center) so the poster truly starts at the
+   padding-top boundary rather than being re-centred in the remaining space. */
 #card {
   position:relative; z-index:1;
   width:100%; height:100%;
   max-width:480px;
   display:flex; flex-direction:column;
-  align-items:center; justify-content:center;
-  padding:calc(var(--safe-top) + 20px) 24px calc(var(--safe-bottom) + 20px);
+  align-items:center; justify-content:flex-start;
+  /* safe-top + progress-ring top (16px) + ring height (36px) + gap to filter (12px) = +64px */
+  padding:calc(var(--safe-top) + 64px) 24px calc(var(--safe-bottom) + 20px);
   gap:0;
 }
 
@@ -170,7 +209,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   height:46svh;
   flex-shrink:1;
   min-height:0;
-  margin-bottom:72px;
+  margin-bottom:28px;
 }
 /* img sized to its own content (no letterbox box) so rounding shows on the real poster */
 .poster {
@@ -194,14 +233,31 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   flex-shrink:0; margin-bottom:20px;
 }
 #iTitle {
+  --fs: clamp(1.3rem,5vw,1.7rem);
   font-weight:900;
-  font-size:clamp(1.3rem,5vw,1.7rem);
+  font-size:var(--fs);
   letter-spacing:-0.025em; line-height:1.1;
   color:var(--text); margin-bottom:5px;
+  /* Fixed 2-line box so titles of varying length never shift what's below —
+     content sits at the bottom edge so a 1-line title doesn't leave a gap
+     before the date. */
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  overflow:hidden;
+  height:calc(var(--fs) * 1.1 * 2);
+}
+#iTitleText {
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
 }
 #iDate {
   font-size:0.75rem; font-weight:500;
   color:var(--muted); letter-spacing:0.01em;
+  height:calc(0.75rem * 1.4);
+  line-height:1.4;
 }
 #iSummary {
   margin-top:10px;
@@ -213,19 +269,23 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   -webkit-line-clamp:3;
   -webkit-box-orient:vertical;
   overflow:hidden;
+  /* Fixed 3-line box so 1-line and 3-line summaries take identical space */
+  height:calc(0.78rem * 1.55 * 3);
   cursor:pointer;
   transition:color 0.15s;
 }
 #iSummary:hover { color:var(--text); }
-#iSummary:empty { display:none; }
+#iSummary:empty { cursor:default; }
 
 /* SUMMARY POPUP */
 #summaryOverlay {
   position:fixed;
   inset:0;
   z-index:500;
-  display:flex; align-items:center; justify-content:center;
-  padding:28px;
+  display:flex; align-items:flex-start; justify-content:center;
+  /* Top matches the poster top (safe-top + 64px) so the summary panel always
+     opens at the same vertical position as the artwork it's describing. */
+  padding:calc(var(--safe-top) + 64px) 16px max(16px, env(safe-area-inset-bottom));
   background:rgba(0,0,0,0.6);
   backdrop-filter:blur(4px);
   opacity:0; pointer-events:none;
@@ -234,24 +294,118 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryOverlay.on { opacity:1; pointer-events:all; }
 #summaryBox {
   position:relative;
-  width:100%; max-width:420px;
-  max-height:70vh;
-  overflow-y:auto;
-  background:#222;
+  width:100%; max-width:440px;
+  /* Always fill the full available height so every item opens the same-sized
+     panel — short summaries don't produce a smaller card than long ones. */
+  height:100%;
+  display:flex; flex-direction:column;
+  overflow:hidden;
+  /* --sb-base is blended from the artwork's ultraBlur corner colours (set via
+     JS). It's the colour the backdrop image dissolves INTO — the whole panel
+     sits on this tint so the fade looks seamless instead of fading to grey. */
+  --sb-base:#222;
+  background:var(--sb-base);
   border:1px solid rgba(255,251,248,0.1);
   border-radius:20px;
-  padding:26px 24px 24px;
   transform:scale(0.94);
   transition:transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
+}
+#summaryOverlay.on #summaryBox { transform:scale(1); }
+#summaryScroll {
+  flex:1; min-height:0;
+  overflow-y:auto;
+  /* `contain` stops the rubber-band/bounce from feeling like it's dragging
+     the whole sheet — scroll chaining and overscroll glow stay inside the
+     panel instead of leaking out to (or bouncing back from) the page edge. */
+  overscroll-behavior:contain;
+  scrollbar-width:none;
+  -ms-overflow-style:none;
+  padding:26px 24px 24px;
+  text-align:center;
   -webkit-overflow-scrolling:touch;
   touch-action:pan-y;
 }
-#summaryOverlay.on #summaryBox { transform:scale(1); }
+#summaryScroll::-webkit-scrollbar { display:none; }
+#summaryBackdrop {
+  display:none;
+  position:relative;
+  margin:-26px -24px 16px;
+  aspect-ratio:16/9;
+  overflow:hidden;
+  border-radius:20px 20px 0 0;
+  opacity:0;
+  transition:opacity 0.3s ease;
+}
+#summaryBackdrop.on { opacity:1; }
+#summaryBackdrop.skeleton { opacity:1; }
+#summaryBackdrop img {
+  width:100%; height:100%;
+  object-fit:cover; display:block;
+}
+/* Fade the image into the ultraBlur background. Starts gently around the
+   midpoint and eases in so it feels organic rather than like a hard overlay. */
+#summaryBackdrop {
+  -webkit-mask-image:linear-gradient(to bottom,
+    black 0%, black 48%,
+    rgba(0,0,0,0.92) 58%,
+    rgba(0,0,0,0.72) 68%,
+    rgba(0,0,0,0.38) 80%,
+    rgba(0,0,0,0.08) 91%,
+    transparent 100%);
+  mask-image:linear-gradient(to bottom,
+    black 0%, black 48%,
+    rgba(0,0,0,0.92) 58%,
+    rgba(0,0,0,0.72) 68%,
+    rgba(0,0,0,0.38) 80%,
+    rgba(0,0,0,0.08) 91%,
+    transparent 100%);
+}
+#summaryBox.has-backdrop #summaryBackdrop,
+#summaryBox.loading-backdrop #summaryBackdrop { display:block; }
+/* The same overlap + reserved height applies the moment we commit to the
+   backdrop layout (skeleton stage included), so the title doesn't shift when
+   the artwork resolves or when an async-loaded logo replaces the text. */
+#summaryBox.has-backdrop #summaryTitle,
+#summaryBox.loading-backdrop #summaryTitle {
+  position:relative; z-index:1;
+  /* Pull the title up so the backdrop's bottom edge sits at the vertical
+     midpoint of the title/logo box. With min-height:100px the midpoint is
+     at 50px; the backdrop has margin-bottom:16px so we need -66px net:
+     16 - 66 = -50px → backdrop bottom exactly at the 50px midpoint. */
+  margin-top:-86px; margin-bottom:6px;
+  padding:0 12px;
+  min-height:140px;
+}
 #summaryTitle {
-  font-weight:900; font-size:1.2rem;
-  letter-spacing:-0.02em; margin-bottom:12px;
-  padding-right:36px;
+  /* --title-fs is driven down by fitTitle() only when the text would
+     otherwise overflow; short titles keep the full size. */
+  --title-fs:1.9rem;
+  font-weight:900; font-size:var(--title-fs);
+  letter-spacing:-0.02em; line-height:1.12;
+  margin-bottom:12px;
+  padding:0 44px;
   color:var(--text);
+  display:flex; align-items:flex-end; justify-content:center;
+}
+#summaryTitle .ttxt { display:block; width:100%; }
+/* The logo is sized so it scales up to fill a generous box in BOTH dimensions:
+   wide logos are bounded by max-width, square/tall ones by max-height — so a
+   square logo no longer ends up tiny just because it isn't very wide.
+   This MUST apply during `loading-backdrop` too: the logo image and the
+   backdrop image load independently, and if the logo wins the race it would
+   otherwise briefly get the small fallback sizing and then jump bigger once
+   the backdrop's `has-backdrop` class lands. */
+#summaryTitle img {
+  display:block;
+  width:auto; height:auto;
+  max-width:90%;
+  max-height:140px;
+  object-fit:contain;
+  margin:0 auto;
+}
+#summaryBox.has-backdrop #summaryTitle img,
+#summaryBox.loading-backdrop #summaryTitle img {
+  filter:drop-shadow(0 2px 10px rgba(0,0,0,0.5));
 }
 #summaryText {
   font-size:0.88rem; font-weight:400;
@@ -260,6 +414,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 }
 #summaryGenres {
   display:flex; gap:8px; margin-top:16px;
+  justify-content:center; flex-wrap:wrap;
 }
 #summaryGenres .genrePill {
   display:inline-flex; align-items:center;
@@ -276,41 +431,80 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryYear {
   font-size:0.78rem; font-weight:600;
   color:rgba(255,251,248,0.5);
-  margin-top:-8px; margin-bottom:12px;
+  margin-top:10px;
 }
+#summaryYear:empty { display:none; }
+#summaryMeta {
+  display:flex; gap:8px; justify-content:center; flex-wrap:wrap;
+  margin-bottom:10px; margin-top:14px;
+}
+#summaryMeta.hidden { display:none; }
+.metaPill {
+  font-size:0.72rem; font-weight:600;
+  color:rgba(255,251,248,0.55);
+  background:rgba(255,251,248,0.07);
+  border:1px solid rgba(255,251,248,0.11);
+  border-radius:6px;
+  padding:3px 9px;
+  letter-spacing:0.01em;
+}
+.metaPill--rating {
+  border-color:rgba(255,251,248,0.35);
+  color:rgba(255,251,248,0.75);
+}
+#summaryRatings {
+  display:flex; gap:10px; justify-content:center; flex-wrap:wrap;
+  margin-bottom:12px;
+}
+#summaryRatings.hidden { display:none; }
+.ratingBadge {
+  display:flex; align-items:center; gap:5px;
+  font-size:0.78rem; font-weight:700;
+  color:var(--text);
+  background:rgba(255,251,248,0.07);
+  border:1px solid rgba(255,251,248,0.11);
+  border-radius:8px;
+  padding:5px 10px;
+}
+.ratingBadge .rIcon {
+  width:16px; height:16px;
+  object-fit:contain;
+  flex-shrink:0;
+}
+.ratingBadge .rLabel { color:rgba(255,251,248,0.6); font-weight:600; }
+#summaryDirector, #summaryWriters, #summaryStudio {
+  font-size:0.75rem; font-weight:500;
+  color:rgba(255,251,248,0.45);
+  margin-top:8px;
+  line-height:1.4;
+}
+#summaryDirector.hidden, #summaryWriters.hidden, #summaryStudio.hidden { display:none; }
+#summaryDirector span, #summaryWriters span, #summaryStudio span {
+  color:rgba(255,251,248,0.7);
+  font-weight:600;
+}
+/* Full-bleed to the panel edges: the row's first avatar lines up with the
+   body text (via padding), but avatars scroll straight off the left/right
+   edges and clip there — a clear cue that the row keeps going. */
 #summaryCastWrap {
-  position:relative;
-  margin-top:18px;
+  margin:18px -24px 0;
+  text-align:left;
 }
 #summaryCastWrap.hidden { display:none; }
 #summaryCast {
   display:flex; gap:14px;
+  padding:0 24px;
   overflow-x:auto;
   scrollbar-width:none;
   -ms-overflow-style:none;
 }
 #summaryCast::-webkit-scrollbar { display:none; }
-#castFadeL, #castFadeR {
-  position:absolute; top:0; bottom:0;
-  width:28px; pointer-events:none;
-  opacity:0; transition:opacity 0.2s ease;
-  z-index:1;
-}
-#castFadeL {
-  left:0;
-  background:linear-gradient(to right, #222 0%, transparent 100%);
-}
-#castFadeR {
-  right:0;
-  background:linear-gradient(to left, #222 0%, transparent 100%);
-}
-#castFadeL.show, #castFadeR.show { opacity:1; }
 #summaryCast .castMember {
   display:flex; flex-direction:column; align-items:center;
-  width:64px; flex-shrink:0; text-align:center;
+  width:70px; flex-shrink:0; text-align:center;
 }
 #summaryCast .castPhoto {
-  width:56px; height:56px; border-radius:50%;
+  width:62px; height:62px; border-radius:50%;
   object-fit:cover; background:rgba(255,251,248,0.1);
   border:1px solid rgba(255,251,248,0.13);
 }
@@ -323,9 +517,14 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   overflow:hidden;
 }
 #summaryClose {
+  /* Small controls like this read better as full circles than as
+     near-square corners — concentricity math only pays off at larger sizes.
+     It's a sibling of #summaryScroll (not inside it), so it floats fixed in
+     place over the panel and never scrolls away with the content beneath it. */
   position:absolute; top:16px; right:16px;
+  z-index:10;
   width:32px; height:32px;
-  border:none; border-radius:4px;
+  border:none; border-radius:50%;
   background:rgba(255,251,248,0.1);
   color:var(--text);
   display:flex; align-items:center; justify-content:center;
@@ -333,6 +532,15 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   transition:background 0.15s;
 }
 #summaryClose:hover { background:rgba(255,251,248,0.2); }
+/* Over a backdrop image the chip needs its own scrim regardless of how
+   light/dark the artwork is, so it stays legible either way. */
+#summaryBox.has-backdrop #summaryClose {
+  background:rgba(0,0,0,0.35);
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+}
+#summaryBox.has-backdrop #summaryClose.on-light { color:#1a1a1a; }
+#summaryBox.has-backdrop #summaryClose.on-light:hover { background:rgba(0,0,0,0.45); }
 #summaryClose .icon { width:1.3rem; height:1.3rem; }
 
 /* TRAILER */
@@ -363,7 +571,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   width:104px; height:34px;
 }
 
-#trailerInline { margin:14px 0 18px; }
+#trailerInline { margin:22px 0 18px; }
 #trailerInline.hidden { display:none; }
 #trailerVideo {
   width:100%;
@@ -435,13 +643,16 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 /* TOAST — pinned to the top, clear of all centred UI & the progress ring */
 #toast {
   position:fixed;
+  /* Sit at the same vertical band as the streak and progress counters so the
+     three elements read as one horizontal row at the top of the screen. */
   top:calc(var(--safe-top) + 16px);
   left:50%;
   transform:translateX(-50%) translateY(-6px);
   max-width:min(calc(100vw - 100px), 320px);
-  background:rgba(35,35,35,0.95);
+  background:rgba(255,251,248,0.06);
   border:1px solid rgba(255,251,248,0.1);
   backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
   color:var(--text);
   padding:9px 20px; border-radius:50px;
   font-size:0.78rem; font-weight:600;
@@ -453,6 +664,43 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #toast.on { opacity:1; transform:translateX(-50%) translateY(0); }
 
 /* PROGRESS RING — subtle indicator of items left */
+#ratedCounter {
+  position:fixed;
+  top:calc(var(--safe-top) + 16px);
+  left:18px;
+  z-index:60;
+  display:flex; align-items:center; gap:6px;
+  font-size:0.8rem; font-weight:700;
+  color:var(--text);
+  opacity:0.55;
+  letter-spacing:0.01em;
+}
+#ratedCounter .icon {
+  width:15px; height:15px;
+  color:var(--star);
+}
+#ratedCounter, #progress { cursor:pointer; }
+
+.counterTip {
+  position:fixed;
+  z-index:70;
+  max-width:180px;
+  padding:8px 12px;
+  border-radius:10px;
+  background:rgba(28,28,32,0.92);
+  border:1px solid rgba(255,251,248,0.12);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  color:var(--text);
+  font-size:0.74rem; font-weight:600; line-height:1.4;
+  letter-spacing:0.005em;
+  text-align:left;
+  box-shadow:0 8px 24px rgba(0,0,0,0.35);
+  opacity:0; transform:translateY(-4px) scale(0.96);
+  transition:opacity 0.18s ease, transform 0.18s ease;
+  pointer-events:none;
+}
+.counterTip.on { opacity:1; transform:translateY(0) scale(1); }
 #progress {
   position:fixed;
   top:calc(var(--safe-top) + 16px);
@@ -463,7 +711,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   opacity:0; pointer-events:none;
   transition:opacity 0.25s;
 }
-#progress.on { opacity:0.55; }
+#progress.on { opacity:0.55; pointer-events:all; }
 #progress svg {
   position:absolute; inset:0;
   width:100%; height:100%;
@@ -491,9 +739,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #typeFilter {
   position:fixed;
   top:calc(var(--safe-top) + 16px + 36px + 12px);
-  right:18px;
+  right:11px;
   z-index:60;
-  display:flex; flex-direction:column; gap:4px;
+  display:flex; flex-direction:column; align-items:center; gap:4px;
   padding:4px;
   background:rgba(255,251,248,0.06);
   border:1px solid rgba(255,251,248,0.1);
@@ -504,7 +752,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #typeFilter.on { opacity:0.55; pointer-events:all; }
 #typeFilter.on:hover { opacity:1; }
 .filter-btn {
-  width:32px; height:32px;
+  /* ~44px hit target per Apple HIG / WCAG 2.5.5 minimum tap-target guidance */
+  width:40px; height:40px;
   display:flex; align-items:center; justify-content:center;
   background:none; border:none;
   /* outer radius (14) − container padding (4) keeps the corners concentric */
@@ -514,7 +763,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   transition:background 0.15s, color 0.15s, transform 0.12s;
   -webkit-tap-highlight-color:transparent;
 }
-.filter-btn .icon { width:1.05rem; height:1.05rem; }
+.filter-btn .icon { width:1.15rem; height:1.15rem; }
 .filter-btn:active { transform:scale(0.9); }
 .filter-btn.active { background:var(--star); color:#191919; }
 #toast.celebrate {
@@ -531,12 +780,12 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 <body>
 
 <svg style="display:none" aria-hidden="true">
-  <symbol id="icon-chevrons-left" viewBox="0 0 256 256"><path d="M208.49,199.51a12,12,0,0,1-17,17l-80-80a12,12,0,0,1,0-17l80-80a12,12,0,0,1,17,17L137,128ZM57,128l71.52-71.51a12,12,0,0,0-17-17l-80,80a12,12,0,0,0,0,17l80,80a12,12,0,0,0,17-17Z"/></symbol>
-  <symbol id="icon-chevrons-right" viewBox="0 0 256 256"><path d="M144.49,136.49l-80,80a12,12,0,0,1-17-17L119,128,47.51,56.49a12,12,0,0,1,17-17l80,80A12,12,0,0,1,144.49,136.49Zm80-17-80-80a12,12,0,1,0-17,17L199,128l-71.52,71.51a12,12,0,0,0,17,17l80-80A12,12,0,0,0,224.49,119.51Z"/></symbol>
-  <symbol id="icon-shuffle" viewBox="0 0 256 256"><path d="M240.49,175.51a12,12,0,0,1,0,17l-24,24a12,12,0,0,1-17-17L203,196h-2.09a76.17,76.17,0,0,1-61.85-31.83L97.38,105.78A52.1,52.1,0,0,0,55.06,84H32a12,12,0,0,1,0-24H55.06a76.17,76.17,0,0,1,61.85,31.83l41.71,58.39A52.1,52.1,0,0,0,200.94,172H203l-3.52-3.51a12,12,0,0,1,17-17Zm-95.62-72.62a12,12,0,0,0,16.93-1.13A52,52,0,0,1,200.94,84H203l-3.52,3.51a12,12,0,0,0,17,17l24-24a12,12,0,0,0,0-17l-24-24a12,12,0,0,0-17,17L203,60h-2.09a76,76,0,0,0-57.2,26A12,12,0,0,0,144.87,102.89Zm-33.74,50.22a12,12,0,0,0-16.93,1.13A52,52,0,0,1,55.06,172H32a12,12,0,0,0,0,24H55.06a76,76,0,0,0,57.2-26A12,12,0,0,0,111.13,153.11Z"/></symbol>
+  <symbol id="icon-back" viewBox="0 0 256 256"><path d="M205.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L131.31,128ZM51.31,128l74.35-74.34a8,8,0,0,0-11.32-11.32l-80,80a8,8,0,0,0,0,11.32l80,80a8,8,0,0,0,11.32-11.32Z"/></symbol>
+  <symbol id="icon-skip" viewBox="0 0 256 256"><path d="M141.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L124.69,128,50.34,53.66A8,8,0,0,1,61.66,42.34l80,80A8,8,0,0,1,141.66,133.66Zm80-11.32-80-80a8,8,0,0,0-11.32,11.32L204.69,128l-74.35,74.34a8,8,0,0,0,11.32,11.32l80-80A8,8,0,0,0,221.66,122.34Z"/></symbol>
+  <symbol id="icon-shuffle" viewBox="0 0 256 256"><path d="M237.66,178.34a8,8,0,0,1,0,11.32l-24,24a8,8,0,0,1-11.32-11.32L212.69,192H200.94a72.12,72.12,0,0,1-58.59-30.15l-41.72-58.4A56.1,56.1,0,0,0,55.06,80H32a8,8,0,0,1,0-16H55.06a72.12,72.12,0,0,1,58.59,30.15l41.72,58.4A56.1,56.1,0,0,0,200.94,176h11.75l-10.35-10.34a8,8,0,0,1,11.32-11.32ZM143,107a8,8,0,0,0,11.16-1.86l1.2-1.67A56.1,56.1,0,0,1,200.94,80h11.75L202.34,90.34a8,8,0,0,0,11.32,11.32l24-24a8,8,0,0,0,0-11.32l-24-24a8,8,0,0,0-11.32,11.32L212.69,64H200.94a72.12,72.12,0,0,0-58.59,30.15l-1.2,1.67A8,8,0,0,0,143,107Zm-30,42a8,8,0,0,0-11.16,1.86l-1.2,1.67A56.1,56.1,0,0,1,55.06,176H32a8,8,0,0,0,0,16H55.06a72.12,72.12,0,0,0,58.59-30.15l1.2-1.67A8,8,0,0,0,113,149Z"/></symbol>
   <symbol id="icon-x" viewBox="0 0 256 256"><path d="M208.49,191.51a12,12,0,0,1-17,17L128,145,64.49,208.49a12,12,0,0,1-17-17L111,128,47.51,64.49a12,12,0,0,1,17-17L128,111l63.51-63.52a12,12,0,0,1,17,17L145,128Z"/></symbol>
-  <symbol id="icon-film-strip" viewBox="0 0 256 256"><path d="M216,36H40A20,20,0,0,0,20,56V200a20,20,0,0,0,20,20H216a20,20,0,0,0,20-20V56A20,20,0,0,0,216,36ZM44,100h72v56H44Zm96-24V60h24V76Zm-24,0H92V60h24Zm0,104v16H92V180Zm24,0h24v16H140Zm0-24V100h72v56Zm72-80H188V60h24ZM68,60V76H44V60ZM44,180H68v16H44Zm144,16V180h24v16Z"/></symbol>
-  <symbol id="icon-television" viewBox="0 0 256 256"><path d="M216,60H157l27.52-27.52a12,12,0,0,0-17-17L128,55,88.49,15.51a12,12,0,0,0-17,17L99,60H40A20,20,0,0,0,20,80V200a20,20,0,0,0,20,20H216a20,20,0,0,0,20-20V80A20,20,0,0,0,216,60Zm-4,136H44V84H212Z"/></symbol>
+  <symbol id="icon-movies" viewBox="0 0 32 32"><path d="M5 5v22q0 0.4 0.15 0.77 0.16 0.36 0.44 0.64 0.28 0.28 0.64 0.44 0.37 0.15 0.77 0.15h18q0.4 0 0.77-0.15 0.36-0.16 0.64-0.44 0.28-0.28 0.44-0.64 0.15-0.37 0.15-0.77v-22q0-0.4-0.15-0.77-0.16-0.36-0.44-0.64-0.28-0.28-0.64-0.44-0.37-0.15-0.77-0.15h-18q-0.4 0-0.77 0.15-0.36 0.16-0.64 0.44-0.28 0.28-0.44 0.64-0.15 0.37-0.15 0.77zm6 22v-10h10v10zm-2-12h-2v-4h2zm0 2v4h-2v-4zm14 0h2v4h-2zm0-2v-4h2v4zm-2 0h-10v-10h10zm-12-10v4h-2v-4zm-2 18h2v4h-2zm16 4v-4h2v4zm2-22v4h-2v-4z"/></symbol>
+  <symbol id="icon-television" viewBox="0 0 256 256"><path d="M208,40H48A24,24,0,0,0,24,64V176a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V64A24,24,0,0,0,208,40Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V64a8,8,0,0,1,8-8H208a8,8,0,0,1,8,8Zm-48,48a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,224Z"/></symbol>
   <symbol id="icon-star-empty" viewBox="0 0 256 256"><path d="M239.18,97.26A16.38,16.38,0,0,0,224.92,86l-59-4.76L143.14,26.15a16.36,16.36,0,0,0-30.27,0L90.11,81.23,31.08,86a16.46,16.46,0,0,0-9.37,28.86l45,38.83L53,211.75a16.38,16.38,0,0,0,24.5,17.82L128,198.49l50.53,31.08A16.4,16.4,0,0,0,203,211.75l-13.76-58.07,45-38.83A16.43,16.43,0,0,0,239.18,97.26Zm-15.34,5.47-48.7,42a8,8,0,0,0-2.56,7.91l14.88,62.8a.37.37,0,0,1-.17.48c-.18.14-.23.11-.38,0l-54.72-33.65a8,8,0,0,0-8.38,0L69.09,215.94c-.15.09-.19.12-.38,0a.37.37,0,0,1-.17-.48l14.88-62.8a8,8,0,0,0-2.56-7.91l-48.7-42c-.12-.1-.23-.19-.13-.5s.18-.27.33-.29l63.92-5.16A8,8,0,0,0,103,91.86l24.62-59.61c.08-.17.11-.25.35-.25s.27.08.35.25L153,91.86a8,8,0,0,0,6.75,4.92l63.92,5.16c.15,0,.24,0,.33.29S224,102.63,223.84,102.73Z"/></symbol>
   <symbol id="icon-star-fill" viewBox="0 0 256 256"><path d="M234.29,114.85l-45,38.83L203,211.75a16.4,16.4,0,0,1-24.5,17.82L128,198.49,77.47,229.57A16.4,16.4,0,0,1,53,211.75l13.76-58.07-45-38.83A16.46,16.46,0,0,1,31.08,86l59-4.76,22.76-55.08a16.36,16.36,0,0,1,30.27,0l22.75,55.08,59,4.76a16.46,16.46,0,0,1,9.37,28.86Z"/></symbol>
   <symbol id="icon-star-half" viewBox="0 0 256 256"><path d="M239.18,97.26A16.38,16.38,0,0,0,224.92,86l-59-4.76L143.14,26.15a16.36,16.36,0,0,0-30.27,0L90.11,81.23,31.08,86a16.46,16.46,0,0,0-9.37,28.86l45,38.83L53,211.75a16.4,16.4,0,0,0,24.5,17.82L128,198.49l50.53,31.08A16.4,16.4,0,0,0,203,211.75l-13.76-58.07,45-38.83A16.43,16.43,0,0,0,239.18,97.26Zm-15.34,5.47-48.7,42a8,8,0,0,0-2.56,7.91l14.88,62.8a.37.37,0,0,1-.17.48c-.18.14-.23.11-.38,0l-54.72-33.65A8,8,0,0,0,128,181.1V32c.24,0,.27.08.35.26L153,91.86a8,8,0,0,0,6.75,4.92l63.91,5.16c.16,0,.25,0,.34.29S224,102.63,223.84,102.73Z"/></symbol>
@@ -572,63 +821,78 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   <div id="card">
     <div id="posterStack"></div>
     <div id="info">
-      <div id="iTitle">—</div>
+      <div id="iTitle"><span id="iTitleText">—</span></div>
       <div id="iDate"></div>
-      <div id="iSummary" onclick="openSummary()"></div>
+      <div id="iSummary" onclick="openSummary()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openSummary();}" aria-label="View full summary, cast and trailer"></div>
     </div>
     <div id="starRow"></div>
     <div id="actions">
-      <button class="act-btn" id="btnBack" onclick="goBack()" disabled title="Back">
-        <svg class="icon"><use href="#icon-chevrons-left"/></svg>
+      <button class="act-btn" id="btnBack" onclick="goBack()" disabled title="Back" aria-label="Go back to previous title">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-back"/></svg>
       </button>
-      <button class="act-btn" id="btnShuffle" onclick="toggleShuffle()" title="Shuffle">
-        <svg class="icon"><use href="#icon-shuffle"/></svg>
+      <button class="act-btn" id="btnShuffle" onclick="toggleShuffle()" title="Shuffle" aria-label="Shuffle queue order" aria-pressed="false">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-shuffle"/></svg>
       </button>
-      <button class="act-btn" onclick="doSkip()" title="Skip">
-        <svg class="icon"><use href="#icon-chevrons-right"/></svg>
+      <button class="act-btn" onclick="doSkip()" title="Skip" aria-label="Skip this title">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-skip"/></svg>
       </button>
     </div>
   </div>
 </div>
 
-<div id="toast"></div>
+<div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<div id="progress" title="Items left to rate">
-  <svg viewBox="0 0 36 36">
+<div id="ratedCounter" role="status" aria-live="polite" aria-label="Titles rated this session" tabindex="0"
+     onclick="showCounterTip(this, 'Titles you\'ve rated this session')"
+     onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showCounterTip(this, 'Titles you\'ve rated this session');}">
+  <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-star-fill"/></svg>
+  <span id="ratedCounterNum">0</span>
+</div>
+
+<div id="progress" title="Items left to rate" role="img" aria-label="Items left to rate" tabindex="0"
+     onclick="showCounterTip(this, 'Unrated titles left in your queue')"
+     onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showCounterTip(this, 'Unrated titles left in your queue');}">
+  <svg viewBox="0 0 36 36" aria-hidden="true" focusable="false">
     <circle class="ring-track" cx="18" cy="18" r="15.5"></circle>
     <circle class="ring-bar" cx="18" cy="18" r="15.5"></circle>
   </svg>
-  <span id="progressCount">0</span>
+  <span id="progressCount" aria-hidden="true">0</span>
 </div>
 
-<div id="typeFilter">
-  <button id="filterMovie" class="filter-btn" onclick="setTypeFilter('movie')" title="Movies only">
-    <svg class="icon"><use href="#icon-film-strip"/></svg>
+<div id="typeFilter" role="group" aria-label="Filter by type">
+  <button id="filterMovie" class="filter-btn" onclick="setTypeFilter('movie')" title="Movies only" aria-label="Show movies only" aria-pressed="false">
+    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-movies"/></svg>
   </button>
-  <button id="filterShow" class="filter-btn" onclick="setTypeFilter('show')" title="TV shows only">
-    <svg class="icon"><use href="#icon-television"/></svg>
+  <button id="filterShow" class="filter-btn" onclick="setTypeFilter('show')" title="TV shows only" aria-label="Show TV shows only" aria-pressed="false">
+    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-television"/></svg>
   </button>
 </div>
 
-<div id="summaryOverlay" onclick="closeSummaryFromOverlay(event)">
+<div id="summaryOverlay" onclick="closeSummaryFromOverlay(event)" role="dialog" aria-modal="true" aria-labelledby="summaryTitle">
   <div id="summaryBox">
-    <button id="summaryClose" onclick="closeSummary()"><svg class="icon"><use href="#icon-x"/></svg></button>
-    <div id="summaryTitle"></div>
-    <div id="summaryYear"></div>
-    <button id="btnTrailer" class="hidden" onclick="playInlineTrailer()" title="Watch trailer">
-      <svg class="icon"><use href="#icon-film-strip"/></svg> Trailer
-    </button>
-    <div id="trailerInline" class="hidden">
-      <div id="trailerSkeleton" class="skeleton hidden"></div>
-      <video id="trailerVideo" controls playsinline></video>
-      <div id="trailerError" class="hidden"><svg class="icon"><use href="#icon-television"/></svg> Trailer unavailable</div>
-    </div>
-    <div id="summaryText"></div>
-    <div id="summaryGenres" class="hidden"></div>
-    <div id="summaryCastWrap" class="hidden">
-      <div id="castFadeL"></div>
-      <div id="summaryCast"></div>
-      <div id="castFadeR"></div>
+    <button id="summaryClose" onclick="closeSummary()" aria-label="Close summary"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-x"/></svg></button>
+    <div id="summaryScroll">
+      <div id="summaryBackdrop"><img id="summaryBackdropImg" alt=""></div>
+      <div id="summaryTitle"></div>
+      <div id="summaryMeta" class="hidden"></div>
+      <div id="summaryRatings" class="hidden"></div>
+      <button id="btnTrailer" class="hidden" onclick="playInlineTrailer()" title="Watch trailer">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-movies"/></svg> Trailer
+      </button>
+      <div id="trailerInline" class="hidden">
+        <div id="trailerSkeleton" class="skeleton hidden"></div>
+        <video id="trailerVideo" controls playsinline></video>
+        <div id="trailerError" class="hidden"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-television"/></svg> Trailer unavailable</div>
+      </div>
+      <div id="summaryText"></div>
+      <div id="summaryYear"></div>
+      <div id="summaryDirector" class="hidden"></div>
+      <div id="summaryWriters" class="hidden"></div>
+      <div id="summaryStudio" class="hidden"></div>
+      <div id="summaryGenres" class="hidden"></div>
+      <div id="summaryCastWrap" class="hidden">
+        <div id="summaryCast"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -640,7 +904,6 @@ const PLEX_PRODUCT = 'Rate It';
 const STORE_TOKEN = 'rateit_token';
 const STORE_URL   = 'rateit_url';
 const STORE_CLIENT= 'rateit_clientId';
-const STORE_FILTER= 'rateit_typeFilter';
 
 function getClientId() {
   let id = localStorage.getItem(STORE_CLIENT);
@@ -662,11 +925,49 @@ let hist  = [];
 let allItems = [];
 let chronological = [];
 let shuffled = false;
-let typeFilter = localStorage.getItem(STORE_FILTER) || 'all';
+// Always starts unfiltered — the user opts into a movies/TV-only view each session.
+let typeFilter = 'all';
 let rating = 0;
 let ratingTimer = null;
 let busy = false;
 let ratedCount = 0;   // RATED items only (not skips)
+
+function updateRatedCounter() {
+  document.getElementById('ratedCounterNum').textContent = ratedCount;
+}
+
+// Brief explanatory bubble for the rated/remaining counters — appears near
+// the tapped element, then fades itself out after a moment.
+let counterTipTimer = null;
+function showCounterTip(anchor, text) {
+  let tip = document.getElementById('counterTip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'counterTip';
+    tip.className = 'counterTip';
+    tip.setAttribute('role', 'tooltip');
+    document.body.appendChild(tip);
+  }
+  clearTimeout(counterTipTimer);
+  tip.textContent = text;
+  tip.classList.remove('on');
+
+  const r = anchor.getBoundingClientRect();
+  const onLeft = r.left < window.innerWidth / 2;
+  tip.style.top = (r.bottom + 8) + 'px';
+  if (onLeft) {
+    tip.style.left = r.left + 'px';
+    tip.style.right = 'auto';
+  } else {
+    tip.style.right = (window.innerWidth - r.right) + 'px';
+    tip.style.left = 'auto';
+  }
+
+  requestAnimationFrame(() => tip.classList.add('on'));
+  counterTipTimer = setTimeout(() => tip.classList.remove('on'), 1800);
+}
+
+const escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 const H = () => ({ 'X-Plex-Token': cfg.token, 'Accept': 'application/json' });
 const plexHeaders = () => ({
@@ -676,7 +977,9 @@ const plexHeaders = () => ({
 });
 const posterUrl = it => {
   const k = it && (it.thumb || it.art);
-  return k ? `${cfg.url}${k}?X-Plex-Token=${cfg.token}&width=800` : '';
+  if (!k) return '';
+  const w = isMeteredConnection() ? 480 : 800;
+  return `${cfg.url}${k}?X-Plex-Token=${cfg.token}&width=${w}`;
 };
 
 async function plexGet(path) {
@@ -746,6 +1049,7 @@ async function signIn() {
   } catch (e) {
     btn.disabled = false;
     btn.textContent = 'Sign in with Plex';
+    setState('auth');
     toast(e.message || 'Sign-in failed');
   }
 }
@@ -771,10 +1075,20 @@ function pollForToken(pinId) {
   });
 }
 
+// Fetch with a hard timeout — unreachable hosts/relays can otherwise hang
+// the request indefinitely, stalling the "Connecting…" screen forever.
+function fetchWithTimeout(url, opts, ms) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { ...opts, signal: ctrl.signal })
+    .catch(e => { throw (e.name === 'AbortError' ? new Error('Request timed out') : e); })
+    .finally(() => clearTimeout(timer));
+}
+
 async function discoverServer(token) {
-  const r = await fetch('https://plex.tv/api/v2/resources?includeHttps=1&includeRelay=1', {
+  const r = await fetchWithTimeout('https://plex.tv/api/v2/resources?includeHttps=1&includeRelay=1', {
     headers: { ...plexHeaders(), 'X-Plex-Token': token }
-  });
+  }, 15000);
   if (!r.ok) return null;
   const resources = await r.json();
   const servers = (resources || []).filter(d => (d.provides || '').split(',').includes('server'));
@@ -787,9 +1101,9 @@ async function discoverServer(token) {
     for (const conn of conns) {
       const base = conn.uri;
       try {
-        const test = await fetch(`${base}/identity`, {
+        const test = await fetchWithTimeout(`${base}/identity`, {
           headers: { 'X-Plex-Token': token, 'Accept': 'application/json' }
-        });
+        }, 6000);
         if (test.ok) return base;
       } catch {}
     }
@@ -802,6 +1116,7 @@ async function loadItems() {
   hideStage();
   hist = [];
   ratedCount = 0;
+  updateRatedCounter();
   try {
     const sd = await plexGet('/library/sections');
     const libs = (sd.MediaContainer.Directory || []).filter(d => d.type === 'movie' || d.type === 'show');
@@ -855,22 +1170,28 @@ function rebuildQueueFromFilter() {
     : allItems.filter(it => it.libType === typeFilter);
   queue = chronological.slice();
   shuffled = false;
-  document.getElementById('btnShuffle').classList.remove('active');
+  const shuffleBtn = document.getElementById('btnShuffle');
+  shuffleBtn.classList.remove('active');
+  shuffleBtn.setAttribute('aria-pressed', 'false');
 }
 
 function updateFilterButtons() {
-  document.getElementById('filterMovie').classList.toggle('active', typeFilter === 'movie');
-  document.getElementById('filterShow').classList.toggle('active', typeFilter === 'show');
+  const movieBtn = document.getElementById('filterMovie');
+  const showBtn  = document.getElementById('filterShow');
+  movieBtn.classList.toggle('active', typeFilter === 'movie');
+  movieBtn.setAttribute('aria-pressed', String(typeFilter === 'movie'));
+  showBtn.classList.toggle('active', typeFilter === 'show');
+  showBtn.setAttribute('aria-pressed', String(typeFilter === 'show'));
 }
 
 function setTypeFilter(type) {
   if (busy) return;
   typeFilter = (typeFilter === type) ? 'all' : type;
-  localStorage.setItem(STORE_FILTER, typeFilter);
   updateFilterButtons();
   clearTimeout(ratingTimer);
   hist = [];
   ratedCount = 0;
+  updateRatedCounter();
   rebuildQueueFromFilter();
   if (!queue.length) {
     hideStage();
@@ -900,6 +1221,7 @@ function rebuild() {
   for (let i = top3.length - 1; i >= 0; i--) {
     const img = document.createElement('img');
     img.className = 'poster p' + i + ' skeleton';
+    img.alt = top3[i].title || '';
     stack.appendChild(img);
     loadPoster(top3[i], img, i === 0);
   }
@@ -914,7 +1236,7 @@ let infoItem = null;
 
 function setInfo(item) {
   infoItem = item;
-  document.getElementById('iTitle').textContent = item.title || '';
+  document.getElementById('iTitleText').textContent = item.title || '';
   document.getElementById('iDate').textContent = item.lastViewedAt
     ? 'Watched ' + fmtDate(item.lastViewedAt * 1000) : '';
   document.getElementById('iSummary').textContent = item.summary || '';
@@ -1001,6 +1323,7 @@ async function loadPoster(item, img, isTop) {
     return;
   }
   const url = posterUrl(item);
+  const ultraBlur = getUltraBlurColors(item);
   img.onerror = () => { img.onerror = null; img.classList.remove('skeleton'); img.src = PLACEHOLDER_POSTER; };
   try {
     const resp = await fetch(url, { headers: H() });
@@ -1009,7 +1332,9 @@ async function loadPoster(item, img, isTop) {
     const obj = URL.createObjectURL(blob);
     img.onload = async () => {
       img.classList.remove('skeleton');
-      const c = await getEdgeColors(img);
+      // Prefer Plex's own ultraBlurColors (server-extracted, matches its UI);
+      // fall back to sampling pixels ourselves if the metadata lacks it.
+      const c = ultraBlur || await getEdgeColors(img);
       img._glow = c;
       posterCache.set(key, { url: obj, glow: c });
       if (isTop) setGlow(c);
@@ -1021,7 +1346,18 @@ async function loadPoster(item, img, isTop) {
   }
 }
 
+// On cellular (or when the user has Data Saver on), background prefetching
+// of posters/cast photos/backdrops just competes with what's on screen for
+// limited bandwidth — so we scale it back instead of firing it all eagerly.
+function isMeteredConnection() {
+  const c = navigator.connection || navigator.webkitConnection || navigator.mozConnection;
+  if (!c) return false;
+  if (c.saveData) return true;
+  return /^(slow-2g|2g|3g)$/.test(c.effectiveType || '');
+}
+
 function preloadAhead() {
+  if (isMeteredConnection()) return;
   for (let i = 3; i <= 4; i++) {
     const item = queue[i];
     if (item) { const im = new Image(); im.src = posterUrl(item); }
@@ -1034,12 +1370,23 @@ function preloadAhead() {
 // because the very first title shown has no "previous" item to have preloaded
 // it. queue[1]/queue[2] are "up next" regardless of chronological vs shuffled
 // order, since shuffle simply reorders the queue itself.
+// On metered connections we only warm queue[0] (the item the user is looking
+// at right now) and skip the cast-photo downloads — those only matter once
+// the summary popup is actually opened, where loadExtraInfo() is re-run and
+// covers them anyway.
 function preloadInfo() {
-  for (let i = 0; i <= 2; i++) {
+  const metered = isMeteredConnection();
+  const upper = metered ? 0 : 2;
+  for (let i = 0; i <= upper; i++) {
     const item = queue[i];
     if (!item) continue;
     loadExtraInfo(item).then(extra => {
+      if (metered) return;
       extra.cast.forEach(c => { if (c.photo) prefetchCastPhoto(c.photo); });
+      // Warm the browser cache for the backdrop + logo so they appear the
+      // instant the popup opens, rather than after a visible blank beat.
+      if (extra.backdrop) { const im = new Image(); im.src = extra.backdrop; }
+      if (extra.logo) { const im = new Image(); im.src = extra.logo; }
     });
     loadTrailer(item);
   }
@@ -1076,15 +1423,135 @@ function getEdgeColors(imgEl) {
         return best || [40, 40, 60];
       };
 
-      resolve({ left: dominant(0, edge), right: dominant(W - edge, W) });
-    } catch { resolve({ left: [40, 40, 60], right: [40, 40, 60] }); }
+      const left = dominant(0, edge), right = dominant(W - edge, W);
+      resolve({ tl: left, bl: left, tr: right, br: right });
+    } catch {
+      const c = [40, 40, 60];
+      resolve({ tl: c, bl: c, tr: c, br: c });
+    }
   });
 }
 
-function setGlow({ left, right }) {
+// Samples the corner of a backdrop image where the close button sits, so it
+// can switch to a dark icon/scrim when the artwork there is light.
+function sampleCornerBrightness(imgEl) {
+  return new Promise(resolve => {
+    try {
+      const W = 60, H = 34;
+      const canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(imgEl, 0, 0, W, H);
+      const cw = Math.round(W * 0.35), ch = Math.round(H * 0.6);
+      const data = ctx.getImageData(W - cw, 0, cw, ch).data;
+      let total = 0, n = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        total += (data[i] * 299 + data[i + 1] * 587 + data[i + 2] * 114) / 1000;
+        n++;
+      }
+      resolve(n ? (total / n) > 165 : false);
+    } catch { resolve(false); }
+  });
+}
+
+// Called on #summaryScroll scroll and when the backdrop brightness result lands.
+// The close button is pinned to the box (position:absolute, outside the scroll
+// container), so as the user scrolls, the backdrop image slides past it. Once
+// the backdrop has scrolled clear of the button we know only the dark panel bg
+// is behind it, so on-light is safe to remove without any extra sampling.
+function updateCloseAdaptation() {
+  const scrollEl = document.getElementById('summaryScroll');
+  const box = document.getElementById('summaryBox');
+  const closeBtn = document.getElementById('summaryClose');
+  const backdropEl = document.getElementById('summaryBackdrop');
+  if (!box.classList.contains('has-backdrop') || !backdropEl.offsetParent) {
+    closeBtn.classList.remove('on-light');
+    return;
+  }
+  // getBoundingClientRect() gives live viewport positions that already
+  // account for scrolling — no need to walk the offsetParent chain manually.
+  const backdropBottom = backdropEl.getBoundingClientRect().bottom;
+  const btnRect = closeBtn.getBoundingClientRect();
+  const btnCentre = (btnRect.top + btnRect.bottom) / 2;
+  if (backdropBottom <= btnCentre) {
+    closeBtn.classList.remove('on-light');
+  } else {
+    closeBtn.classList.toggle('on-light', closeBtn._backdropIsLight === true);
+  }
+}
+
+// Turns an ultraBlur corner hex into two derived colours for the summary
+// panel: a `glow` (the corner tint, darkened and luminance-capped so white
+// text keeps a comfortable contrast ratio over it) and a `fade` (that glow
+// composited over the #222 base, used by the cast-row edge fades so they
+// blend seamlessly into the tinted bottom corners).
+// Blend all available ultraBlur corner hex strings into a single dark tinted
+// colour used as the panel's solid background — the colour the backdrop image
+// dissolves into. Averaging keeps the hue representative while the luminance
+// cap (≤72) ensures white text stays legible (~7:1 contrast or better).
+function ubBlend(hexCorners) {
+  const parsed = hexCorners.map(hexToRgb).filter(Boolean);
+  if (!parsed.length) return null;
+  let r = 0, g = 0, b = 0;
+  for (const c of parsed) { r += c[0]; g += c[1]; b += c[2]; }
+  r = Math.round(r / parsed.length * 0.55);
+  g = Math.round(g / parsed.length * 0.55);
+  b = Math.round(b / parsed.length * 0.55);
+  const lum = (r * 299 + g * 587 + b * 114) / 1000;
+  if (lum > 88) { const k = 88 / lum; r = Math.round(r*k); g = Math.round(g*k); b = Math.round(b*k); }
+  return `rgb(${r},${g},${b})`;
+}
+
+// Text titles start at full size and only shrink (down to a floor) when they'd
+// otherwise spill past two lines — so most titles stay big and legible, and
+// only the genuinely long ones scale down to fit. No-ops for logo titles.
+// The text lives in an inner <span> so we measure the text's own height rather
+// than the title box (whose min-height — reserved for logos — would otherwise
+// make every title look like it overflows and shrink to the floor).
+function fitTitle(el) {
+  if (!el || el.querySelector('img')) return;
+  const text = el.textContent;
+  el.innerHTML = '<span class="ttxt"></span>';
+  const span = el.firstChild;
+  span.textContent = text;
+  const MAX = 1.9, MIN = 1.1, STEP = 0.05;
+  let fs = MAX, guard = 0;
+  el.style.setProperty('--title-fs', fs + 'rem');
+  const lh = parseFloat(getComputedStyle(span).lineHeight) || (fs * 16 * 1.12);
+  while (fs > MIN && guard++ < 24) {
+    if (span.scrollHeight <= lh * 2 + 1) break;
+    fs = Math.max(MIN, +(fs - STEP).toFixed(2));
+    el.style.setProperty('--title-fs', fs + 'rem');
+  }
+}
+
+// Plex tags most artwork with "ultraBlurColors" — four corner colours
+// (already extracted server-side) that its own apps use for ambient
+// backgrounds. Prefer that real metadata over guessing from pixels.
+function hexToRgb(hex) {
+  if (!hex) return null;
+  const h = hex.replace('#', '');
+  if (h.length !== 6) return null;
+  const n = parseInt(h, 16);
+  if (Number.isNaN(n)) return null;
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function getUltraBlurColors(item) {
+  const ub = item.ultraBlurColors || item.UltraBlurColors;
+  if (!ub) return null;
+  const tl = hexToRgb(ub.topLeft), tr = hexToRgb(ub.topRight);
+  const bl = hexToRgb(ub.bottomLeft), br = hexToRgb(ub.bottomRight);
+  if (!tl || !tr || !bl || !br) return null;
+  return { tl, tr, bl, br };
+}
+
+function setGlow({ tl, tr, bl, br }) {
   const bg = document.getElementById('glowBg');
-  bg.style.setProperty('--glow-left',  `rgb(${left[0]},${left[1]},${left[2]})`);
-  bg.style.setProperty('--glow-right', `rgb(${right[0]},${right[1]},${right[2]})`);
+  bg.style.setProperty('--glow-tl', `rgb(${tl[0]},${tl[1]},${tl[2]})`);
+  bg.style.setProperty('--glow-tr', `rgb(${tr[0]},${tr[1]},${tr[2]})`);
+  bg.style.setProperty('--glow-bl', `rgb(${bl[0]},${bl[1]},${bl[2]})`);
+  bg.style.setProperty('--glow-br', `rgb(${br[0]},${br[1]},${br[2]})`);
 }
 
 // ── Stars ─────────────────────────────────────────────────
@@ -1168,6 +1635,7 @@ async function submitRating() {
 
   if (ok) {
     ratedCount++;
+    updateRatedCounter();
     if (ratedCount % 10 === 0) celebrate(ratedCount);
   } else {
     toast('Failed to save rating');
@@ -1186,13 +1654,15 @@ function doSkip() {
 function celebrate(n) {
   toast(n + ' Titles Rated!', true);
   if (typeof confetti !== 'function') return;
-  const colors = ['#F7C600', '#15A9FC', '#F74366', '#69DD58'];
+  // Two colours per side (rather than all four on both) so each burst reads as its own palette.
+  const leftColors  = ['#F7C600', '#15A9FC'];
+  const rightColors = ['#F74366', '#69DD58'];
   // Bursts fired from the left and right edges, angled inward toward centre.
-  confetti({ particleCount: 110, spread: 70, startVelocity: 50, angle: 60, origin: { x: 0, y: 0.75 }, colors });
-  confetti({ particleCount: 110, spread: 70, startVelocity: 50, angle: 120, origin: { x: 1, y: 0.75 }, colors });
+  confetti({ particleCount: 110, spread: 70, startVelocity: 50, angle: 60,  origin: { x: 0, y: 0.75 }, colors: leftColors });
+  confetti({ particleCount: 110, spread: 70, startVelocity: 50, angle: 120, origin: { x: 1, y: 0.75 }, colors: rightColors });
   setTimeout(() => {
-    confetti({ particleCount: 80, spread: 90, startVelocity: 40, angle: 60, origin: { x: 0, y: 0.7 }, colors });
-    confetti({ particleCount: 80, spread: 90, startVelocity: 40, angle: 120, origin: { x: 1, y: 0.7 }, colors });
+    confetti({ particleCount: 80, spread: 90, startVelocity: 40, angle: 60,  origin: { x: 0, y: 0.7 }, colors: leftColors });
+    confetti({ particleCount: 80, spread: 90, startVelocity: 40, angle: 120, origin: { x: 1, y: 0.7 }, colors: rightColors });
   }, 200);
 }
 
@@ -1222,6 +1692,7 @@ function advance(dir) {
   if (next) {
     const img = document.createElement('img');
     img.className = 'poster p2 skeleton';
+    img.alt = next.title || '';
     stack.insertBefore(img, stack.firstChild);
     loadPoster(next, img, false);
   }
@@ -1282,65 +1753,165 @@ async function prefetchCastPhoto(url) {
   } catch {}
 }
 
+function formatDuration(ms) {
+  const m = Math.round(ms / 60000);
+  const h = Math.floor(m / 60);
+  return h ? `${h}h ${m % 60}m` : `${m}m`;
+}
+
+// Parse Plex rating image strings like "rottentomatoes://image.rating.ripe"
+// Returns { label, score } for display, or null.
+function ratingBadge(imageStr, score) {
+  if (!imageStr || score == null) return null;
+  const s = String(imageStr).toLowerCase();
+  if (s.includes('rottentomatoes')) {
+    const isAudience = s.includes('audience') || s.includes('upright') || s.includes('want');
+    if (isAudience) {
+      const fresh = s.includes('upright') || s.includes('want') || s.includes('fresh');
+      return { imgSrc: `icons/${fresh ? 'rt-audience-fresh' : 'rt-audience-rotten'}.svg`, label: 'Audience', score: Math.round(score * 10) + '%' };
+    }
+    const fresh = s.includes('ripe') || s.includes('certified') || s.includes('fresh');
+    return { imgSrc: `icons/${fresh ? 'rt-fresh' : 'rt-rotten'}.svg`, label: 'RT', score: Math.round(score * 10) + '%' };
+  }
+  if (s.includes('themoviedb')) return { imgSrc: 'icons/tmdb.svg', label: 'TMDb', score: score.toFixed(1) };
+  if (s.includes('imdb')) return { imgSrc: 'icons/imdb.svg', label: 'IMDb', score: score.toFixed(1) };
+  return { imgSrc: null, label: '★', score: score.toFixed(1) };
+}
+
 async function loadExtraInfo(item) {
   if (item._extra !== undefined) return item._extra;
   try {
     const d = await plexGet(`/library/metadata/${item.ratingKey}`);
     const meta = (d.MediaContainer.Metadata || [])[0];
+    const images = (meta && meta.Image) || item.Image || [];
+    const logoImg = images.find(i => /clearlogo/i.test(i.type || ''));
+    const artPath = meta && meta.art;
+    const ub = (meta && (meta.UltraBlurColors || meta.ultraBlurColors))
+      || item.ultraBlurColors || item.UltraBlurColors || null;
+    const ubCorners = [ub.topLeft, ub.topRight, ub.bottomLeft, ub.bottomRight].filter(Boolean);
     item._extra = {
       year: (meta && meta.year) || null,
+      tint: ubCorners.length ? ubBlend(ubCorners) : null,
+      backdrop: artPath ? `${cfg.url}${artPath}?X-Plex-Token=${cfg.token}&width=700` : '',
+      logo: logoImg && logoImg.url
+        ? (/^https?:\/\//.test(logoImg.url) ? logoImg.url : `${cfg.url}${logoImg.url}?X-Plex-Token=${cfg.token}`)
+        : '',
       genres: (meta && meta.Genre || []).map(g => g.tag).slice(0, 2),
       cast: (meta && meta.Role || []).slice(0, 6).map(r => ({
         name: r.tag,
         photo: r.thumb
           ? (/^https?:\/\//.test(r.thumb) ? r.thumb : `${cfg.url}${r.thumb}?X-Plex-Token=${cfg.token}`)
           : ''
-      }))
+      })),
+      runtime: (meta && meta.duration) ? formatDuration(meta.duration) : null,
+      contentRating: (meta && meta.contentRating) || null,
+      audienceRating: (meta && meta.audienceRating != null) ? meta.audienceRating : null,
+      audienceRatingImage: (meta && meta.audienceRatingImage) || null,
+      criticRating: (meta && meta.rating != null) ? meta.rating : null,
+      criticRatingImage: (meta && meta.ratingImage) || null,
+      directors: (meta && meta.Director || []).map(d => d.tag).slice(0, 2),
+      writers: (meta && meta.Writer || []).map(w => w.tag).slice(0, 3),
+      studio: (meta && meta.studio) || null,
+      country: (meta && meta.Country || []).map(c => c.tag)[0] || null,
+      seasonCount: (meta && meta.childCount != null) ? meta.childCount : null,
+      episodeCount: (meta && meta.leafCount != null) ? meta.leafCount : null
     };
   } catch (e) {
-    item._extra = { year: null, genres: [], cast: [] };
+    item._extra = { year: null, tint: null, backdrop: '', logo: '', genres: [], cast: [], runtime: null, contentRating: null, audienceRating: null, audienceRatingImage: null, criticRating: null, criticRatingImage: null, directors: [], writers: [], studio: null, country: null, seasonCount: null, episodeCount: null };
   }
   return item._extra;
 }
 
+let summaryOpener = null;
 function openSummary() {
   const item = queue[0];
   if (!item || !item.summary) return;
-  document.getElementById('summaryTitle').textContent = item.title || '';
+  summaryOpener = document.activeElement;
+  const titleEl = document.getElementById('summaryTitle');
+  const box = document.getElementById('summaryBox');
+  const backdrop = document.getElementById('summaryBackdrop');
+  const backdropImg = document.getElementById('summaryBackdropImg');
+  box.classList.remove('has-backdrop');
+
+  backdrop.classList.remove('on');
+  backdropImg.removeAttribute('src');
+  box.style.removeProperty('--sb-base');
+  const closeBtn = document.getElementById('summaryClose');
+  closeBtn.classList.remove('on-light');
+  closeBtn._backdropIsLight = false;
+
+  ['summaryMeta','summaryRatings','summaryDirector','summaryWriters','summaryStudio','summaryGenres'].forEach(id => {
+    const el = document.getElementById(id);
+    el.innerHTML = '';
+    el.classList.add('hidden');
+  });
+
+  // Background prefetch (preloadInfo) usually has the extra info cached by the
+  // time the popup opens, so we know up front whether a backdrop exists. Only
+  // reserve the 16:9 backdrop skeleton when we genuinely don't know yet —
+  // otherwise the panel would visibly stretch then snap back when an item
+  // turns out to have no backdrop.
+  const known = item._extra;
+  if (!known || known.backdrop) {
+    box.classList.add('loading-backdrop');
+    backdrop.classList.add('skeleton');
+  }
+  // If we already know a logo is coming, leave the title slot empty (its space
+  // is reserved by min-height) rather than flashing the text title for a frame
+  // before the logo image swaps in. Otherwise render the text title now.
+  if (known && known.backdrop && known.logo) {
+    titleEl.innerHTML = '';
+  } else {
+    titleEl.textContent = item.title || '';
+    fitTitle(titleEl);
+  }
+  // Year is known up front whenever the extra info is cached, so we can set it
+  // immediately — that keeps its row from popping in later and nudging layout.
   document.getElementById('summaryYear').textContent = '';
   document.getElementById('summaryText').textContent = item.summary;
-  const genresEl = document.getElementById('summaryGenres');
   const castWrap = document.getElementById('summaryCastWrap');
   const castEl = document.getElementById('summaryCast');
   const trailerBtn = document.getElementById('btnTrailer');
 
-  // Show skeleton placeholders sized like the real content immediately, so the
-  // popup doesn't visibly resize once genres/cast/trailer info arrives.
-  genresEl.innerHTML = `
-    <span class="genrePill skeleton skel-text" style="width:64px;height:13px;"></span>
-    <span class="genrePill skeleton skel-text" style="width:80px;height:13px;"></span>`;
-  genresEl.classList.remove('hidden');
-  castEl.innerHTML = Array.from({ length: 6 }).map(() => `
-    <div class="castMember">
-      <div class="castPhoto skeleton"></div>
-      <div class="castName skel-text skeleton" style="width:100%;height:11px;margin-top:6px;"></div>
-    </div>`).join('');
-  castEl.onscroll = null;
   castEl.scrollLeft = 0;
-  castWrap.classList.remove('hidden');
-  document.getElementById('castFadeL').classList.remove('show');
-  document.getElementById('castFadeR').classList.remove('show');
+  const scrollEl = document.getElementById('summaryScroll');
+  scrollEl.scrollTop = 0;
+  scrollEl.removeEventListener('scroll', updateCloseAdaptation);
+  scrollEl.addEventListener('scroll', updateCloseAdaptation, { passive: true });
+  // Skeleton placeholders are only needed when the extra info isn't cached yet.
+  // When it is (the common case, thanks to prefetch), we render the real
+  // content synchronously below so the panel never resizes after it appears.
+  if (!known) {
+    castEl.innerHTML = Array.from({ length: 6 }).map(() => `
+      <div class="castMember">
+        <div class="castPhoto skeleton"></div>
+        <div class="castName skel-text skeleton" style="width:100%;height:11px;margin-top:6px;"></div>
+      </div>`).join('');
+    castWrap.classList.remove('hidden');
+  }
 
-  // Reset trailer state for this item; show a skeleton until we know if one exists.
+  // Reset trailer state for this item. If we already know (from prefetch)
+  // whether a trailer exists, render the final state immediately so the panel
+  // doesn't reserve a button slot that then vanishes; otherwise show a skeleton.
   stopInlineTrailer();
-  trailerBtn.classList.remove('hidden');
-  trailerBtn.classList.add('skeleton');
+  const trailerKnown = item._trailer;
   trailerBtn.innerHTML = '';
+  if (trailerKnown === undefined) {
+    trailerBtn.classList.remove('hidden');
+    trailerBtn.classList.add('skeleton');
+  } else {
+    trailerBtn.classList.remove('skeleton');
+    trailerBtn.classList.toggle('hidden', !(trailerKnown && trailerKnown.url));
+    if (trailerKnown && trailerKnown.url) {
+      trailerBtn.innerHTML = '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-movies"/></svg> Trailer';
+    }
+  }
   loadTrailer(item).then(trailer => {
     if (queue[0] !== item) return;
     trailerBtn.classList.remove('skeleton');
     if (trailer && trailer.url) {
-      trailerBtn.innerHTML = '<svg class="icon"><use href="#icon-film-strip"/></svg> Trailer';
+      trailerBtn.innerHTML = '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-movies"/></svg> Trailer';
+      trailerBtn.classList.remove('hidden');
     } else {
       trailerBtn.classList.add('hidden');
     }
@@ -1349,39 +1920,139 @@ function openSummary() {
   // Hide any lingering toast so it can't sit on top of the popup.
   document.getElementById('toast').classList.remove('on');
   document.getElementById('summaryOverlay').classList.add('on');
-  loadExtraInfo(item).then(extra => {
+  document.getElementById('summaryClose').focus();
+
+  const applyExtra = extra => {
     if (queue[0] !== item) return;
-    document.getElementById('summaryYear').textContent = extra.year || '';
-    if (extra.genres.length) {
-      genresEl.innerHTML = extra.genres.map(g => `<span class="genrePill">${g}</span>`).join('');
-    } else {
-      genresEl.classList.add('hidden');
+
+    // Meta row: year · runtime · genres · content rating · seasons/episodes
+    const metaEl = document.getElementById('summaryMeta');
+    const metaParts = [];
+    if (extra.year) metaParts.push(`<span class="metaPill">${escHtml(String(extra.year))}</span>`);
+    if (extra.runtime) metaParts.push(`<span class="metaPill">${escHtml(extra.runtime)}</span>`);
+    if (extra.genres && extra.genres.length) extra.genres.forEach(g => metaParts.push(`<span class="metaPill">${escHtml(g)}</span>`));
+    if (extra.contentRating) metaParts.push(`<span class="metaPill metaPill--rating">${escHtml(extra.contentRating)}</span>`);
+    if (extra.seasonCount) metaParts.push(`<span class="metaPill">${extra.seasonCount} Season${extra.seasonCount !== 1 ? 's' : ''}</span>`);
+    if (extra.episodeCount) metaParts.push(`<span class="metaPill">${extra.episodeCount} Episodes</span>`);
+    if (metaParts.length) { metaEl.innerHTML = metaParts.join(''); metaEl.classList.remove('hidden'); }
+    else metaEl.classList.add('hidden');
+    document.getElementById('summaryYear').textContent = '';
+
+    // Ratings row
+    const ratingsEl = document.getElementById('summaryRatings');
+    const ratingParts = [];
+    const cb = ratingBadge(extra.criticRatingImage, extra.criticRating);
+    const ab = ratingBadge(extra.audienceRatingImage, extra.audienceRating);
+    const mkBadge = b => {
+      const img = b.imgSrc ? `<img src="${b.imgSrc}" class="rIcon" alt="" onerror="this.style.display='none'">` : '';
+      return `<span class="ratingBadge">${img}<span class="rLabel">${escHtml(b.label)}:</span> ${escHtml(b.score)}</span>`;
+    };
+    if (cb) ratingParts.push(mkBadge(cb));
+    if (ab) ratingParts.push(mkBadge(ab));
+    if (ratingParts.length) { ratingsEl.innerHTML = ratingParts.join(''); ratingsEl.classList.remove('hidden'); }
+    else ratingsEl.classList.add('hidden');
+
+    // Director
+    const dirEl = document.getElementById('summaryDirector');
+    if (extra.directors && extra.directors.length) { dirEl.innerHTML = `Directed by <span>${extra.directors.map(escHtml).join(', ')}</span>`; dirEl.classList.remove('hidden'); }
+    else dirEl.classList.add('hidden');
+
+    // Writers
+    const wriEl = document.getElementById('summaryWriters');
+    if (extra.writers && extra.writers.length) { wriEl.innerHTML = `Written by <span>${extra.writers.map(escHtml).join(', ')}</span>`; wriEl.classList.remove('hidden'); }
+    else wriEl.classList.add('hidden');
+
+    // Studio
+    const stuEl = document.getElementById('summaryStudio');
+    if (extra.studio) { stuEl.innerHTML = `Studio: <span>${escHtml(extra.studio)}</span>`; stuEl.classList.remove('hidden'); }
+    else stuEl.classList.add('hidden');
+
+    // Paint the bottom corners with the artwork's ultraBlur tint (or clear it
+    // for items without that metadata).
+    if (extra.tint) {
+      box.style.setProperty('--sb-base', extra.tint);
     }
+
+    // Backdrop + logo go together: no backdrop means we keep the plain
+    // text-title layout untouched, even if a logo happens to be available.
+    if (extra.backdrop) {
+      // Fetch as a blob (like posters/cast photos) rather than setting .src
+      // directly — the resulting same-origin blob URL lets us read pixels off
+      // it on a canvas (to gauge the corner brightness for the close button)
+      // without the canvas getting cross-origin "tainted".
+      fetch(extra.backdrop, { headers: H() })
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
+        .then(blob => {
+          if (queue[0] !== item) return;
+          backdropImg.onload = () => {
+            if (queue[0] !== item) return;
+            backdrop.classList.remove('skeleton');
+            box.classList.remove('loading-backdrop');
+            box.classList.add('has-backdrop');
+            requestAnimationFrame(() => backdrop.classList.add('on'));
+            sampleCornerBrightness(backdropImg).then(light => {
+              if (queue[0] !== item) return;
+              const closeBtn = document.getElementById('summaryClose');
+              closeBtn._backdropIsLight = light;
+              updateCloseAdaptation();
+            });
+          };
+          backdropImg.src = URL.createObjectURL(blob);
+        })
+        .catch(() => {
+          if (queue[0] !== item) return;
+          backdrop.classList.remove('skeleton');
+          box.classList.remove('loading-backdrop', 'has-backdrop');
+          backdrop.classList.remove('on');
+        });
+
+      if (extra.logo) {
+        const logoImg = new Image();
+        logoImg.alt = item.title || '';
+        logoImg.onload = () => {
+          if (queue[0] !== item) return;
+          titleEl.innerHTML = '';
+          titleEl.appendChild(logoImg);
+        };
+        logoImg.onerror = () => { titleEl.textContent = item.title || ''; fitTitle(titleEl); };
+        logoImg.src = extra.logo;
+      }
+    } else {
+      backdrop.classList.remove('skeleton');
+      box.classList.remove('loading-backdrop');
+    }
+
     if (extra.cast.length) {
+      castWrap.classList.remove('hidden');
       castEl.innerHTML = extra.cast.map(c => `
         <div class="castMember">
-          <img class="castPhoto skeleton" loading="lazy">
-          <span class="castName">${c.name}</span>
+          <img class="castPhoto skeleton" alt="${escHtml(c.name)}">
+          <span class="castName">${escHtml(c.name)}</span>
         </div>`).join('');
       const imgs = castEl.querySelectorAll('.castPhoto');
-      extra.cast.forEach((c, i) => { if (c.photo) loadCastPhoto(c.photo, imgs[i]); });
-      castEl.onscroll = updateCastFades;
-      requestAnimationFrame(updateCastFades);
+      extra.cast.forEach((c, i) => {
+        if (c.photo) {
+          loadCastPhoto(c.photo, imgs[i]);
+        } else {
+          // No photo for this actor — drop the shimmer skeleton and show the
+          // silhouette placeholder right away (otherwise it sits blank/grey).
+          imgs[i].classList.remove('skeleton');
+          imgs[i].src = PLACEHOLDER_CAST;
+        }
+      });
     } else {
       castWrap.classList.add('hidden');
     }
-  });
-}
-function updateCastFades() {
-  const el = document.getElementById('summaryCast');
-  const fadeL = document.getElementById('castFadeL');
-  const fadeR = document.getElementById('castFadeR');
-  fadeL.classList.toggle('show', el.scrollLeft > 2);
-  fadeR.classList.toggle('show', el.scrollLeft < el.scrollWidth - el.clientWidth - 2);
+  };
+
+  if (known) applyExtra(known);
+  else loadExtraInfo(item).then(applyExtra);
 }
 function closeSummary() {
   document.getElementById('summaryOverlay').classList.remove('on');
   stopInlineTrailer();
+  if (summaryOpener && summaryOpener.focus) summaryOpener.focus();
+  summaryOpener = null;
 }
 function closeSummaryFromOverlay(e) {
   if (e.target === document.getElementById('summaryOverlay')) closeSummary();
@@ -1407,6 +2078,7 @@ function goBack() {
   // Returning poster re-enters from the side it originally exited toward
   const img = document.createElement('img');
   img.className = 'poster p0 skeleton';
+  img.alt = item.title || '';
   img.style.transition = 'none';
   img.style.zIndex = 5;
   const x = dir === 'left' ? '-130%' : '130%';
@@ -1451,7 +2123,9 @@ function toggleShuffle() {
   if (busy || queue.length < 2) return;
   clearTimeout(ratingTimer);
   shuffled = !shuffled;
-  document.getElementById('btnShuffle').classList.toggle('active', shuffled);
+  const shuffleBtn = document.getElementById('btnShuffle');
+  shuffleBtn.classList.toggle('active', shuffled);
+  shuffleBtn.setAttribute('aria-pressed', String(shuffled));
 
   const [current, ...rest] = queue;
   let reordered;
@@ -1507,11 +2181,11 @@ function fmtDate(ms) {
 
 function toast(msg, isCelebrate) {
   const t = document.getElementById('toast');
-  // Sit in the empty gap directly below the poster stack (its margin-bottom)
-  // so the toast never overlaps the poster, title, stars or actions.
+  // Float just above the poster stack, in the open space below the
+  // counters/filters, so it never overlaps the poster, title, stars or actions.
   const stackRect = document.getElementById('posterStack').getBoundingClientRect();
   if (stackRect.height) {
-    t.style.top = (stackRect.bottom + 18) + 'px';
+    t.style.top = (stackRect.top - 46) + 'px';
     t.style.bottom = 'auto';
   }
   t.textContent = msg;
@@ -1534,6 +2208,29 @@ document.addEventListener('touchend', e => {
 document.addEventListener('touchmove', e => {
   if (e.scale && e.scale !== 1) e.preventDefault();
 }, { passive: false });
+
+document.addEventListener('keydown', e => {
+  const summaryOpen = document.getElementById('summaryOverlay').classList.contains('on');
+  if (e.key === 'Escape' && summaryOpen) {
+    closeSummary();
+    return;
+  }
+  if (summaryOpen || busy || !queue[0]) return;
+
+  // Number keys rate in whole stars; hold Shift for the half-star below
+  // (e.g. "3" = 3 stars, Shift+"3" = 2.5 stars) — mirrors the star slider's granularity.
+  if (e.key >= '1' && e.key <= '5') {
+    e.preventDefault();
+    const n = parseInt(e.key, 10);
+    setRating(e.shiftKey ? n - 0.5 : n);
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    goBack();
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    doSkip();
+  }
+});
 
 // ── Boot ──────────────────────────────────────────────────
 if (cfg.token && cfg.url) {
