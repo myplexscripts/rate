@@ -853,12 +853,12 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     flex-direction:column; align-items:flex-start;
     padding:0 0 0 64px; gap:13px;
     background:transparent;
-    pointer-events:all;
+    pointer-events:none; /* pass clicks through to #btnTrailer etc. */
   }
   #posterStack, #info { display:none; }
-  #starRow { margin:0; }
-  .star { font-size:1.85rem; }
-  #actions { width:auto; justify-content:flex-start; gap:18px; padding:0; }
+  #starRow { margin:0; pointer-events:all; cursor:pointer; }
+  .star { font-size:3rem; }
+  #actions { width:auto; justify-content:flex-start; gap:18px; padding:0; pointer-events:all; }
   .act-btn .icon { width:1.55rem; height:1.55rem; }
 
   /* The band: a horizontal strip between the two hard bars, tinted with the
@@ -893,12 +893,11 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   }
   #summaryBackdrop img {
     position:absolute;
-    right:0; top:0; bottom:0;
-    height:100%; width:60%;
-    object-fit:cover; object-position:center;
+    right:0; top:0;
+    height:100%; width:auto; /* natural 16:9 ratio, never cropped */
     z-index:1;
-    -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.2) 16%, #000 44%);
-    mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.2) 16%, #000 44%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.15) 16%, #000 44%);
+    mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.15) 16%, #000 44%);
   }
   /* Light left-side darkening so the lower-left text stays legible over the
      faded edge of the artwork. */
@@ -947,17 +946,28 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 
   #summaryClose { display:none !important; }
 
-  /* Streak / queue-ring / type-filter sit ABOVE the hero (which is z 500) and
-     get a soft shadow so they stay legible over bright artwork or the bars. */
+  /* Counters + filter live IN the top letterbox bar, right-aligned */
   #ratedCounter, #progress, #typeFilter { z-index:600; }
-  #ratedCounter { opacity:0.85; filter:drop-shadow(0 1px 5px rgba(0,0,0,0.7)); }
-  #progress.on  { opacity:0.85; filter:drop-shadow(0 1px 5px rgba(0,0,0,0.7)); }
-  #typeFilter {
-    opacity:0; right:18px;
-    -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
-    box-shadow:0 8px 24px rgba(0,0,0,0.4);
+  #ratedCounter {
+    top:calc(var(--bar) / 2 - 10px);
+    left:auto; right:130px;
+    opacity:0.8;
   }
-  #typeFilter.on { opacity:0.85; }
+  #progress {
+    top:calc(var(--bar) / 2 - 18px);
+    right:80px;
+  }
+  #progress.on { opacity:0.8; }
+  #typeFilter {
+    top:calc(var(--bar) / 2 - 22px);
+    right:16px;
+    flex-direction:row;
+    opacity:0;
+    backdrop-filter:none; -webkit-backdrop-filter:none;
+    background:none; border:none; box-shadow:none; padding:0; gap:2px;
+  }
+  #typeFilter.on { opacity:0.8; }
+  #typeFilter.on:hover { opacity:1; }
 
   /* ── Desktop trailer player ──────────────────────────────
      Clicking Trailer blurs the crisp backdrop into an ultraBlur backdrop and
@@ -1839,18 +1849,8 @@ function setGlow({ tl, tr, bl, br }) {
     el.appendChild(use);
     row.appendChild(el);
   }
-  let sliding = false;
-  row.addEventListener('pointerdown', e => {
-    if (busy) return;
-    sliding = true;
-    row.setPointerCapture(e.pointerId);
-    applyFromX(e.clientX);
-  });
-  row.addEventListener('pointermove', e => { if (sliding) applyFromX(e.clientX); });
-  row.addEventListener('pointerup',     () => { sliding = false; });
-  row.addEventListener('pointercancel', () => { sliding = false; });
 
-  function applyFromX(x) {
+  function ratingFromX(x) {
     const stars = [...row.querySelectorAll('.star')];
     let picked = 0.5;
     for (const s of stars) {
@@ -1859,8 +1859,48 @@ function setGlow({ tl, tr, bl, br }) {
       const n    = parseInt(s.dataset.n);
       if (x >= rect.left) picked = x < mid ? n - 0.5 : n;
     }
-    setRating(Math.max(0.5, picked));
+    return Math.max(0.5, picked);
   }
+
+  function applyFromX(x) { setRating(ratingFromX(x)); }
+
+  function paintStars(n) {
+    document.querySelectorAll('.star').forEach(s => {
+      const sn = parseInt(s.dataset.n);
+      const use = s.querySelector('use');
+      if (n >= sn) { s.setAttribute('class','icon star lit'); use.setAttribute('href','#icon-star-fill'); }
+      else if (n >= sn - 0.5) { s.setAttribute('class','icon star lit'); use.setAttribute('href','#icon-star-half'); }
+      else { s.setAttribute('class','icon star'); use.setAttribute('href','#icon-star-empty'); }
+    });
+  }
+
+  // Mobile: live drag rating
+  let sliding = false;
+  row.addEventListener('pointerdown', e => {
+    if (busy || isDesktop()) return;
+    sliding = true;
+    row.setPointerCapture(e.pointerId);
+    applyFromX(e.clientX);
+  });
+  row.addEventListener('pointermove', e => { if (sliding) applyFromX(e.clientX); });
+  row.addEventListener('pointerup',     () => { sliding = false; });
+  row.addEventListener('pointercancel', () => { sliding = false; });
+
+  // Desktop: hover = visual preview (no timer), click = commit
+  row.addEventListener('mousemove', e => {
+    if (!isDesktop() || busy) return;
+    paintStars(ratingFromX(e.clientX));
+  });
+  row.addEventListener('mouseleave', () => {
+    if (!isDesktop()) return;
+    // restore actual committed state (or clear if none)
+    if (rating > 0) paintStars(rating);
+    else paintStars(0);
+  });
+  row.addEventListener('click', e => {
+    if (!isDesktop() || busy) return;
+    applyFromX(e.clientX);
+  });
 })();
 
 function setRating(n) {
