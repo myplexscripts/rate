@@ -342,8 +342,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   width:100%; height:100%;
   object-fit:cover; display:block;
 }
-/* Fade the image into the ultraBlur background — bottom fade + side/corner
-   vignette that creeps in from the edges, strongest at bottom corners. */
+/* Fade the image into the ultraBlur — bottom dissolve + vignette that creeps
+   in from all edges with the meniscus bulging up in the centre bottom. */
 #summaryBackdrop {
   -webkit-mask-image:
     linear-gradient(to bottom,
@@ -352,17 +352,12 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
       rgba(0,0,0,0.65) 68%,
       rgba(0,0,0,0.28) 82%,
       transparent 100%),
-    linear-gradient(to right,
-      rgba(0,0,0,0.55) 0%,
-      black 18%,
-      black 82%,
-      rgba(0,0,0,0.55) 100%),
-    radial-gradient(ellipse 80% 60% at 50% 100%,
-      transparent 0%,
-      transparent 30%,
-      rgba(0,0,0,0.4) 60%,
-      black 100%);
-  -webkit-mask-composite: source-in, source-in;
+    radial-gradient(ellipse 70% 80% at 50% 50%,
+      black 40%,
+      rgba(0,0,0,0.85) 60%,
+      rgba(0,0,0,0.5) 78%,
+      transparent 100%);
+  -webkit-mask-composite: source-in;
   mask-image:
     linear-gradient(to bottom,
       black 0%, black 44%,
@@ -370,16 +365,11 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
       rgba(0,0,0,0.65) 68%,
       rgba(0,0,0,0.28) 82%,
       transparent 100%),
-    linear-gradient(to right,
-      rgba(0,0,0,0.55) 0%,
-      black 18%,
-      black 82%,
-      rgba(0,0,0,0.55) 100%),
-    radial-gradient(ellipse 80% 60% at 50% 100%,
-      transparent 0%,
-      transparent 30%,
-      rgba(0,0,0,0.4) 60%,
-      black 100%);
+    radial-gradient(ellipse 70% 80% at 50% 50%,
+      black 40%,
+      rgba(0,0,0,0.85) 60%,
+      rgba(0,0,0,0.5) 78%,
+      transparent 100%);
   mask-composite: intersect;
 }
 #summaryBox.has-backdrop #summaryBackdrop,
@@ -1866,11 +1856,12 @@ function openSummary() {
   closeBtn._backdropIsLight = false;
 
   ['summaryRowYearRating','summaryRowDuration','summaryRatings','summaryGenres',
-   'summaryDirector','summaryWriters','summaryStudio','summaryCredits'].forEach(id => {
+   'summaryDirector','summaryWriters','summaryStudio'].forEach(id => {
     const el = document.getElementById(id);
     el.innerHTML = '';
     el.classList.add('hidden');
   });
+  document.getElementById('summaryCredits').classList.add('hidden');
 
   // Background prefetch (preloadInfo) usually has the extra info cached by the
   // time the popup opens, so we know up front whether a backdrop exists. Only
