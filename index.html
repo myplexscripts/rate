@@ -1534,36 +1534,59 @@ function ubBlend(hexCorners) {
 // sits, using the top two ultraBlur corners. We use the top corners because
 // that's where the logo lives in both mobile and desktop layouts.
 // sRGB → linear → weighted sum (ITU-R BT.709).
+// Average perceptual luminance of the top two ultraBlur corners.
+// We use the top corners because that's where the logo sits in both layouts.
 function bgLuminance(item) {
   const ub = item.ultraBlurColors || item.UltraBlurColors;
   if (!ub) return null;
   const corners = [ub.topLeft, ub.topRight].map(hexToRgb).filter(Boolean);
   if (!corners.length) return null;
-  let lumSum = 0;
-  for (const [r, g, b] of corners) {
-    const lin = c => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
-    lumSum += 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-  }
-  return lumSum / corners.length;
+  const lin = c => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  let sum = 0;
+  for (const [r, g, b] of corners) sum += 0.2126*lin(r) + 0.7152*lin(g) + 0.0722*lin(b);
+  return sum / corners.length;
 }
 
-// Build the CSS filter for a logo image given the backdrop's luminance.
-// Very dark bg (< 0.06): full invert — turns any black logo white.
-// Mid-dark bg (0.06–0.22): partial brightness lift + invert blend.
-// Light/mid bg (> 0.22): just the dual halo, no tonal change.
-function logoFilter(luma) {
-  const shadows = 'drop-shadow(0 2px 10px rgba(0,0,0,0.55)) drop-shadow(0 0 3px rgba(255,255,255,0.45))';
-  if (luma === null) return shadows;
-  if (luma < 0.06) return `brightness(0) invert(1) ${shadows}`;
-  if (luma < 0.22) {
-    // Interpolate: at luma=0.06 → fully inverted, at luma=0.22 → no change.
-    // We do this with a brightness lift: dark logos get pushed toward white
-    // proportionally without going fully white on near-dark backgrounds.
-    const t = (luma - 0.06) / (0.22 - 0.06); // 0 at darkest, 1 at threshold
-    const bri = 1 + (1 - t) * 2.5; // up to ~3.5× brightness boost at luma=0.06
-    return `brightness(${bri.toFixed(2)}) ${shadows}`;
-  }
-  return shadows;
+// Draws the logo to a small canvas and returns the average luminance of its
+// opaque pixels. This tells us whether the logo itself is dark or already light,
+// so we never boost a white logo that just happens to sit over a dark blur.
+function logoPixelLuminance(img) {
+  try {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0, 64, 64);
+    const d = ctx.getImageData(0, 0, 64, 64).data;
+    const lin = v => { v /= 255; return v <= 0.04045 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4); };
+    let sum = 0, count = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i+3] < 32) continue; // skip transparent pixels
+      sum += 0.2126*lin(d[i]) + 0.7152*lin(d[i+1]) + 0.0722*lin(d[i+2]);
+      count++;
+    }
+    return count > 0 ? sum / count : null;
+  } catch { return null; }
+}
+
+// Decide the CSS filter for a logo by looking at both the logo's own pixel
+// brightness and the backdrop brightness. The key rule: only ever modify a
+// dark logo — a logo that's already light doesn't need help regardless of
+// what the background looks like.
+function logoFilter(img, item) {
+  const shadows = 'drop-shadow(0 2px 10px rgba(0,0,0,0.6)) drop-shadow(0 0 2px rgba(255,255,255,0.35))';
+  const logoLuma = logoPixelLuminance(img);
+  // Logo is already light — just add separation shadows and leave it alone.
+  if (logoLuma === null || logoLuma > 0.5) return shadows;
+  const bgLuma = bgLuminance(item);
+  if (bgLuma === null) return shadows;
+  // Dark logo on a light/mid background — only shadows needed.
+  if (bgLuma > 0.22) return shadows;
+  // Dark logo on dark background — boost toward white.
+  // At bgLuma=0 the logo goes fully white; it eases off as bg brightens.
+  if (bgLuma < 0.05) return `brightness(0) invert(1) ${shadows}`;
+  const t = (bgLuma - 0.05) / (0.22 - 0.05);
+  const bri = 1 + (1 - t) * 2.2;
+  return `brightness(${bri.toFixed(2)}) ${shadows}`;
 }
 
 
@@ -2108,10 +2131,8 @@ function openSummary() {
           titleEl.innerHTML = '';
           const ar = logoImg.naturalWidth / (logoImg.naturalHeight || 1);
           titleEl.classList.toggle('logo-compact', ar < 2.5);
-          // Adapt the logo's appearance to the backdrop brightness so dark
-          // logos don't disappear into dark blurs (and vice versa).
-          const luma = bgLuminance(item);
-          logoImg.style.filter = logoFilter(luma);
+          // Only adjust dark logos — light logos are left as-is.
+          logoImg.style.filter = logoFilter(logoImg, item);
           titleEl.appendChild(logoImg);
         };
         logoImg.onerror = () => { titleEl.textContent = item.title || ''; fitTitle(titleEl); };
