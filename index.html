@@ -489,7 +489,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   padding:5px 10px;
 }
 .ratingBadge .rIcon {
-  width:16px; height:16px;
+  width:18px; height:18px;
   object-fit:contain;
   flex-shrink:0;
 }
@@ -1787,16 +1787,16 @@ function ratingBadge(imageStr, score) {
   if (!imageStr || score == null) return null;
   const s = String(imageStr).toLowerCase();
   if (s.includes('rottentomatoes')) {
-    const isAudience = s.includes('audience') || s.includes('upright') || s.includes('want');
+    const isAudience = s.includes('audience') || s.includes('upright') || s.includes('popcorn') || s.includes('want');
     if (isAudience) {
       const fresh = s.includes('upright') || s.includes('want') || s.includes('fresh');
-      return { imgSrc: `icons/${fresh ? 'rt-audience-fresh' : 'rt-audience-rotten'}.svg`, label: 'Audience', score: Math.round(score * 10) + '%' };
+      return { imgSrc: `images/icons/ui/${fresh ? 'Rotten_Tomatoes_Popcorn' : 'Rotten_Tomatoes_Popcorn_tipped'}.svg`, label: 'Audience', score: Math.round(score * 10) + '%' };
     }
     const fresh = s.includes('ripe') || s.includes('certified') || s.includes('fresh');
-    return { imgSrc: `icons/${fresh ? 'rt-fresh' : 'rt-rotten'}.svg`, label: 'RT', score: Math.round(score * 10) + '%' };
+    return { imgSrc: `images/icons/ui/${fresh ? 'Certified_Fresh' : 'Rotten_Tomatoes_rotten'}.svg`, label: 'RT', score: Math.round(score * 10) + '%' };
   }
-  if (s.includes('themoviedb')) return { imgSrc: 'icons/tmdb.svg', label: 'TMDb', score: score.toFixed(1) };
-  if (s.includes('imdb')) return { imgSrc: 'icons/imdb.svg', label: 'IMDb', score: score.toFixed(1) };
+  if (s.includes('themoviedb')) return { imgSrc: 'images/icons/ui/TMDB.svg', label: 'TMDb', score: score.toFixed(1) };
+  if (s.includes('imdb')) return { imgSrc: 'images/icons/ui/IMDB.svg', label: 'IMDb', score: score.toFixed(1) };
   return { imgSrc: null, label: '★', score: score.toFixed(1) };
 }
 
