@@ -1773,6 +1773,9 @@ function advance(dir) {
   if (after) { const im = new Image(); im.src = posterUrl(after); }
 
   resetRating();
+  // Kick off preload for upcoming items now so the 400ms animation gives
+  // loadExtraInfo a head start before openSummary needs it.
+  preloadInfo();
 
   setTimeout(() => {
     if (p0) p0.remove();
@@ -1852,8 +1855,25 @@ function ratingBadge(imageStr, score) {
   return { imgSrc: null, label: '★', score: score.toFixed(1), pct, fillColor: 'rgba(255,251,248,0.13)' };
 }
 
+const EXTRA_TTL = 24 * 60 * 60 * 1000; // 24 h
+function lsExtraGet(ratingKey) {
+  try {
+    const raw = localStorage.getItem('px_ex_' + ratingKey);
+    if (!raw) return null;
+    const { t, d } = JSON.parse(raw);
+    if (Date.now() - t > EXTRA_TTL) { localStorage.removeItem('px_ex_' + ratingKey); return null; }
+    return d;
+  } catch { return null; }
+}
+function lsExtraSet(ratingKey, data) {
+  try { localStorage.setItem('px_ex_' + ratingKey, JSON.stringify({ t: Date.now(), d: data })); } catch {}
+}
+
 async function loadExtraInfo(item) {
   if (item._extra !== undefined) return item._extra;
+  // Return cached metadata from localStorage to avoid a network round-trip
+  const cached = lsExtraGet(item.ratingKey);
+  if (cached) { item._extra = cached; return item._extra; }
   try {
     const d = await plexGet(`/library/metadata/${item.ratingKey}`);
     const meta = (d.MediaContainer.Metadata || [])[0];
@@ -1909,6 +1929,7 @@ async function loadExtraInfo(item) {
         if (first && first.viewedAt) item._extra.firstViewedAt = first.viewedAt;
       } catch (_) {}
     }
+    lsExtraSet(item.ratingKey, item._extra);
   } catch (e) {
     item._extra = { year: null, ubTints: null, backdrop: '', logo: '', genres: [], cast: [], ratings: [], runtime: null, contentRating: null, country: null, seasonCount: null, episodeCount: null, addedAt: item.addedAt || null, lastViewedAt: item.lastViewedAt || null, viewCount: item.viewCount || null, firstViewedAt: null };
   }
