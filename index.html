@@ -1278,9 +1278,8 @@ function setInfo(item) {
     ? 'Watched ' + fmtDate(item.lastViewedAt * 1000) : '';
   document.getElementById('iSummary').textContent = item.summary || '';
   preloadInfo();
-  // On desktop, the swipe handler calls openSummary(queue[1]) immediately so
-  // the summary transitions in sync with the poster. Only open here if it
-  // hasn't already been opened for this item (initial load, goBack, etc.).
+  // On desktop the Detail panel is always open; refresh it for this item
+  // unless it's already showing (guard avoids a redundant re-render).
   if (isDesktop() && summaryItem !== item) openSummary(item);
 }
 
@@ -1784,12 +1783,10 @@ function advance(dir) {
   if (after) { const im = new Image(); im.src = posterUrl(after); }
 
   resetRating();
-  // Open summary for the next item immediately so it transitions in sync with
-  // the poster animation rather than waiting 400ms for the shift to complete.
-  if (queue[1]) {
-    if (isDesktop()) openSummary(queue[1]);
-  }
-  preloadInfo();
+  // Update deck text + Detail panel for the next item immediately so they
+  // change in sync with the poster animation rather than waiting 400ms for
+  // the shift to complete. setInfo handles both (and openSummary on desktop).
+  if (queue[1]) setInfo(queue[1]);
 
   setTimeout(() => {
     if (p0) p0.remove();
@@ -1797,7 +1794,6 @@ function advance(dir) {
     if (hist.length > 30) hist.shift();
     document.getElementById('btnBack').disabled = hist.length === 0;
     updateProgress();
-    if (queue[0]) setInfo(queue[0]);
     busy = false;
     if (!queue.length) { hideStage(); setState('done'); }
   }, 400);
