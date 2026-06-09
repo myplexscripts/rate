@@ -466,7 +466,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 }
 #summaryGenres.hidden { display:none; }
 #summaryRatings {
-  display:flex; gap:8px; justify-content:center; flex-wrap:wrap;
+  display:flex; gap:8px; justify-content:center; align-items:center; flex-wrap:wrap;
   margin-bottom:10px;
 }
 #summaryRatings.hidden { display:none; }
@@ -567,21 +567,20 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 
 /* TRAILER */
 #btnTrailer {
-  display:inline-flex; align-items:center; gap:6px;
-  margin:14px 0 18px;
+  display:inline-flex; align-items:center; justify-content:center;
+  margin:0;
+  width:34px; height:34px; flex-shrink:0;
   background:var(--star);
   border:none;
   color:#191919;
-  border-radius:50px;
-  padding:8px 18px 8px 13px;
-  font-family:'Circular',sans-serif;
-  font-size:0.75rem; font-weight:700;
-  letter-spacing:0.01em;
+  border-radius:50%;
+  padding:0;
   cursor:pointer;
   transition:background 0.15s, opacity 0.2s, transform 0.15s;
 }
-#btnTrailer .icon { width:1.15rem; height:1.15rem; }
-#btnTrailer:active { transform:scale(0.96); }
+#btnTrailer .icon { width:0.95rem; height:0.95rem; margin-left:1px; /* optical centring of the play glyph */ }
+#btnTrailer:hover  { transform:scale(1.06); }
+#btnTrailer:active { transform:scale(0.94); }
 #btnTrailer.hidden { display:none; }
 #btnTrailer.skeleton {
   background-color:rgba(255,251,248,0.06);
@@ -590,7 +589,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   animation:shimmer 1.5s ease-in-out infinite;
   color:transparent;
   pointer-events:none;
-  width:104px; height:34px;
+  border-radius:50%;
 }
 
 #trailerInline { margin:22px 0 18px; position:relative; }
@@ -969,49 +968,63 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   #summaryBackdrop img.bd-show { opacity:1; }
   /* Keep the container fully shown on desktop; crossfade happens per-layer */
   #summaryBox.has-backdrop #summaryBackdrop { opacity:1; }
-  /* Light left-side darkening so the lower-left text stays legible over the
-     faded edge of the artwork. */
+  /* Dynamic contrast: darken only the zones that hold UI — the left column
+     (logo · meta · summary · cast), the bottom strip, and a soft pool behind
+     the bottom-right rating cluster. The centre/right artwork stays bright, so
+     the ultrablur look isn't flattened. */
   #summaryBackdrop::after {
     z-index:2;
-    background:linear-gradient(to right, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 40%);
+    background:
+      linear-gradient(to right, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.16) 30%, transparent 52%),
+      linear-gradient(to top,   rgba(0,0,0,0.5)  0%, rgba(0,0,0,0.08) 26%, transparent 42%),
+      radial-gradient(ellipse 44% 50% at 86% 84%, rgba(0,0,0,0.42) 0%, transparent 72%);
   }
 
   #summaryTitle {
     --title-fs: clamp(1.9rem, 3.2vw, 3.2rem);
     justify-content:flex-start; align-items:flex-end;
-    padding:0; margin-bottom:12px; width:100%;
+    padding:0; width:100%;
+    /* Fixed box so logos of any intrinsic size land in the same place; the
+       image scales up to fill it (object-fit keeps ratio, no distortion). */
+    min-height:clamp(74px, 11.5vh, 122px);
+    /* Generous breathing room below the logo, before the meta row. */
+    margin-bottom:clamp(26px, 4vh, 46px);
   }
   #summaryBox.has-backdrop #summaryTitle,
   #summaryBox.loading-backdrop #summaryTitle {
-    margin-top:0; min-height:0; padding:0;
+    margin-top:0; padding:0;
   }
+  /* Dynamic logo sizing: drive height so small logos scale UP to the target,
+     while max-width + object-fit:contain bound (and never distort) wide ones. */
   #summaryTitle img,
   #summaryBox.has-backdrop #summaryTitle img,
   #summaryBox.loading-backdrop #summaryTitle img {
-    margin:0; max-height:clamp(58px, 9vh, 96px); max-width:80%;
+    margin:0;
+    height:clamp(66px, 10.5vh, 110px); width:auto;
+    max-width:min(88%, 440px);
+    object-fit:contain; object-position:left bottom;
+    /* Dual halo so the logo separates on EITHER a light or a dark backdrop:
+       a soft dark drop for light art, a thin light edge for dark art/logos. */
+    filter:
+      drop-shadow(0 2px 10px rgba(0,0,0,0.55))
+      drop-shadow(0 0 2px rgba(255,255,255,0.45));
   }
-
-  /* Space between logo/title and the first meta row */
-  #summaryTitle { margin-bottom:20px; }
 
   /* Even vertical rhythm between the meta blocks so the column breathes. */
   #summaryRowYearRating { justify-content:flex-start; gap:9px; margin-top:0; margin-bottom:14px; }
   #summaryGenres        { text-align:left; margin-bottom:16px; }
   #summaryRatings       { justify-content:flex-start; gap:10px; margin-bottom:0; }
 
-  /* Trailer button closes the top block (logo · meta · genres · ratings · trailer). */
-  #btnTrailer { align-self:flex-start; margin:20px 0 0; }
 
-  /* Summary sits centered in the gap between the top block and the bottom block
-     (cast + personal). Auto margins absorb the free space equally, so a long
-     blurb has room and a short one stays centered — everything else holds its
-     anchored position regardless. */
+  /* Summary butts directly under the ratings row, then takes all the remaining
+     space down to the bottom block (margin-bottom:auto pushes cast/personal to
+     the band bottom). Long blurbs get room; short ones just leave space. */
   #summaryText {
     text-align:left; min-height:0;
-    margin-top:auto; margin-bottom:auto;
-    font-size:0.92rem; line-height:1.6; max-width:620px;
+    margin-top:clamp(16px, 2.5vh, 28px); margin-bottom:auto;
+    font-size:0.92rem; line-height:1.62; max-width:620px;
     display:-webkit-box; -webkit-box-orient:vertical;
-    -webkit-line-clamp:4; overflow:hidden;
+    -webkit-line-clamp:6; overflow:hidden;
   }
   /* When the blurb is too long to fit the clamp, it becomes a clickable
      affordance that opens the full description in a popup. */
@@ -1163,6 +1176,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   <symbol id="icon-skip" viewBox="0 0 256 256"><path d="M141.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L124.69,128,50.34,53.66A8,8,0,0,1,61.66,42.34l80,80A8,8,0,0,1,141.66,133.66Zm80-11.32-80-80a8,8,0,0,0-11.32,11.32L204.69,128l-74.35,74.34a8,8,0,0,0,11.32,11.32l80-80A8,8,0,0,0,221.66,122.34Z"/></symbol>
   <symbol id="icon-shuffle" viewBox="0 0 256 256"><path d="M237.66,178.34a8,8,0,0,1,0,11.32l-24,24a8,8,0,0,1-11.32-11.32L212.69,192H200.94a72.12,72.12,0,0,1-58.59-30.15l-41.72-58.4A56.1,56.1,0,0,0,55.06,80H32a8,8,0,0,1,0-16H55.06a72.12,72.12,0,0,1,58.59,30.15l41.72,58.4A56.1,56.1,0,0,0,200.94,176h11.75l-10.35-10.34a8,8,0,0,1,11.32-11.32ZM143,107a8,8,0,0,0,11.16-1.86l1.2-1.67A56.1,56.1,0,0,1,200.94,80h11.75L202.34,90.34a8,8,0,0,0,11.32,11.32l24-24a8,8,0,0,0,0-11.32l-24-24a8,8,0,0,0-11.32,11.32L212.69,64H200.94a72.12,72.12,0,0,0-58.59,30.15l-1.2,1.67A8,8,0,0,0,143,107Zm-30,42a8,8,0,0,0-11.16,1.86l-1.2,1.67A56.1,56.1,0,0,1,55.06,176H32a8,8,0,0,0,0,16H55.06a72.12,72.12,0,0,0,58.59-30.15l1.2-1.67A8,8,0,0,0,113,149Z"/></symbol>
   <symbol id="icon-x" viewBox="0 0 256 256"><path d="M208.49,191.51a12,12,0,0,1-17,17L128,145,64.49,208.49a12,12,0,0,1-17-17L111,128,47.51,64.49a12,12,0,0,1,17-17L128,111l63.51-63.52a12,12,0,0,1,17,17L145,128Z"/></symbol>
+  <symbol id="icon-trailer" viewBox="0 0 256 256"><path d="M232.43 114.49 84.65 26.08A15.91 15.91 0 0 0 60 39.6v176.81a15.91 15.91 0 0 0 24.65 13.52l147.78-88.41a15.78 15.78 0 0 0 0-26.91Z"/></symbol>
   <symbol id="icon-movies" viewBox="0 0 32 32"><path d="M5 5v22q0 0.4 0.15 0.77 0.16 0.36 0.44 0.64 0.28 0.28 0.64 0.44 0.37 0.15 0.77 0.15h18q0.4 0 0.77-0.15 0.36-0.16 0.64-0.44 0.28-0.28 0.44-0.64 0.15-0.37 0.15-0.77v-22q0-0.4-0.15-0.77-0.16-0.36-0.44-0.64-0.28-0.28-0.64-0.44-0.37-0.15-0.77-0.15h-18q-0.4 0-0.77 0.15-0.36 0.16-0.64 0.44-0.28 0.28-0.44 0.64-0.15 0.37-0.15 0.77zm6 22v-10h10v10zm-2-12h-2v-4h2zm0 2v4h-2v-4zm14 0h2v4h-2zm0-2v-4h2v4zm-2 0h-10v-10h10zm-12-10v4h-2v-4zm-2 18h2v4h-2zm16 4v-4h2v4zm2-22v4h-2v-4z"/></symbol>
   <symbol id="icon-television" viewBox="0 0 256 256"><path d="M208,40H48A24,24,0,0,0,24,64V176a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V64A24,24,0,0,0,208,40Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V64a8,8,0,0,1,8-8H208a8,8,0,0,1,8,8Zm-48,48a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,224Z"/></symbol>
   <symbol id="icon-star-empty" viewBox="0 0 256 256"><path d="M239.18,97.26A16.38,16.38,0,0,0,224.92,86l-59-4.76L143.14,26.15a16.36,16.36,0,0,0-30.27,0L90.11,81.23,31.08,86a16.46,16.46,0,0,0-9.37,28.86l45,38.83L53,211.75a16.38,16.38,0,0,0,24.5,17.82L128,198.49l50.53,31.08A16.4,16.4,0,0,0,203,211.75l-13.76-58.07,45-38.83A16.43,16.43,0,0,0,239.18,97.26Zm-15.34,5.47-48.7,42a8,8,0,0,0-2.56,7.91l14.88,62.8a.37.37,0,0,1-.17.48c-.18.14-.23.11-.38,0l-54.72-33.65a8,8,0,0,0-8.38,0L69.09,215.94c-.15.09-.19.12-.38,0a.37.37,0,0,1-.17-.48l14.88-62.8a8,8,0,0,0-2.56-7.91l-48.7-42c-.12-.1-.23-.19-.13-.5s.18-.27.33-.29l63.92-5.16A8,8,0,0,0,103,91.86l24.62-59.61c.08-.17.11-.25.35-.25s.27.08.35.25L153,91.86a8,8,0,0,0,6.75,4.92l63.92,5.16c.15,0,.24,0,.33.29S224,102.63,223.84,102.73Z"/></symbol>
@@ -1273,8 +1287,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
       <div id="summaryRowDuration" class="hidden"></div>
       <div id="summaryGenres" class="hidden"></div>
       <div id="summaryRatings" class="hidden"></div>
-      <button id="btnTrailer" class="hidden" onclick="playInlineTrailer()" title="Watch trailer">
-        <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-movies"/></svg> Trailer
+      <button id="btnTrailer" class="hidden" onclick="playInlineTrailer()" title="Watch trailer" aria-label="Watch trailer">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-trailer"/></svg>
       </button>
       <div id="trailerInline" class="hidden">
         <button id="trailerClose" onclick="stopInlineTrailer()" aria-label="Close trailer"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-x"/></svg></button>
@@ -2455,12 +2469,17 @@ function openSummary(forItem) {
   closeBtn.classList.remove('on-light');
   closeBtn._backdropIsLight = false;
 
-  ['summaryRowYearRating','summaryRowDuration','summaryRatings','summaryGenres',
+  ['summaryRowYearRating','summaryRowDuration','summaryGenres',
    'summaryPersonal'].forEach(id => {
     const el = document.getElementById(id);
     el.innerHTML = '';
     el.classList.add('hidden');
   });
+  // Ratings row hosts the trailer button, so clear only the badges (an
+  // innerHTML wipe would destroy the button element).
+  const ratingsReset = document.getElementById('summaryRatings');
+  ratingsReset.querySelectorAll('.ratingBadge').forEach(b => b.remove());
+  ratingsReset.classList.add('hidden');
 
   // Background prefetch (preloadInfo) usually has the extra info cached by the
   // time the popup opens, so we know up front whether a backdrop exists. Only
@@ -2532,18 +2551,23 @@ function openSummary(forItem) {
     trailerBtn.classList.remove('skeleton');
     trailerBtn.classList.toggle('hidden', !(trailerKnown && trailerKnown.url));
     if (trailerKnown && trailerKnown.url) {
-      trailerBtn.innerHTML = '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-movies"/></svg> Trailer';
+      trailerBtn.innerHTML = '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-trailer"/></svg>';
     }
   }
   loadTrailer(item).then(trailer => {
     if (summaryItem !== item) return;
     trailerBtn.classList.remove('skeleton');
     if (trailer && trailer.url) {
-      trailerBtn.innerHTML = '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-movies"/></svg> Trailer';
+      trailerBtn.innerHTML = '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-trailer"/></svg>';
       trailerBtn.classList.remove('hidden');
     } else {
       trailerBtn.classList.add('hidden');
     }
+    // Keep the ratings row visible if it's hosting the trailer button, even
+    // when the title has no rating badges.
+    const ratingsEl = document.getElementById('summaryRatings');
+    const hasBadges = ratingsEl.querySelector('.ratingBadge');
+    ratingsEl.classList.toggle('hidden', !hasBadges && trailerBtn.classList.contains('hidden'));
   });
 
   // Hide any lingering toast so it can't sit on top of the popup.
@@ -2581,16 +2605,20 @@ function openSummary(forItem) {
       return `<span class="ratingBadge" data-pct="${b.pct}" style="--badge-fill:${b.fillColor}">${img}${escHtml(b.score)}</span>`;
     };
     const badges = (extra.ratings || []).map(r => ratingBadge(r.image, r.value)).filter(Boolean);
+    ratingsEl.innerHTML = badges.map(mkBadge).join('');
+    // Trigger fill animation on next frame so the transition fires from 0
     if (badges.length) {
-      ratingsEl.innerHTML = badges.map(mkBadge).join('');
-      ratingsEl.classList.remove('hidden');
-      // Trigger fill animation on next frame so the transition fires from 0
       requestAnimationFrame(() => requestAnimationFrame(() => {
         ratingsEl.querySelectorAll('.ratingBadge').forEach(el => {
           el.style.backgroundSize = el.dataset.pct + '% 100%';
         });
       }));
-    } else ratingsEl.classList.add('hidden');
+    }
+    // The circular trailer button rides at the END of the ratings row (it was
+    // emptied above by innerHTML, so re-attach it here). The row shows whenever
+    // there are badges OR a trailer to host.
+    ratingsEl.appendChild(trailerBtn);
+    ratingsEl.classList.toggle('hidden', !badges.length && trailerBtn.classList.contains('hidden'));
 
     // Row 4: genres as plain text
     const genresEl = document.getElementById('summaryGenres');
