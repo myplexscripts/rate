@@ -1354,9 +1354,9 @@ async function loadPoster(item, img, isTop) {
     posterCache.delete(key + '_pending');
     img.onload = async () => {
       img.classList.remove('skeleton');
-      // Prefer Plex's own ultraBlurColors (server-extracted, matches its UI);
-      // fall back to sampling pixels ourselves if the metadata lacks it.
-      const c = ultraBlur || await getEdgeColors(img);
+      // UltraBlurColors from Plex metadata are server-extracted and match Plex's
+      // own UI — use them directly when available, skipping the pixel scan entirely.
+      const c = ultraBlur ? ultraBlur : await getEdgeColors(img);
       img._glow = c;
       posterCacheSet(key, { url: obj, glow: c });
       if (isTop) setGlow(c);
@@ -1401,17 +1401,31 @@ function preloadAhead() {
 // at right now) and skip the cast-photo downloads — those only matter once
 // the summary popup is actually opened, where loadExtraInfo() is re-run and
 // covers them anyway.
+// Pre-fetch a URL as a blob and cache the object URL on the item under `key`.
+// Guards against concurrent fetches for the same key.
+async function prefetchBlob(item, key, url) {
+  if (item[key] || item[key + '_pending']) return;
+  item[key + '_pending'] = true;
+  try {
+    const r = await fetch(url, { headers: H() });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    item[key] = URL.createObjectURL(await r.blob());
+  } catch { /* non-fatal — openSummary will fetch on demand */ }
+  delete item[key + '_pending'];
+}
+
 function preloadInfo() {
   const metered = isMeteredConnection();
-  const upper = metered ? 0 : 2;
+  const upper = metered ? 0 : 5;
   for (let i = 0; i <= upper; i++) {
     const item = queue[i];
     if (!item) continue;
     loadExtraInfo(item).then(extra => {
       if (metered) return;
+      // Backdrop + logo: cache as blob URLs so openSummary is instant.
+      if (extra.backdrop) prefetchBlob(item, '_backdropBlobUrl', extra.backdrop);
+      if (extra.logo)     prefetchBlob(item, '_logoBlobUrl',     extra.logo);
       extra.cast.forEach(c => { if (c.photo) prefetchCastPhoto(c.photo); });
-      if (extra.backdrop) { const im = new Image(); im.src = extra.backdrop; }
-      if (extra.logo) { const im = new Image(); im.src = extra.logo; }
     }).catch(e => console.warn('[preload]', e));
     loadTrailer(item).catch(e => console.warn('[preload trailer]', e));
   }
@@ -2054,46 +2068,56 @@ function openSummary() {
     // Backdrop + logo go together: no backdrop means we keep the plain
     // text-title layout untouched, even if a logo happens to be available.
     if (extra.backdrop) {
-      // Fetch as a blob (like posters/cast photos) rather than setting .src
-      // directly — the resulting same-origin blob URL lets us read pixels off
-      // it on a canvas (to gauge the corner brightness for the close button)
-      // without the canvas getting cross-origin "tainted".
-      fetch(extra.backdrop, { headers: H() })
-        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
-        .then(blob => {
-          if (queue[0] !== item) return;
-          backdropImg.onload = () => {
-            if (queue[0] !== item) return;
-            backdrop.classList.remove('skeleton');
-            box.classList.remove('loading-backdrop');
-            box.classList.add('has-backdrop');
-            requestAnimationFrame(() => backdrop.classList.add('on'));
-            sampleCornerBrightness(backdropImg).then(light => {
-              if (queue[0] !== item) return;
-              const closeBtn = document.getElementById('summaryClose');
-              closeBtn._backdropIsLight = light;
-              updateCloseAdaptation();
-            });
-          };
-          backdropImg.src = URL.createObjectURL(blob);
-        })
-        .catch(() => {
+      const applyBackdropBlob = blobUrl => {
+        if (queue[0] !== item) return;
+        backdropImg.onload = () => {
           if (queue[0] !== item) return;
           backdrop.classList.remove('skeleton');
-          box.classList.remove('loading-backdrop', 'has-backdrop');
-          backdrop.classList.remove('on');
-        });
+          box.classList.remove('loading-backdrop');
+          box.classList.add('has-backdrop');
+          requestAnimationFrame(() => backdrop.classList.add('on'));
+          sampleCornerBrightness(backdropImg).then(light => {
+            if (queue[0] !== item) return;
+            const closeBtn = document.getElementById('summaryClose');
+            closeBtn._backdropIsLight = light;
+            updateCloseAdaptation();
+          });
+        };
+        backdropImg.src = blobUrl;
+      };
+      const onBackdropError = () => {
+        if (queue[0] !== item) return;
+        backdrop.classList.remove('skeleton');
+        box.classList.remove('loading-backdrop', 'has-backdrop');
+        backdrop.classList.remove('on');
+      };
+      // Use pre-cached blob URL if preloadInfo already fetched it; otherwise fetch now.
+      if (item._backdropBlobUrl) {
+        applyBackdropBlob(item._backdropBlobUrl);
+      } else {
+        fetch(extra.backdrop, { headers: H() })
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
+          .then(blob => { item._backdropBlobUrl = URL.createObjectURL(blob); applyBackdropBlob(item._backdropBlobUrl); })
+          .catch(onBackdropError);
+      }
 
       if (extra.logo) {
-        const logoImg = new Image();
-        logoImg.alt = item.title || '';
-        logoImg.onload = () => {
+        const applyLogo = src => {
           if (queue[0] !== item) return;
-          titleEl.innerHTML = '';
-          titleEl.appendChild(logoImg);
+          const logoImg = new Image();
+          logoImg.alt = item.title || '';
+          logoImg.onload = () => { if (queue[0] !== item) return; titleEl.innerHTML = ''; titleEl.appendChild(logoImg); };
+          logoImg.onerror = () => { titleEl.textContent = item.title || ''; fitTitle(titleEl); };
+          logoImg.src = src;
         };
-        logoImg.onerror = () => { titleEl.textContent = item.title || ''; fitTitle(titleEl); };
-        logoImg.src = extra.logo;
+        if (item._logoBlobUrl) {
+          applyLogo(item._logoBlobUrl);
+        } else {
+          fetch(extra.logo, { headers: H() })
+            .then(r => r.ok ? r.blob() : Promise.reject())
+            .then(blob => { item._logoBlobUrl = URL.createObjectURL(blob); applyLogo(item._logoBlobUrl); })
+            .catch(() => { if (queue[0] === item) { titleEl.textContent = item.title || ''; fitTitle(titleEl); } });
+        }
       }
     } else {
       backdrop.classList.remove('skeleton');
