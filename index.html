@@ -828,22 +828,57 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     border-radius:0; transform:none !important;
   }
 
-  /* Backdrop: full screen, image anchored right, masked to fade out left */
+  /* Backdrop container fills the screen. The mask moves off the container (set
+     to none) so the blurred ambient ::before — which fills the cinematic bars —
+     stays fully visible; only the crisp <img> frame is masked. */
   #summaryBox.has-backdrop #summaryBackdrop,
   #summaryBox.loading-backdrop #summaryBackdrop {
     display:block;
     position:absolute; inset:0; z-index:0;
     width:100%; height:100%;
     aspect-ratio:auto; margin:0; border-radius:0; opacity:1;
-    -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.28) 26%, rgba(0,0,0,0.8) 46%, #000 62%);
-    mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.28) 26%, rgba(0,0,0,0.8) 46%, #000 62%);
+    overflow:hidden;
+    -webkit-mask-image:none; mask-image:none;
   }
-  #summaryBackdrop img { object-position:right center; }
-  /* Darken the bottom for text legibility + blend the left edge into --sb-base */
+  /* Ambient fill: a heavily blurred, darkened copy of the artwork covering the
+     whole viewport — this is what shows through the letterbox bars so they read
+     as cinematic rather than flat black. */
+  #summaryBox.has-backdrop #summaryBackdrop::before {
+    content:'';
+    position:absolute; inset:0; z-index:0;
+    background-image:var(--bd-img);
+    background-size:cover; background-position:center;
+    filter:blur(40px) brightness(0.4) saturate(1.3);
+    transform:scale(1.2);
+  }
+  /* Crisp 16:9 frame, anchored right and vertically centred so equal bars sit
+     above and below. width is capped to 64% of the screen, but also shrunk on
+     short viewports so the 16:9 height always fits (leaving the bars). The left
+     edge dissolves into the ambient layer; top/bottom feather into the bars. */
+  #summaryBackdrop img {
+    position:absolute;
+    right:0; top:50%;
+    transform:translateY(-50%);
+    width:min(64%, calc((100vh - 120px) * 16 / 9));
+    height:auto; aspect-ratio:16/9;
+    object-fit:cover; object-position:center;
+    z-index:1;
+    -webkit-mask-image:
+      linear-gradient(to right, transparent 0%, rgba(0,0,0,0.18) 18%, #000 44%),
+      linear-gradient(to bottom, transparent 0%, #000 9%, #000 91%, transparent 100%);
+    mask-image:
+      linear-gradient(to right, transparent 0%, rgba(0,0,0,0.18) 18%, #000 44%),
+      linear-gradient(to bottom, transparent 0%, #000 9%, #000 91%, transparent 100%);
+    -webkit-mask-composite:source-in;
+    mask-composite:intersect;
+  }
+  /* Contrast overlay: darken the bottom for the controls + feather the left
+     third so the lower-left text stays legible over any artwork. */
   #summaryBackdrop::after {
+    z-index:2;
     background:
-      linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 20%, rgba(0,0,0,0.12) 46%, transparent 66%),
-      linear-gradient(to right, var(--sb-base,#222) 0%, rgba(0,0,0,0) 48%);
+      linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 16%, rgba(0,0,0,0.1) 40%, transparent 60%),
+      linear-gradient(to right, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 42%);
   }
 
   /* Content column, anchored to the lower-left. The huge right padding keeps
@@ -2055,6 +2090,7 @@ function openSummary(forItem) {
 
   backdrop.classList.remove('on');
   backdropImg.removeAttribute('src');
+  backdrop.style.removeProperty('--bd-img');
   box.style.removeProperty('--sb-base');
   box.style.removeProperty('background');
   const closeBtn = document.getElementById('summaryClose');
@@ -2239,6 +2275,9 @@ function openSummary(forItem) {
           });
         };
         backdropImg.src = blobUrl;
+        // Expose the URL so the desktop hero's ::before can render a blurred,
+        // darkened full-screen copy behind the crisp 16:9 frame (cinematic bars).
+        backdrop.style.setProperty('--bd-img', `url("${blobUrl}")`);
       };
       const onBackdropError = () => {
         if (summaryItem !== item) return;
@@ -2470,9 +2509,14 @@ document.addEventListener('touchmove', e => {
 }, { passive: false });
 
 document.addEventListener('keydown', e => {
-  const summaryOpen = document.getElementById('summaryOverlay').classList.contains('on');
-  if (e.key === 'Escape' && summaryOpen) { closeSummary(); return; }
-  if (summaryOpen) {
+  const overlayOn = document.getElementById('summaryOverlay').classList.contains('on');
+  const desktop = isDesktop();
+
+  // On mobile the summary is a modal: trap focus and only allow Escape/Tab.
+  // On desktop the summary is the always-on hero, so it isn't modal — fall
+  // through to the rating/navigation shortcuts below.
+  if (overlayOn && !desktop) {
+    if (e.key === 'Escape') { closeSummary(); return; }
     if (e.key === 'Tab') {
       const box = document.getElementById('summaryBox');
       const focusable = Array.from(box.querySelectorAll(
@@ -2485,20 +2529,46 @@ document.addEventListener('keydown', e => {
     }
     return;
   }
+
+  // Don't hijack keys while typing in a field.
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
   if (busy || !queue[0]) return;
 
   // Number keys rate in whole stars; hold Shift for the half-star below
-  // (e.g. "3" = 3 stars, Shift+"3" = 2.5 stars) — mirrors the star slider's granularity.
-  if (e.key >= '1' && e.key <= '5') {
+  // (e.g. "3" = 3 stars, Shift+"3" = 2.5). Match on e.code, not e.key, so Shift
+  // works regardless of keyboard layout (Shift+3 yields e.key '#' on US layouts).
+  const digit = e.code && /^(?:Digit|Numpad)([0-5])$/.exec(e.code);
+  if (digit) {
     e.preventDefault();
-    const n = parseInt(e.key, 10);
-    setRating(e.shiftKey ? n - 0.5 : n);
+    const n = parseInt(digit[1], 10);
+    if (n === 0) resetRating();
+    else setRating(e.shiftKey ? n - 0.5 : n);
+  } else if (e.key === 'ArrowUp') {
+    // Nudge the rating up by half a star (live; auto-submits after the pause).
+    e.preventDefault();
+    setRating(Math.min(5, (rating || 0) + 0.5));
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    setRating(Math.max(0.5, (rating || 0.5) - 0.5));
+  } else if (e.key === 'Enter') {
+    // Commit the current rating immediately instead of waiting for the timer.
+    if (rating) { e.preventDefault(); clearTimeout(ratingTimer); submitRating(); }
   } else if (e.key === 'ArrowLeft') {
     e.preventDefault();
     goBack();
   } else if (e.key === 'ArrowRight') {
     e.preventDefault();
     doSkip();
+  } else if (e.key === 'Backspace') {
+    e.preventDefault();
+    resetRating();
+  } else if (e.key.toLowerCase() === 't') {
+    const tb = document.getElementById('btnTrailer');
+    if (tb && !tb.classList.contains('hidden') && !tb.classList.contains('skeleton')) {
+      e.preventDefault();
+      playInlineTrailer();
+    }
   }
 });
 
