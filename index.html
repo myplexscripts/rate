@@ -372,9 +372,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
      midpoint of the title/logo box. With min-height:100px the midpoint is
      at 50px; the backdrop has margin-bottom:16px so we need -66px net:
      16 - 66 = -50px → backdrop bottom exactly at the 50px midpoint. */
-  margin-top:-66px; margin-bottom:6px;
+  margin-top:-86px; margin-bottom:6px;
   padding:0 12px;
-  min-height:100px;
+  min-height:140px;
 }
 #summaryTitle {
   /* --title-fs is driven down by fitTitle() only when the text would
@@ -398,8 +398,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryTitle img {
   display:block;
   width:auto; height:auto;
-  max-width:80%;
-  max-height:100px;
+  max-width:90%;
+  max-height:140px;
   object-fit:contain;
   margin:0 auto;
 }
@@ -448,6 +448,10 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   padding:3px 9px;
   letter-spacing:0.01em;
 }
+.metaPill--rating {
+  border-color:rgba(255,251,248,0.35);
+  color:rgba(255,251,248,0.75);
+}
 #summaryRatings {
   display:flex; gap:10px; justify-content:center; flex-wrap:wrap;
   margin-bottom:12px;
@@ -462,7 +466,12 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   border-radius:8px;
   padding:5px 10px;
 }
-.ratingBadge .rIcon { font-size:0.85em; }
+.ratingBadge .rIcon {
+  width:16px; height:16px;
+  object-fit:contain;
+  flex-shrink:0;
+}
+.ratingBadge .rLabel { color:rgba(255,251,248,0.6); font-weight:600; }
 #summaryDirector, #summaryWriters, #summaryStudio {
   font-size:0.75rem; font-weight:500;
   color:rgba(255,251,248,0.45);
@@ -1485,11 +1494,11 @@ function ubBlend(hexCorners) {
   if (!parsed.length) return null;
   let r = 0, g = 0, b = 0;
   for (const c of parsed) { r += c[0]; g += c[1]; b += c[2]; }
-  r = Math.round(r / parsed.length * 0.42);
-  g = Math.round(g / parsed.length * 0.42);
-  b = Math.round(b / parsed.length * 0.42);
+  r = Math.round(r / parsed.length * 0.55);
+  g = Math.round(g / parsed.length * 0.55);
+  b = Math.round(b / parsed.length * 0.55);
   const lum = (r * 299 + g * 587 + b * 114) / 1000;
-  if (lum > 72) { const k = 72 / lum; r = Math.round(r*k); g = Math.round(g*k); b = Math.round(b*k); }
+  if (lum > 88) { const k = 88 / lum; r = Math.round(r*k); g = Math.round(g*k); b = Math.round(b*k); }
   return `rgb(${r},${g},${b})`;
 }
 
@@ -1756,12 +1765,17 @@ function ratingBadge(imageStr, score) {
   if (!imageStr || score == null) return null;
   const s = String(imageStr).toLowerCase();
   if (s.includes('rottentomatoes')) {
+    const isAudience = s.includes('audience') || s.includes('upright') || s.includes('want');
+    if (isAudience) {
+      const fresh = s.includes('upright') || s.includes('want') || s.includes('fresh');
+      return { imgSrc: `icons/${fresh ? 'rt-audience-fresh' : 'rt-audience-rotten'}.svg`, label: 'Audience', score: Math.round(score * 10) + '%' };
+    }
     const fresh = s.includes('ripe') || s.includes('certified') || s.includes('fresh');
-    return { icon: fresh ? '🍅' : '🦠', score: Math.round(score * 10) + '%' };
+    return { imgSrc: `icons/${fresh ? 'rt-fresh' : 'rt-rotten'}.svg`, label: 'RT', score: Math.round(score * 10) + '%' };
   }
-  if (s.includes('themoviedb')) return { icon: '🎬', score: score.toFixed(1) };
-  if (s.includes('imdb')) return { icon: 'IMDb', score: score.toFixed(1) };
-  return { icon: '★', score: score.toFixed(1) };
+  if (s.includes('themoviedb')) return { imgSrc: 'icons/tmdb.svg', label: 'TMDb', score: score.toFixed(1) };
+  if (s.includes('imdb')) return { imgSrc: 'icons/imdb.svg', label: 'IMDb', score: score.toFixed(1) };
+  return { imgSrc: null, label: '★', score: score.toFixed(1) };
 }
 
 async function loadExtraInfo(item) {
@@ -1826,7 +1840,7 @@ function openSummary() {
   closeBtn.classList.remove('on-light');
   closeBtn._backdropIsLight = false;
 
-  ['summaryMeta','summaryRatings','summaryDirector','summaryWriters','summaryStudio'].forEach(id => {
+  ['summaryMeta','summaryRatings','summaryDirector','summaryWriters','summaryStudio','summaryGenres'].forEach(id => {
     const el = document.getElementById(id);
     el.innerHTML = '';
     el.classList.add('hidden');
@@ -1853,7 +1867,7 @@ function openSummary() {
   }
   // Year is known up front whenever the extra info is cached, so we can set it
   // immediately — that keeps its row from popping in later and nudging layout.
-  document.getElementById('summaryYear').textContent = (known && known.year) || '';
+  document.getElementById('summaryYear').textContent = '';
   document.getElementById('summaryText').textContent = item.summary;
   const genresEl = document.getElementById('summaryGenres');
   const castWrap = document.getElementById('summaryCastWrap');
@@ -1915,26 +1929,35 @@ function openSummary() {
 
   const applyExtra = extra => {
     if (queue[0] !== item) return;
-    document.getElementById('summaryYear').textContent = extra.year || '';
 
-    // Meta row: runtime · content rating · seasons/episodes
+    // Meta row: year · runtime · genres · content rating · seasons/episodes
     const metaEl = document.getElementById('summaryMeta');
     const metaParts = [];
+    if (extra.year) metaParts.push(`<span class="metaPill">${escHtml(String(extra.year))}</span>`);
     if (extra.runtime) metaParts.push(`<span class="metaPill">${escHtml(extra.runtime)}</span>`);
-    if (extra.contentRating) metaParts.push(`<span class="metaPill">${escHtml(extra.contentRating)}</span>`);
+    if (extra.genres && extra.genres.length) extra.genres.forEach(g => metaParts.push(`<span class="metaPill">${escHtml(g)}</span>`));
+    if (extra.contentRating) metaParts.push(`<span class="metaPill metaPill--rating">${escHtml(extra.contentRating)}</span>`);
     if (extra.seasonCount) metaParts.push(`<span class="metaPill">${extra.seasonCount} Season${extra.seasonCount !== 1 ? 's' : ''}</span>`);
     if (extra.episodeCount) metaParts.push(`<span class="metaPill">${extra.episodeCount} Episodes</span>`);
     if (extra.country) metaParts.push(`<span class="metaPill">${escHtml(extra.country)}</span>`);
     if (metaParts.length) { metaEl.innerHTML = metaParts.join(''); metaEl.classList.remove('hidden'); }
     else metaEl.classList.add('hidden');
+    // Year and genres are now in the meta row — clear the old standalone elements.
+    document.getElementById('summaryYear').textContent = '';
+    document.getElementById('summaryGenres').innerHTML = '';
+    document.getElementById('summaryGenres').classList.add('hidden');
 
     // Ratings row
     const ratingsEl = document.getElementById('summaryRatings');
     const ratingParts = [];
     const cb = ratingBadge(extra.criticRatingImage, extra.criticRating);
     const ab = ratingBadge(extra.audienceRatingImage, extra.audienceRating);
-    if (cb) ratingParts.push(`<span class="ratingBadge"><span class="rIcon">${cb.icon}</span>${cb.score}</span>`);
-    if (ab) ratingParts.push(`<span class="ratingBadge"><span class="rIcon">${ab.icon}</span>${ab.score}</span>`);
+    const mkBadge = b => {
+      const img = b.imgSrc ? `<img src="${b.imgSrc}" class="rIcon" alt="" onerror="this.style.display='none'">` : '';
+      return `<span class="ratingBadge">${img}<span class="rLabel">${escHtml(b.label)}:</span> ${escHtml(b.score)}</span>`;
+    };
+    if (cb) ratingParts.push(mkBadge(cb));
+    if (ab) ratingParts.push(mkBadge(ab));
     if (ratingParts.length) { ratingsEl.innerHTML = ratingParts.join(''); ratingsEl.classList.remove('hidden'); }
     else ratingsEl.classList.add('hidden');
 
@@ -1950,7 +1973,7 @@ function openSummary() {
 
     // Studio
     const stuEl = document.getElementById('summaryStudio');
-    if (extra.studio) { stuEl.innerHTML = `<span>${escHtml(extra.studio)}</span>`; stuEl.classList.remove('hidden'); }
+    if (extra.studio) { stuEl.innerHTML = `Studio: <span>${escHtml(extra.studio)}</span>`; stuEl.classList.remove('hidden'); }
     else stuEl.classList.add('hidden');
 
     // Paint the bottom corners with the artwork's ultraBlur tint (or clear it
