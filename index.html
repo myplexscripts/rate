@@ -434,6 +434,46 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   margin-top:10px;
 }
 #summaryYear:empty { display:none; }
+#summaryMeta {
+  display:flex; gap:8px; justify-content:center; flex-wrap:wrap;
+  margin-bottom:10px; margin-top:4px;
+}
+#summaryMeta.hidden { display:none; }
+.metaPill {
+  font-size:0.72rem; font-weight:600;
+  color:rgba(255,251,248,0.55);
+  background:rgba(255,251,248,0.07);
+  border:1px solid rgba(255,251,248,0.11);
+  border-radius:6px;
+  padding:3px 9px;
+  letter-spacing:0.01em;
+}
+#summaryRatings {
+  display:flex; gap:10px; justify-content:center; flex-wrap:wrap;
+  margin-bottom:12px;
+}
+#summaryRatings.hidden { display:none; }
+.ratingBadge {
+  display:flex; align-items:center; gap:5px;
+  font-size:0.78rem; font-weight:700;
+  color:var(--text);
+  background:rgba(255,251,248,0.07);
+  border:1px solid rgba(255,251,248,0.11);
+  border-radius:8px;
+  padding:5px 10px;
+}
+.ratingBadge .rIcon { font-size:0.85em; }
+#summaryDirector, #summaryWriters, #summaryStudio {
+  font-size:0.75rem; font-weight:500;
+  color:rgba(255,251,248,0.45);
+  margin-top:8px;
+  line-height:1.4;
+}
+#summaryDirector.hidden, #summaryWriters.hidden, #summaryStudio.hidden { display:none; }
+#summaryDirector span, #summaryWriters span, #summaryStudio span {
+  color:rgba(255,251,248,0.7);
+  font-weight:600;
+}
 /* Full-bleed to the panel edges: the row's first avatar lines up with the
    body text (via padding), but avatars scroll straight off the left/right
    edges and clip there — a clear cue that the row keeps going. */
@@ -825,6 +865,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     <div id="summaryScroll">
       <div id="summaryBackdrop"><img id="summaryBackdropImg" alt=""></div>
       <div id="summaryTitle"></div>
+      <div id="summaryMeta" class="hidden"></div>
+      <div id="summaryRatings" class="hidden"></div>
       <button id="btnTrailer" class="hidden" onclick="playInlineTrailer()" title="Watch trailer">
         <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-movies"/></svg> Trailer
       </button>
@@ -835,6 +877,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
       </div>
       <div id="summaryText"></div>
       <div id="summaryYear"></div>
+      <div id="summaryDirector" class="hidden"></div>
+      <div id="summaryWriters" class="hidden"></div>
+      <div id="summaryStudio" class="hidden"></div>
       <div id="summaryGenres" class="hidden"></div>
       <div id="summaryCastWrap" class="hidden">
         <div id="summaryCast"></div>
@@ -1699,6 +1744,26 @@ async function prefetchCastPhoto(url) {
   } catch {}
 }
 
+function formatDuration(ms) {
+  const m = Math.round(ms / 60000);
+  const h = Math.floor(m / 60);
+  return h ? `${h}h ${m % 60}m` : `${m}m`;
+}
+
+// Parse Plex rating image strings like "rottentomatoes://image.rating.ripe"
+// Returns { label, score } for display, or null.
+function ratingBadge(imageStr, score) {
+  if (!imageStr || score == null) return null;
+  const s = String(imageStr).toLowerCase();
+  if (s.includes('rottentomatoes')) {
+    const fresh = s.includes('ripe') || s.includes('certified') || s.includes('fresh');
+    return { icon: fresh ? '🍅' : '🦠', score: Math.round(score * 10) + '%' };
+  }
+  if (s.includes('themoviedb')) return { icon: '🎬', score: score.toFixed(1) };
+  if (s.includes('imdb')) return { icon: 'IMDb', score: score.toFixed(1) };
+  return { icon: '★', score: score.toFixed(1) };
+}
+
 async function loadExtraInfo(item) {
   if (item._extra !== undefined) return item._extra;
   try {
@@ -1723,10 +1788,22 @@ async function loadExtraInfo(item) {
         photo: r.thumb
           ? (/^https?:\/\//.test(r.thumb) ? r.thumb : `${cfg.url}${r.thumb}?X-Plex-Token=${cfg.token}`)
           : ''
-      }))
+      })),
+      runtime: (meta && meta.duration) ? formatDuration(meta.duration) : null,
+      contentRating: (meta && meta.contentRating) || null,
+      audienceRating: (meta && meta.audienceRating != null) ? meta.audienceRating : null,
+      audienceRatingImage: (meta && meta.audienceRatingImage) || null,
+      criticRating: (meta && meta.rating != null) ? meta.rating : null,
+      criticRatingImage: (meta && meta.ratingImage) || null,
+      directors: (meta && meta.Director || []).map(d => d.tag).slice(0, 2),
+      writers: (meta && meta.Writer || []).map(w => w.tag).slice(0, 3),
+      studio: (meta && meta.studio) || null,
+      country: (meta && meta.Country || []).map(c => c.tag)[0] || null,
+      seasonCount: (meta && meta.childCount != null) ? meta.childCount : null,
+      episodeCount: (meta && meta.leafCount != null) ? meta.leafCount : null
     };
   } catch (e) {
-    item._extra = { year: null, tint: null, backdrop: '', logo: '', genres: [], cast: [] };
+    item._extra = { year: null, tint: null, backdrop: '', logo: '', genres: [], cast: [], runtime: null, contentRating: null, audienceRating: null, audienceRatingImage: null, criticRating: null, criticRatingImage: null, directors: [], writers: [], studio: null, country: null, seasonCount: null, episodeCount: null };
   }
   return item._extra;
 }
@@ -1748,6 +1825,12 @@ function openSummary() {
   const closeBtn = document.getElementById('summaryClose');
   closeBtn.classList.remove('on-light');
   closeBtn._backdropIsLight = false;
+
+  ['summaryMeta','summaryRatings','summaryDirector','summaryWriters','summaryStudio'].forEach(id => {
+    const el = document.getElementById(id);
+    el.innerHTML = '';
+    el.classList.add('hidden');
+  });
 
   // Background prefetch (preloadInfo) usually has the extra info cached by the
   // time the popup opens, so we know up front whether a backdrop exists. Only
@@ -1833,6 +1916,42 @@ function openSummary() {
   const applyExtra = extra => {
     if (queue[0] !== item) return;
     document.getElementById('summaryYear').textContent = extra.year || '';
+
+    // Meta row: runtime · content rating · seasons/episodes
+    const metaEl = document.getElementById('summaryMeta');
+    const metaParts = [];
+    if (extra.runtime) metaParts.push(`<span class="metaPill">${escHtml(extra.runtime)}</span>`);
+    if (extra.contentRating) metaParts.push(`<span class="metaPill">${escHtml(extra.contentRating)}</span>`);
+    if (extra.seasonCount) metaParts.push(`<span class="metaPill">${extra.seasonCount} Season${extra.seasonCount !== 1 ? 's' : ''}</span>`);
+    if (extra.episodeCount) metaParts.push(`<span class="metaPill">${extra.episodeCount} Episodes</span>`);
+    if (extra.country) metaParts.push(`<span class="metaPill">${escHtml(extra.country)}</span>`);
+    if (metaParts.length) { metaEl.innerHTML = metaParts.join(''); metaEl.classList.remove('hidden'); }
+    else metaEl.classList.add('hidden');
+
+    // Ratings row
+    const ratingsEl = document.getElementById('summaryRatings');
+    const ratingParts = [];
+    const cb = ratingBadge(extra.criticRatingImage, extra.criticRating);
+    const ab = ratingBadge(extra.audienceRatingImage, extra.audienceRating);
+    if (cb) ratingParts.push(`<span class="ratingBadge"><span class="rIcon">${cb.icon}</span>${cb.score}</span>`);
+    if (ab) ratingParts.push(`<span class="ratingBadge"><span class="rIcon">${ab.icon}</span>${ab.score}</span>`);
+    if (ratingParts.length) { ratingsEl.innerHTML = ratingParts.join(''); ratingsEl.classList.remove('hidden'); }
+    else ratingsEl.classList.add('hidden');
+
+    // Director
+    const dirEl = document.getElementById('summaryDirector');
+    if (extra.directors && extra.directors.length) { dirEl.innerHTML = `Directed by <span>${extra.directors.map(escHtml).join(', ')}</span>`; dirEl.classList.remove('hidden'); }
+    else dirEl.classList.add('hidden');
+
+    // Writers
+    const wriEl = document.getElementById('summaryWriters');
+    if (extra.writers && extra.writers.length) { wriEl.innerHTML = `Written by <span>${extra.writers.map(escHtml).join(', ')}</span>`; wriEl.classList.remove('hidden'); }
+    else wriEl.classList.add('hidden');
+
+    // Studio
+    const stuEl = document.getElementById('summaryStudio');
+    if (extra.studio) { stuEl.innerHTML = `<span>${escHtml(extra.studio)}</span>`; stuEl.classList.remove('hidden'); }
+    else stuEl.classList.add('hidden');
 
     // Paint the bottom corners with the artwork's ultraBlur tint (or clear it
     // for items without that metadata).
