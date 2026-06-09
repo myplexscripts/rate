@@ -2022,12 +2022,6 @@ function openSummary() {
       box.classList.remove('loading-backdrop');
     }
 
-    if (extra.genres.length) {
-      genresEl.innerHTML = extra.genres.map(g => `<span class="genrePill">${escHtml(g)}</span>`).join('');
-      genresEl.classList.remove('hidden');
-    } else {
-      genresEl.classList.add('hidden');
-    }
     if (extra.cast.length) {
       castWrap.classList.remove('hidden');
       castEl.innerHTML = extra.cast.map(c => `
