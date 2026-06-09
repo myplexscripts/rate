@@ -801,9 +801,12 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
    ════════════════════════════════════════════════════════════ */
 @media (min-width:960px) {
   /* --bar = hard letterbox bar height. Everything between the two bars (the
-     "band") holds ALL content on the left and the backdrop on the right. The
-     bars themselves are solid black with crisp edges. */
-  :root { --bar: clamp(40px, 8vh, 96px); }
+     "band") holds ALL content on the left and the backdrop on the right.
+     Bars are sized from the SPARE height beyond what the content needs (~720px)
+     so the band never shrinks below the content: a 16:9 fullscreen gets big
+     cinematic bars, a short browser window keeps thin bars (or none) and the
+     content still fits with breathing room. */
+  :root { --bar: clamp(0px, calc((100vh - 760px) / 2), 96px); }
 
   #glowBg { display:none; }
 
@@ -845,7 +848,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     flex:none;
     display:flex; flex-direction:column; justify-content:flex-start;
     align-items:flex-start;
-    padding:clamp(18px, 4.5vh, 56px) 46% 130px 64px;
+    padding:clamp(18px, 4vh, 50px) 46% 112px 64px;
     text-align:left; overflow:hidden;
     background-color:var(--sb-base);
     transition:background-color 0.35s ease;
@@ -893,7 +896,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   #summaryTitle img,
   #summaryBox.has-backdrop #summaryTitle img,
   #summaryBox.loading-backdrop #summaryTitle img {
-    margin:0; max-height:135px; max-width:100%;
+    margin:0; max-height:clamp(80px, 13vh, 130px); max-width:100%;
   }
 
   #summaryRowYearRating { justify-content:flex-start; margin-top:0; margin-bottom:7px; }
@@ -904,7 +907,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   #summaryText {
     text-align:left; min-height:0;
     font-size:0.92rem; line-height:1.55; max-width:600px;
-    -webkit-line-clamp:3;
+    display:-webkit-box; -webkit-box-orient:vertical;
+    -webkit-line-clamp:3; overflow:hidden;
   }
 
   #btnTrailer { align-self:flex-start; margin:14px 0 0; }
