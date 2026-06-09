@@ -822,15 +822,17 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
    bottom-left.
    ════════════════════════════════════════════════════════════ */
 @media (min-width:960px) {
-  /* --bar = hard letterbox bar height. Everything between the two bars (the
-     "band") holds ALL content on the left and the backdrop on the right.
-     Bars are sized from the SPARE height beyond what the content needs (~720px)
-     so the band never shrinks below the content: a 16:9 fullscreen gets big
-     cinematic bars, a short browser window keeps thin bars (or none) and the
-     content still fits with breathing room. */
-  :root { --bar: clamp(0px, calc((100vh - 760px) / 2), 96px); }
+  /* --bar = hard letterbox bar height. The bars are PART OF THE DESIGN and are
+     always visible — they're a fraction of the viewport (never collapse to 0),
+     so the whole site, bars included, always fits inside the viewport. The
+     band between them holds ALL content on the left + the backdrop on the right. */
+  :root { --bar: clamp(44px, 8vh, 104px); }
 
   #glowBg { display:none; }
+
+  /* Stage is a click-through top layer on desktop even when .on — otherwise it
+     covers the whole hero and eats clicks meant for the trailer button etc. */
+  #stage.on { pointer-events:none; }
 
   #summaryOverlay {
     inset:0; padding:0;
