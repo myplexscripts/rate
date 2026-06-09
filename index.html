@@ -879,6 +879,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   /* Subtle drop-shadow on the star icons themselves for contrast over artwork */
   .star { font-size:3.6rem; filter:drop-shadow(0 1px 3px rgba(0,0,0,0.6)); }
   #actions { width:auto; justify-content:center; gap:22px; padding:0; pointer-events:all; }
+  /* Trim padding so the visible chevron glyphs sit flush at the cluster's
+     bottom edge, lining up with the personal-stats row on the left. */
+  .act-btn { padding:4px; }
   .act-btn .icon { width:1.55rem; height:1.55rem; filter:drop-shadow(0 1px 3px rgba(0,0,0,0.6)); }
 
   /* The band: a horizontal strip between the two hard bars, tinted with the
@@ -984,11 +987,12 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     --title-fs: clamp(1.9rem, 3.2vw, 3.2rem);
     justify-content:flex-start; align-items:flex-end;
     padding:0; width:100%;
-    /* Fixed box so logos of any intrinsic size land in the same place; the
-       image scales up to fill it (object-fit keeps ratio, no distortion). */
-    min-height:clamp(74px, 11.5vh, 122px);
-    /* Generous breathing room below the logo, before the meta row. */
-    margin-bottom:clamp(26px, 4vh, 46px);
+    /* Box matches the logo height exactly so the logo's TOP sits at the band's
+       top padding — making its distance from the top equal the stats' distance
+       from the bottom (paddings are symmetric). */
+    min-height:clamp(66px, 10.5vh, 110px);
+    /* Big, deliberate gap between the logo and the meta row. */
+    margin-bottom:clamp(52px, 8vh, 104px);
   }
   #summaryBox.has-backdrop #summaryTitle,
   #summaryBox.loading-backdrop #summaryTitle {
