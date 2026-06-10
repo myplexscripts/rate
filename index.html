@@ -565,23 +565,27 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryBox.has-backdrop #summaryClose.on-light:hover { background:rgba(0,0,0,0.45); }
 #summaryClose .icon { width:1.3rem; height:1.3rem; }
 
-/* TRAILER — styled like the nav controls (bare icon + drop-shadow) rather than
-   a filled chip. Rides at the end of the ratings row. */
+/* TRAILER — bare reel-icon button. On mobile it drops to its OWN row beneath
+   the ratings badges (flex-basis:100% forces the wrap) and shows icon only;
+   the "Trailer" label + ratings-pill chrome are desktop-only (see @media). */
 #btnTrailer {
-  display:inline-flex; align-items:center; justify-content:center;
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  flex-basis:100%;            /* own row under the ratings badges on mobile */
   margin:0; padding:2px;
   flex-shrink:0;
   background:none;
   border:none;
   color:var(--text);
   cursor:pointer;
-  transition:opacity 0.2s, transform 0.15s;
+  transition:opacity 0.2s, transform 0.15s, background 0.15s;
 }
 #btnTrailer .icon { width:1.5rem; height:1.5rem; filter:drop-shadow(0 1px 3px rgba(0,0,0,0.6)); }
+#btnTrailer .label { display:none; }        /* surfaced only by the desktop pill */
 #btnTrailer:hover  { transform:scale(1.08); }
 #btnTrailer:active { transform:scale(0.9); }
 #btnTrailer.hidden { display:none; }
 #btnTrailer.skeleton {
+  flex-basis:auto;
   width:1.5rem; height:1.5rem; padding:0;
   background-color:rgba(255,251,248,0.06);
   background-image:linear-gradient(100deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0) 70%);
@@ -1031,6 +1035,24 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   #summaryGenres        { text-align:left; margin-bottom:var(--stack-gap); }
   #summaryRatings       { justify-content:flex-start; gap:10px; margin-bottom:var(--stack-gap); }
 
+  /* The trailer control reads as one more ratings pill — reel icon + "Trailer"
+     label, same chip treatment — sitting inline at the end of the row. */
+  #btnTrailer {
+    flex-basis:auto;          /* sit inline at the row's end, not on its own row */
+    gap:5px;
+    padding:5px 10px;
+    background:rgba(255,251,248,0.07);
+    border:1px solid rgba(255,251,248,0.11);
+    border-radius:8px;
+    font-size:0.78rem; font-weight:700;
+    color:var(--text);
+  }
+  #btnTrailer .icon  { width:18px; height:18px; filter:none; }
+  #btnTrailer .label { display:inline; }
+  #btnTrailer:hover  { transform:none; background:rgba(255,251,248,0.13); }
+  #btnTrailer:active { transform:scale(0.97); }
+  #btnTrailer.skeleton { flex-basis:auto; width:86px; height:30px; border-radius:8px; }
+
 
   /* Summary butts directly under the ratings row, then takes all the remaining
      space down to the bottom block (margin-bottom:auto pushes cast/personal to
@@ -1305,7 +1327,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
       <div id="summaryGenres" class="hidden"></div>
       <div id="summaryRatings" class="hidden"></div>
       <button id="btnTrailer" class="hidden" onclick="playInlineTrailer()" title="Watch trailer" aria-label="Watch trailer">
-        <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-trailer"/></svg>
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-trailer"/></svg><span class="label">Trailer</span>
       </button>
       <div id="trailerInline" class="hidden">
         <button id="trailerClose" onclick="stopInlineTrailer()" aria-label="Close trailer"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-x"/></svg></button>
@@ -2568,14 +2590,14 @@ function openSummary(forItem) {
     trailerBtn.classList.remove('skeleton');
     trailerBtn.classList.toggle('hidden', !(trailerKnown && trailerKnown.url));
     if (trailerKnown && trailerKnown.url) {
-      trailerBtn.innerHTML = '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-trailer"/></svg>';
+      trailerBtn.innerHTML = '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-trailer"/></svg><span class="label">Trailer</span>';
     }
   }
   loadTrailer(item).then(trailer => {
     if (summaryItem !== item) return;
     trailerBtn.classList.remove('skeleton');
     if (trailer && trailer.url) {
-      trailerBtn.innerHTML = '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-trailer"/></svg>';
+      trailerBtn.innerHTML = '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-trailer"/></svg><span class="label">Trailer</span>';
       trailerBtn.classList.remove('hidden');
     } else {
       trailerBtn.classList.add('hidden');
