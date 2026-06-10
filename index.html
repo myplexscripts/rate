@@ -2001,6 +2001,29 @@ function updateCloseAdaptation() {
   }
 }
 
+// ── Backdrop parallax (mobile) ────────────────────────────
+// As the sheet scrolls, the key-art drifts up at a fraction of the scroll speed
+// so it reads as a layer sitting BEHIND the logo/metadata that slide over it —
+// the depth effect of a hero parallax. The backdrop moves at (1 - FACTOR) of the
+// content's speed. Desktop has no vertical scroll here (the band is fixed), so
+// it's a no-op there.
+const PARALLAX_FACTOR = 0.5;
+function updateBackdropParallax() {
+  const backdrop = document.getElementById('summaryBackdrop');
+  if (isDesktop() || !document.getElementById('summaryBox').classList.contains('has-backdrop')) {
+    backdrop.style.transform = '';
+    return;
+  }
+  const offset = document.getElementById('summaryScroll').scrollTop * PARALLAX_FACTOR;
+  backdrop.style.transform = 'translate3d(0,' + offset + 'px,0)';
+}
+
+// Single passive scroll handler for the summary sheet.
+function onSummaryScroll() {
+  updateCloseAdaptation();
+  updateBackdropParallax();
+}
+
 // Turns an ultraBlur corner hex into two derived colours for the summary
 // panel: a `glow` (the corner tint, darkened and luminance-capped so white
 // text keeps a comfortable contrast ratio over it) and a `fade` (that glow
@@ -2575,8 +2598,9 @@ function openSummary(forItem) {
   castEl.scrollLeft = 0;
   const scrollEl = document.getElementById('summaryScroll');
   scrollEl.scrollTop = 0;
-  scrollEl.removeEventListener('scroll', updateCloseAdaptation);
-  scrollEl.addEventListener('scroll', updateCloseAdaptation, { passive: true });
+  document.getElementById('summaryBackdrop').style.transform = '';   // clear last item's parallax
+  scrollEl.removeEventListener('scroll', onSummaryScroll);
+  scrollEl.addEventListener('scroll', onSummaryScroll, { passive: true });
   // Skeleton placeholders are only needed when the extra info isn't cached yet.
   // When it is (the common case, thanks to prefetch), we render the real
   // content synchronously below so the panel never resizes after it appears.
