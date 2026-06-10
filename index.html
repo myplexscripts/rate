@@ -726,21 +726,21 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 
 #btnSignOut {
   position:fixed;
-  top:calc(var(--safe-top) + 10px);
-  left:56px;
-  z-index:250;
-  width:28px; height:28px;
+  top:calc(var(--safe-top) + 166px);
+  right:13px;
+  z-index:60;
+  width:44px; height:44px;
   display:flex; align-items:center; justify-content:center;
   background:none; border:none; padding:0;
   color:var(--text);
   cursor:pointer;
-  opacity:0.55;
-  transition:opacity 0.15s, transform 0.12s;
+  opacity:0; pointer-events:none;
+  transition:opacity 0.25s, transform 0.12s;
 }
+#btnSignOut.on { opacity:0.55; pointer-events:all; }
 #btnSignOut:hover { opacity:1; }
 #btnSignOut:active { transform:scale(0.9); }
-#btnSignOut .icon { width:17px; height:17px; }
-#btnSignOut.hidden { display:none; }
+#btnSignOut .icon { width:18px; height:18px; }
 
 #typeFilter {
   position:fixed;
@@ -1005,28 +1005,28 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   #ratedCounter, #progress, #typeFilter { z-index:600; }
   #ratedCounter {
     top:calc(var(--bar) / 2 - 11px);
-    left:auto; right:230px;
+    left:auto; right:256px;
     font-size:0.95rem; gap:7px;
   }
   #ratedCounter.on { opacity:0.8; }
   #ratedCounter .icon { width:18px; height:18px; }
   #progress {
     top:calc(var(--bar) / 2 - 19px);
-    right:148px;
+    right:200px;
     width:38px; height:38px;
   }
   #progress.on { opacity:0.8; }
   #btnSignOut {
-    top:calc(var(--bar) / 2 - 14px);
-    left:auto; right:300px;
+    top:calc(var(--bar) / 2 - 22px);
+    left:auto; right:28px;
     z-index:600;
-    opacity:0.8;
   }
+  #btnSignOut.on { opacity:0.8; }
   #btnSignOut:hover { opacity:1; }
   #btnSignOut .icon { width:19px; height:19px; }
   #typeFilter {
     top:calc(var(--bar) / 2 - 22px);
-    right:32px;
+    right:92px;
     flex-direction:row;
     opacity:0;
     backdrop-filter:none; -webkit-backdrop-filter:none;
@@ -1208,7 +1208,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   <span id="progressCount" aria-hidden="true">0</span>
 </div>
 
-<button id="btnSignOut" class="hidden" onclick="signOut()" title="Sign out" aria-label="Sign out">
+<button id="btnSignOut" onclick="signOut()" title="Sign out" aria-label="Sign out">
   <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-sign-out"/></svg>
 </button>
 
@@ -1362,26 +1362,18 @@ const plexHeaders = () => ({
   'X-Plex-Product': PLEX_PRODUCT,
   'X-Plex-Client-Identifier': clientId
 });
-const IMG_DPR = Math.min(Math.ceil(window.devicePixelRatio || 1), 2);
-function transcodeUrl(path, w, h) {
+const IMG_DPR = Math.min(window.devicePixelRatio || 1, 2);
+function imgUrl(path, cssW) {
   if (!path) return '';
   if (/^https?:\/\//.test(path)) return path;
-  const inner = path + (path.includes('?') ? '&' : '?') + 'X-Plex-Token=' + cfg.token;
-  const p = new URLSearchParams({
-    width: Math.min(1920, Math.round(w * IMG_DPR)),
-    height: Math.min(1920, Math.round(h * IMG_DPR)),
-    minSize: 1,
-    upscale: 1,
-    url: inner,
-    'X-Plex-Token': cfg.token
-  });
-  return `${cfg.url}/photo/:/transcode?${p.toString()}`;
+  const sep = path.includes('?') ? '&' : '?';
+  const w = Math.min(1600, Math.round(cssW * IMG_DPR));
+  return `${cfg.url}${path}${sep}X-Plex-Token=${cfg.token}&width=${w}`;
 }
 const posterUrl = it => {
   const k = it && (it.thumb || it.art);
   if (!k) return '';
-  const w = isMeteredConnection() ? 200 : 300;
-  return transcodeUrl(k, w, w * 1.5);
+  return imgUrl(k, isMeteredConnection() ? 220 : 320);
 };
 
 async function plexGet(path) {
@@ -1399,16 +1391,11 @@ async function plexGet(path) {
   }
 }
 
-function updateSignOutVis() {
-  document.getElementById('btnSignOut').classList.toggle('hidden', !cfg.token);
-}
-
 function signOut() {
   lsDel(STORE_TOKEN);
   lsDel(STORE_URL);
   cfg.token = '';
   cfg.url = '';
-  updateSignOutVis();
   hideStage();
   setState('auth');
 }
@@ -1445,7 +1432,6 @@ async function signIn() {
 
     cfg.token = token;
     lsSet(STORE_TOKEN, token);
-    updateSignOutVis();
 
     setState('load');
     document.getElementById('loadTitle').textContent = 'Connecting';
@@ -1938,6 +1924,9 @@ function updateCloseAdaptation() {
 }
 
 const PARALLAX_FACTOR = 0.5;
+const STRETCH_GAIN = 0.6;
+const STRETCH_MAX = 0.22;
+let _bdHeight = 0;
 function updateBackdropParallax() {
   const backdrop = document.getElementById('summaryBackdrop');
   if (isDesktop() || !document.getElementById('summaryBox').classList.contains('has-backdrop')) {
@@ -1946,8 +1935,9 @@ function updateBackdropParallax() {
   }
   const st = document.getElementById('summaryScroll').scrollTop;
   if (st < 0) {
-    const h = backdrop.offsetHeight || 1;
-    backdrop.style.transform = 'translate3d(0,' + st + 'px,0) scale(' + (1 - st / h) + ')';
+    const h = _bdHeight || (_bdHeight = backdrop.offsetHeight || 1);
+    const grow = Math.min((-st / h) * STRETCH_GAIN, STRETCH_MAX);
+    backdrop.style.transform = 'translate3d(0,' + st + 'px,0) scale(' + (1 + grow) + ')';
   } else {
     backdrop.style.transform = 'translate3d(0,' + (st * PARALLAX_FACTOR) + 'px,0)';
   }
@@ -1971,7 +1961,7 @@ function onSummaryScroll() {
   };
   const start = () => { if (!rafId) rafId = requestAnimationFrame(tick); };
   const end = () => { touching = false; start(); };
-  scrollEl.addEventListener('touchstart',  () => { touching = true; start(); }, { passive: true });
+  scrollEl.addEventListener('touchstart',  () => { touching = true; _bdHeight = 0; start(); }, { passive: true });
   scrollEl.addEventListener('touchend',    end, { passive: true });
   scrollEl.addEventListener('touchcancel', end, { passive: true });
 })();
@@ -2351,12 +2341,14 @@ function ratingBadge(imageStr, score) {
 }
 
 const EXTRA_TTL = 24 * 60 * 60 * 1000;
+const EXTRA_PREFIX = 'px_ex2_';
 (function sweepExtraCache() {
   try {
     const now = Date.now();
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
-      if (!k || !k.startsWith('px_ex_')) continue;
+      if (!k || !k.startsWith('px_ex_') && !k.startsWith(EXTRA_PREFIX)) continue;
+      if (!k.startsWith(EXTRA_PREFIX)) { localStorage.removeItem(k); continue; }
       try {
         const { t } = JSON.parse(localStorage.getItem(k));
         if (!t || now - t > EXTRA_TTL) localStorage.removeItem(k);
@@ -2366,15 +2358,15 @@ const EXTRA_TTL = 24 * 60 * 60 * 1000;
 })();
 function lsExtraGet(ratingKey) {
   try {
-    const raw = localStorage.getItem('px_ex_' + ratingKey);
+    const raw = localStorage.getItem(EXTRA_PREFIX + ratingKey);
     if (!raw) return null;
     const { t, d } = JSON.parse(raw);
-    if (Date.now() - t > EXTRA_TTL) { localStorage.removeItem('px_ex_' + ratingKey); return null; }
+    if (Date.now() - t > EXTRA_TTL) { localStorage.removeItem(EXTRA_PREFIX + ratingKey); return null; }
     return d;
   } catch { return null; }
 }
 function lsExtraSet(ratingKey, data) {
-  try { localStorage.setItem('px_ex_' + ratingKey, JSON.stringify({ t: Date.now(), d: data })); } catch {}
+  try { localStorage.setItem(EXTRA_PREFIX + ratingKey, JSON.stringify({ t: Date.now(), d: data })); } catch {}
 }
 
 async function loadExtraInfo(item) {
@@ -2399,16 +2391,14 @@ async function loadExtraInfo(item) {
     item._extra = {
       year: (meta && meta.year) || null,
       ubTints,
-      backdrop: artPath
-        ? transcodeUrl(artPath, isDesktop() ? 960 : 480, isDesktop() ? 540 : 270)
-        : '',
+      backdrop: artPath ? imgUrl(artPath, isDesktop() ? 900 : 480) : '',
       logo: logoImg && logoImg.url
         ? (/^https?:\/\//.test(logoImg.url) ? logoImg.url : `${cfg.url}${logoImg.url}?X-Plex-Token=${cfg.token}`)
         : '',
       genres: (meta && meta.Genre || []).map(g => g.tag).slice(0, 2),
       cast: (meta && meta.Role || []).slice(0, 6).map(r => ({
         name: r.tag,
-        photo: r.thumb ? transcodeUrl(r.thumb, 80, 80) : ''
+        photo: r.thumb ? imgUrl(r.thumb, 70) : ''
       })),
       runtime: (meta && meta.duration) ? formatDuration(meta.duration) : null,
       contentRating: (meta && meta.contentRating) || null,
@@ -2927,6 +2917,7 @@ function showStage() {
   document.getElementById('progress').classList.add('on');
   document.getElementById('typeFilter').classList.add('on');
   document.getElementById('ratedCounter').classList.add('on');
+  document.getElementById('btnSignOut').classList.add('on');
   ['stAuth','stLoad','stErr','stDone'].forEach(id => document.getElementById(id).classList.remove('on'));
 }
 function hideStage() {
@@ -2934,6 +2925,7 @@ function hideStage() {
   document.getElementById('progress').classList.remove('on');
   document.getElementById('typeFilter').classList.remove('on');
   document.getElementById('ratedCounter').classList.remove('on');
+  document.getElementById('btnSignOut').classList.remove('on');
 }
 
 const RING_CIRC = 2 * Math.PI * 15.5;
@@ -3076,7 +3068,6 @@ document.addEventListener('keydown', e => {
   }
 });
 
-updateSignOutVis();
 if (cfg.token && cfg.url) {
   loadItems();
 } else {
