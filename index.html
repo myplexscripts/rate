@@ -323,6 +323,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   display:none;
   position:relative;
   transform-origin:top center;
+  will-change:transform;
   margin:-26px -24px 16px;
   aspect-ratio:16/9;
   overflow:hidden;
@@ -725,19 +726,20 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 
 #btnSignOut {
   position:fixed;
-  top:calc(var(--safe-top) + 12px);
+  top:calc(var(--safe-top) + 10px);
   left:56px;
   z-index:250;
   width:28px; height:28px;
   display:flex; align-items:center; justify-content:center;
   background:none; border:none; padding:0;
+  color:var(--text);
   cursor:pointer;
-  opacity:0.45;
+  opacity:0.55;
   transition:opacity 0.15s, transform 0.12s;
 }
-#btnSignOut:hover { opacity:0.9; }
+#btnSignOut:hover { opacity:1; }
 #btnSignOut:active { transform:scale(0.9); }
-#btnSignOut img { width:18px; height:18px; display:block; }
+#btnSignOut .icon { width:17px; height:17px; }
 #btnSignOut.hidden { display:none; }
 
 #typeFilter {
@@ -1018,9 +1020,10 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     top:calc(var(--bar) / 2 - 14px);
     left:auto; right:300px;
     z-index:600;
-    opacity:0.6;
+    opacity:0.8;
   }
   #btnSignOut:hover { opacity:1; }
+  #btnSignOut .icon { width:19px; height:19px; }
   #typeFilter {
     top:calc(var(--bar) / 2 - 22px);
     right:32px;
@@ -1131,6 +1134,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   <symbol id="icon-star-empty" viewBox="0 0 256 256"><path d="M239.18,97.26A16.38,16.38,0,0,0,224.92,86l-59-4.76L143.14,26.15a16.36,16.36,0,0,0-30.27,0L90.11,81.23,31.08,86a16.46,16.46,0,0,0-9.37,28.86l45,38.83L53,211.75a16.38,16.38,0,0,0,24.5,17.82L128,198.49l50.53,31.08A16.4,16.4,0,0,0,203,211.75l-13.76-58.07,45-38.83A16.43,16.43,0,0,0,239.18,97.26Zm-15.34,5.47-48.7,42a8,8,0,0,0-2.56,7.91l14.88,62.8a.37.37,0,0,1-.17.48c-.18.14-.23.11-.38,0l-54.72-33.65a8,8,0,0,0-8.38,0L69.09,215.94c-.15.09-.19.12-.38,0a.37.37,0,0,1-.17-.48l14.88-62.8a8,8,0,0,0-2.56-7.91l-48.7-42c-.12-.1-.23-.19-.13-.5s.18-.27.33-.29l63.92-5.16A8,8,0,0,0,103,91.86l24.62-59.61c.08-.17.11-.25.35-.25s.27.08.35.25L153,91.86a8,8,0,0,0,6.75,4.92l63.92,5.16c.15,0,.24,0,.33.29S224,102.63,223.84,102.73Z"/></symbol>
   <symbol id="icon-star-fill" viewBox="0 0 256 256"><path d="M234.29,114.85l-45,38.83L203,211.75a16.4,16.4,0,0,1-24.5,17.82L128,198.49,77.47,229.57A16.4,16.4,0,0,1,53,211.75l13.76-58.07-45-38.83A16.46,16.46,0,0,1,31.08,86l59-4.76,22.76-55.08a16.36,16.36,0,0,1,30.27,0l22.75,55.08,59,4.76a16.46,16.46,0,0,1,9.37,28.86Z"/></symbol>
   <symbol id="icon-star-half" viewBox="0 0 256 256"><path d="M239.18,97.26A16.38,16.38,0,0,0,224.92,86l-59-4.76L143.14,26.15a16.36,16.36,0,0,0-30.27,0L90.11,81.23,31.08,86a16.46,16.46,0,0,0-9.37,28.86l45,38.83L53,211.75a16.4,16.4,0,0,0,24.5,17.82L128,198.49l50.53,31.08A16.4,16.4,0,0,0,203,211.75l-13.76-58.07,45-38.83A16.43,16.43,0,0,0,239.18,97.26Zm-15.34,5.47-48.7,42a8,8,0,0,0-2.56,7.91l14.88,62.8a.37.37,0,0,1-.17.48c-.18.14-.23.11-.38,0l-54.72-33.65A8,8,0,0,0,128,181.1V32c.24,0,.27.08.35.26L153,91.86a8,8,0,0,0,6.75,4.92l63.91,5.16c.16,0,.25,0,.34.29S224,102.63,223.84,102.73Z"/></symbol>
+  <symbol id="icon-sign-out" viewBox="0 0 256 256"><path d="M120,216a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V40a8,8,0,0,1,8-8h64a8,8,0,0,1,0,16H56V208h56A8,8,0,0,1,120,216Zm109.66-93.66-40-40a8,8,0,0,0-11.32,11.32L204.69,120H112a8,8,0,0,0,0,16h92.69l-26.35,26.34a8,8,0,0,0,11.32,11.32l40-40A8,8,0,0,0,229.66,122.34Z"/></symbol>
 </svg>
 
 <noscript><div class="state on"><div class="state-title">JavaScript required</div><div class="state-sub">Rate It needs JavaScript enabled to connect to your Plex server.</div></div></noscript>
@@ -1205,7 +1209,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 </div>
 
 <button id="btnSignOut" class="hidden" onclick="signOut()" title="Sign out" aria-label="Sign out">
-  <img src="images/icons/ui/sign-out.svg" alt="" onerror="this.style.display='none'">
+  <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-sign-out"/></svg>
 </button>
 
 <div id="typeFilter" role="group" aria-label="Filter by type">
@@ -1953,6 +1957,24 @@ function onSummaryScroll() {
   updateCloseAdaptation();
   updateBackdropParallax();
 }
+
+(function initBackdropStretch() {
+  const scrollEl = document.getElementById('summaryScroll');
+  let rafId = 0, touching = false;
+  const tick = () => {
+    updateBackdropParallax();
+    if (touching || scrollEl.scrollTop < 0) {
+      rafId = requestAnimationFrame(tick);
+    } else {
+      rafId = 0;
+    }
+  };
+  const start = () => { if (!rafId) rafId = requestAnimationFrame(tick); };
+  const end = () => { touching = false; start(); };
+  scrollEl.addEventListener('touchstart',  () => { touching = true; start(); }, { passive: true });
+  scrollEl.addEventListener('touchend',    end, { passive: true });
+  scrollEl.addEventListener('touchcancel', end, { passive: true });
+})();
 
 function ubDarken(rgb) {
   if (!rgb) return null;
