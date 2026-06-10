@@ -700,7 +700,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   text-align:center;
   opacity:0; pointer-events:none;
   transition:opacity 0.2s, transform 0.2s;
-  z-index:400;
+  /* Above the desktop hero overlay (z 500) + stage (550) + counters (600) so
+     toasts — including the milestone "N Titles Rated!" — show in both layouts. */
+  z-index:1000;
 }
 #toast.on { opacity:1; transform:translateX(-50%) translateY(0); }
 
@@ -2200,7 +2202,7 @@ async function submitRating() {
   if (ok) {
     ratedCount++;
     updateRatedCounter();
-    if (ratedCount % 10 === 0) celebrate(ratedCount);
+    if (isMilestone(ratedCount)) celebrate(ratedCount);
   } else {
     toast('Failed to save rating');
   }
@@ -2214,19 +2216,29 @@ function doSkip() {
   advance('left');    // skipped → flies LEFT
 }
 
-// ── Confetti milestone ────────────────────────────────────
+// ── Confetti milestones ───────────────────────────────────
+// Fire at 5, 10, 25, 50, then every 50 thereafter (100, 150, 200, 250, …).
+function isMilestone(n) {
+  if (n === 5 || n === 10 || n === 25 || n === 50) return true;
+  return n >= 100 && n % 50 === 0;
+}
 function celebrate(n) {
   toast(n + ' Titles Rated!', true);
   if (typeof confetti !== 'function') return;
+  // Render above the desktop hero overlay (z-index 500+) so the burst shows in
+  // BOTH experiences: on mobile you rate on the bare card, on desktop you rate
+  // inside the full-screen summary overlay — at the default z-index 100 the
+  // confetti would be painted behind that overlay and never seen.
+  const CONFETTI_Z = 1200;
   // Two colours per side (rather than all four on both) so each burst reads as its own palette.
   const leftColors  = ['#F7C600', '#15A9FC'];
   const rightColors = ['#F74366', '#69DD58'];
   // Bursts fired from the left and right edges, angled inward toward centre.
-  confetti({ particleCount: 110, spread: 70, startVelocity: 50, angle: 60,  origin: { x: 0, y: 0.75 }, colors: leftColors });
-  confetti({ particleCount: 110, spread: 70, startVelocity: 50, angle: 120, origin: { x: 1, y: 0.75 }, colors: rightColors });
+  confetti({ particleCount: 110, spread: 70, startVelocity: 50, angle: 60,  origin: { x: 0, y: 0.75 }, colors: leftColors,  zIndex: CONFETTI_Z });
+  confetti({ particleCount: 110, spread: 70, startVelocity: 50, angle: 120, origin: { x: 1, y: 0.75 }, colors: rightColors, zIndex: CONFETTI_Z });
   setTimeout(() => {
-    confetti({ particleCount: 80, spread: 90, startVelocity: 40, angle: 60,  origin: { x: 0, y: 0.7 }, colors: leftColors });
-    confetti({ particleCount: 80, spread: 90, startVelocity: 40, angle: 120, origin: { x: 1, y: 0.7 }, colors: rightColors });
+    confetti({ particleCount: 80, spread: 90, startVelocity: 40, angle: 60,  origin: { x: 0, y: 0.7 }, colors: leftColors,  zIndex: CONFETTI_Z });
+    confetti({ particleCount: 80, spread: 90, startVelocity: 40, angle: 120, origin: { x: 1, y: 0.7 }, colors: rightColors, zIndex: CONFETTI_Z });
   }, 200);
 }
 
