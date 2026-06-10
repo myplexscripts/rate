@@ -8,10 +8,21 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#000000">
+<meta name="description" content="Rate It — quickly rate your watched Plex movies and shows.">
+<meta name="format-detection" content="telephone=no">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-title" content="Rate It">
+<meta property="og:title" content="Rate It">
+<meta property="og:description" content="Quickly rate your watched Plex movies and shows.">
+<meta property="og:type" content="website">
 <title>Rate It</title>
 <link rel="icon" type="image/png" href="images/icons/app-icon.png">
 <link rel="apple-touch-icon" href="images/icons/app-icon.png">
-<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<link rel="preconnect" href="https://dvdbsh.github.io" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="preload" href="https://dvdbsh.github.io/fonts/Circular/Circular-Book.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="https://dvdbsh.github.io/fonts/Circular/Circular-Bold.ttf" as="font" type="font/ttf" crossorigin>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js" defer></script>
 <style>
 @font-face { font-family:'Circular'; src:url('https://dvdbsh.github.io/fonts/Circular/Circular-Book.ttf') format('truetype'); font-weight:400; font-display:swap; }
 @font-face { font-family:'Circular'; src:url('https://dvdbsh.github.io/fonts/Circular/Circular-Medium.ttf') format('truetype'); font-weight:500; font-display:swap; }
@@ -40,6 +51,7 @@
 }
 
 :root {
+  color-scheme: dark;
   --bg: #000000;
   --text: #fffbf8;
   --muted: rgba(255,251,248,0.45);
@@ -61,6 +73,10 @@ button:focus-visible, [tabindex]:focus-visible, a:focus-visible {
   outline:2px solid var(--star);
   outline-offset:3px;
   border-radius:4px;
+}
+
+@media (prefers-contrast: more) {
+  :root { --muted: rgba(255,251,248,0.7); --star-off: rgba(255,251,248,0.4); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -641,6 +657,13 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   width:15px; height:15px;
   color:var(--star);
 }
+#ratedCounterNum { display:inline-block; }
+@keyframes counterPop {
+  0%   { transform:scale(1); }
+  40%  { transform:scale(1.4); }
+  100% { transform:scale(1); }
+}
+#ratedCounterNum.pop { animation:counterPop 0.35s cubic-bezier(0.34,1.56,0.64,1); }
 #ratedCounter, #progress { cursor:pointer; }
 
 .counterTip {
@@ -1083,7 +1106,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   <symbol id="icon-star-half" viewBox="0 0 256 256"><path d="M239.18,97.26A16.38,16.38,0,0,0,224.92,86l-59-4.76L143.14,26.15a16.36,16.36,0,0,0-30.27,0L90.11,81.23,31.08,86a16.46,16.46,0,0,0-9.37,28.86l45,38.83L53,211.75a16.4,16.4,0,0,0,24.5,17.82L128,198.49l50.53,31.08A16.4,16.4,0,0,0,203,211.75l-13.76-58.07,45-38.83A16.43,16.43,0,0,0,239.18,97.26Zm-15.34,5.47-48.7,42a8,8,0,0,0-2.56,7.91l14.88,62.8a.37.37,0,0,1-.17.48c-.18.14-.23.11-.38,0l-54.72-33.65A8,8,0,0,0,128,181.1V32c.24,0,.27.08.35.26L153,91.86a8,8,0,0,0,6.75,4.92l63.91,5.16c.16,0,.25,0,.34.29S224,102.63,223.84,102.73Z"/></symbol>
 </svg>
 
-<div id="glowBg"></div>
+<noscript><div class="state on"><div class="state-title">JavaScript required</div><div class="state-sub">Rate It needs JavaScript enabled to connect to your Plex server.</div></div></noscript>
+
+<div id="glowBg" aria-hidden="true"></div>
 
 <div class="state" id="stAuth">
   <div class="state-title">Rate It</div>
@@ -1100,6 +1125,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 <div class="state" id="stErr">
   <div class="state-title">Can't connect</div>
   <div class="state-sub" id="errMsg">Check your Plex server.</div>
+  <button class="state-btn primary" onclick="loadItems()">Try again</button>
   <button class="state-btn" onclick="signOut()">Sign out</button>
 </div>
 
@@ -1117,15 +1143,15 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
       <div id="iDate"></div>
       <div id="iSummary" onclick="openSummary()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openSummary();}" aria-label="View full summary, cast and trailer"></div>
     </div>
-    <div id="starRow"></div>
+    <div id="starRow" role="slider" tabindex="0" aria-label="Rate this title" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0" aria-valuetext="Not rated" aria-keyshortcuts="1 2 3 4 5 ArrowUp ArrowDown"></div>
     <div id="actions">
-      <button class="act-btn" id="btnBack" onclick="goBack()" disabled title="Back" aria-label="Go back to previous title">
+      <button class="act-btn" id="btnBack" onclick="goBack()" disabled title="Back (←)" aria-label="Go back to previous title" aria-keyshortcuts="ArrowLeft">
         <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-back"/></svg>
       </button>
       <button class="act-btn" id="btnShuffle" onclick="toggleShuffle()" title="Shuffle" aria-label="Shuffle queue order" aria-pressed="false">
         <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-shuffle"/></svg>
       </button>
-      <button class="act-btn" onclick="doSkip()" title="Skip" aria-label="Skip this title">
+      <button class="act-btn" onclick="doSkip()" title="Skip (→)" aria-label="Skip this title" aria-keyshortcuts="ArrowRight">
         <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-skip"/></svg>
       </button>
     </div>
@@ -1160,7 +1186,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   </button>
 </div>
 
-<div id="summaryOverlay" onclick="closeSummaryFromOverlay(event)" role="dialog" aria-modal="true" aria-labelledby="summaryTitle">
+<div id="summaryOverlay" onclick="closeSummaryFromOverlay(event)" role="dialog" aria-modal="true" aria-labelledby="summaryTitle" aria-hidden="true">
   <div id="summaryBox">
     <div id="sbBg" aria-hidden="true"></div>
     <button id="summaryClose" onclick="closeSummary()" aria-label="Close summary"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-x"/></svg></button>
@@ -1177,20 +1203,20 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
         <div class="lsx-skel-head skeleton"></div>
       </div>
     </div>
-    <div id="summaryScroll">
+    <div id="summaryScroll" tabindex="0" aria-label="Title details">
       <div id="summaryBackdrop"><img id="summaryBackdropImg" alt=""><img id="summaryBackdropImg2" alt="" aria-hidden="true"></div>
       <div id="summaryTitle"></div>
       <div id="summaryRowYearRating" class="hidden"></div>
       <div id="summaryRowDuration" class="hidden"></div>
       <div id="summaryGenres" class="hidden"></div>
       <div id="summaryRatings" class="hidden"></div>
-      <button id="btnTrailer" class="hidden" onclick="playInlineTrailer()" title="Watch trailer" aria-label="Watch trailer">
+      <button id="btnTrailer" class="hidden" onclick="playInlineTrailer()" title="Watch trailer (T)" aria-label="Watch trailer" aria-keyshortcuts="T">
         <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-trailer"/></svg><span class="label">Trailer</span>
       </button>
       <div id="trailerInline" class="hidden">
         <button id="trailerClose" onclick="stopInlineTrailer()" aria-label="Close trailer"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-x"/></svg></button>
         <div id="trailerSkeleton" class="skeleton hidden"></div>
-        <video id="trailerVideo" controls playsinline></video>
+        <video id="trailerVideo" controls playsinline preload="metadata" aria-label="Trailer"></video>
         <div id="trailerError" class="hidden"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-television"/></svg> Trailer unavailable</div>
       </div>
       <div id="summaryText" onclick="openDescPopup()"></div>
@@ -1202,7 +1228,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   </div>
 </div>
 
-<div id="descPopup" onclick="closeDescPopupFromOverlay(event)" role="dialog" aria-modal="true" aria-label="Full description">
+<div id="descPopup" onclick="closeDescPopupFromOverlay(event)" role="dialog" aria-modal="true" aria-label="Full description" aria-hidden="true">
   <div id="descPopupBox">
     <button id="descPopupClose" onclick="closeDescPopup()" aria-label="Close description"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-x"/></svg></button>
     <div id="descPopupTitle"></div>
@@ -1247,8 +1273,14 @@ let busy = false;
 let ratedCount = 0;
 let lastCelebrated = 0;
 
-function updateRatedCounter() {
-  document.getElementById('ratedCounterNum').textContent = ratedCount;
+function updateRatedCounter(animate) {
+  const el = document.getElementById('ratedCounterNum');
+  el.textContent = ratedCount;
+  if (animate) {
+    el.classList.remove('pop');
+    void el.offsetWidth;
+    el.classList.add('pop');
+  }
 }
 
 let counterTipTimer = null;
@@ -1285,7 +1317,9 @@ function ratingTip(el, ev) {
   showCounterTip(el, el.dataset.tip);
 }
 
-const escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function buzz(pattern) { try { if (navigator.vibrate) navigator.vibrate(pattern); } catch {} }
+
+const escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 const H = () => ({ 'X-Plex-Token': cfg.token, 'Accept': 'application/json' });
 const plexHeaders = () => ({
@@ -1561,9 +1595,17 @@ function isDesktop() { return window.matchMedia('(min-width:960px)').matches; }
 
 function setInfo(item) {
   document.getElementById('iTitleText').textContent = item.title || '';
-  document.getElementById('iDate').textContent = item.lastViewedAt
-    ? 'Watched ' + fmtDate(item.lastViewedAt * 1000) : '';
-  document.getElementById('iSummary').textContent = item.summary || '';
+  const dateEl = document.getElementById('iDate');
+  if (item.lastViewedAt) {
+    dateEl.textContent = 'Watched ' + fmtDate(item.lastViewedAt * 1000);
+    dateEl.title = new Date(item.lastViewedAt * 1000).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  } else {
+    dateEl.textContent = '';
+    dateEl.removeAttribute('title');
+  }
+  const sumEl = document.getElementById('iSummary');
+  sumEl.textContent = item.summary || '';
+  sumEl.setAttribute('tabindex', item.summary ? '0' : '-1');
   preloadInfo();
   if (isDesktop() && summaryItem !== item) {
     if (item._extra) {
@@ -1690,6 +1732,7 @@ function loadPosterEntry(item) {
 }
 
 async function loadPoster(item, img, isTop) {
+  img.decoding = 'async';
   img.onerror = () => { img.onerror = null; img.classList.remove('skeleton'); img.src = PLACEHOLDER_POSTER; };
   const entry = await loadPosterEntry(item);
   if (!img.isConnected) return;
@@ -1821,7 +1864,6 @@ function sampleCornerBrightness(imgEl) {
 }
 
 function updateCloseAdaptation() {
-  const scrollEl = document.getElementById('summaryScroll');
   const box = document.getElementById('summaryBox');
   const closeBtn = document.getElementById('summaryClose');
   const backdropEl = document.getElementById('summaryBackdrop');
@@ -1976,6 +2018,7 @@ function setGlow({ tl, tr, bl, br }) {
 })();
 
 function setRating(n) {
+  if (rating !== n) buzz(8);
   rating = n;
   document.getElementById('starRow').classList.remove('resetting');
   document.querySelectorAll('.star').forEach(s => {
@@ -1992,6 +2035,9 @@ function setRating(n) {
       use.setAttribute('href', '#icon-star-empty');
     }
   });
+  const rowEl = document.getElementById('starRow');
+  rowEl.setAttribute('aria-valuenow', n);
+  rowEl.setAttribute('aria-valuetext', n + (n === 1 ? ' star' : ' stars'));
   clearTimeout(ratingTimer);
   ratingTimer = setTimeout(submitRating, 1500);
 }
@@ -2004,6 +2050,9 @@ function resetRating() {
     s.setAttribute('class', 'icon star');
     s.querySelector('use').setAttribute('href', '#icon-star-empty');
   });
+  const rowAria = document.getElementById('starRow');
+  rowAria.setAttribute('aria-valuenow', '0');
+  rowAria.setAttribute('aria-valuetext', 'Not rated');
   if (isDesktop()) {
     const row = document.getElementById('starRow');
     row.classList.remove('resetting');
@@ -2041,7 +2090,7 @@ async function submitRating() {
   if (ai !== -1) allItems.splice(ai, 1);
 
   ratedCount++;
-  updateRatedCounter();
+  updateRatedCounter(true);
   if (isMilestone(ratedCount) && ratedCount > lastCelebrated) {
     lastCelebrated = ratedCount;
     celebrate(ratedCount);
@@ -2071,6 +2120,7 @@ function milestoneLine(n) {
   return MILESTONE_LINES[n] || (n % 100 === 0 ? 'Legendary!' : 'Unstoppable!');
 }
 function celebrate(n) {
+  buzz([30, 40, 30]);
   toast(`${n} rated — ${milestoneLine(n)}`, true);
   if (typeof confetti !== 'function') return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -2146,7 +2196,17 @@ function advance(dir) {
 }
 
 const castPhotoCache = new Map();
+const CAST_CACHE_MAX = 120;
+function castCacheSet(url, obj) {
+  if (castPhotoCache.size >= CAST_CACHE_MAX) {
+    const oldest = castPhotoCache.keys().next().value;
+    try { URL.revokeObjectURL(castPhotoCache.get(oldest)); } catch {}
+    castPhotoCache.delete(oldest);
+  }
+  castPhotoCache.set(url, obj);
+}
 async function loadCastPhoto(url, img) {
+  img.decoding = 'async';
   const cached = castPhotoCache.get(url);
   if (cached) { img.src = cached; img.classList.remove('skeleton'); return; }
   img.onerror = () => { img.onerror = null; img.classList.remove('skeleton'); img.src = PLACEHOLDER_CAST; };
@@ -2157,7 +2217,7 @@ async function loadCastPhoto(url, img) {
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const blob = await resp.blob();
     const obj = URL.createObjectURL(blob);
-    castPhotoCache.set(url, obj);
+    castCacheSet(url, obj);
     img.src = obj;
   } catch (e) {
     console.warn('[cast] photo fetch failed', url, e);
@@ -2177,7 +2237,7 @@ async function prefetchCastPhoto(url) {
     const resp = await fetch(url, { headers: H() });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const blob = await resp.blob();
-    castPhotoCache.set(url, URL.createObjectURL(blob));
+    castCacheSet(url, URL.createObjectURL(blob));
   } catch {}
 }
 
@@ -2296,6 +2356,7 @@ async function loadExtraInfo(item) {
 }
 
 let summaryOpener = null;
+let descPopupOpener = null;
 let summaryItem = null;
 let _lsxFadeTimer = null;
 
@@ -2380,11 +2441,18 @@ function openSummary(forItem) {
   const summaryTextEl = document.getElementById('summaryText');
   summaryTextEl.textContent = item.summary || '';
   summaryTextEl.classList.remove('clamped');
+  summaryTextEl.removeAttribute('role');
+  summaryTextEl.removeAttribute('tabindex');
+  summaryTextEl.removeAttribute('aria-label');
+  summaryTextEl.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDescPopup(); } };
   if (isDesktop()) {
     requestAnimationFrame(() => {
       if (summaryItem !== item) return;
       if (summaryTextEl.scrollHeight - summaryTextEl.clientHeight > 4) {
         summaryTextEl.classList.add('clamped');
+        summaryTextEl.setAttribute('role', 'button');
+        summaryTextEl.setAttribute('tabindex', '0');
+        summaryTextEl.setAttribute('aria-label', 'Read full description');
       }
     });
   }
@@ -2436,7 +2504,9 @@ function openSummary(forItem) {
   });
 
   document.getElementById('toast').classList.remove('on');
-  document.getElementById('summaryOverlay').classList.add('on');
+  const overlayEl = document.getElementById('summaryOverlay');
+  overlayEl.classList.add('on');
+  overlayEl.setAttribute('aria-hidden', 'false');
   if (!isDesktop()) document.getElementById('summaryClose').focus();
 
   const applyExtra = extra => {
@@ -2631,7 +2701,9 @@ function openSummary(forItem) {
 }
 function closeSummary() {
   if (isDesktop()) return;
-  document.getElementById('summaryOverlay').classList.remove('on');
+  const overlayEl = document.getElementById('summaryOverlay');
+  overlayEl.classList.remove('on');
+  overlayEl.setAttribute('aria-hidden', 'true');
   stopInlineTrailer();
   if (summaryOpener && summaryOpener.focus) summaryOpener.focus();
   summaryOpener = null;
@@ -2648,10 +2720,18 @@ function openDescPopup() {
   if (!item) return;
   document.getElementById('descPopupTitle').textContent = item.title || '';
   document.getElementById('descPopupText').textContent = item.summary || '';
-  document.getElementById('descPopup').classList.add('on');
+  descPopupOpener = document.activeElement;
+  const popup = document.getElementById('descPopup');
+  popup.classList.add('on');
+  popup.setAttribute('aria-hidden', 'false');
+  document.getElementById('descPopupClose').focus();
 }
 function closeDescPopup() {
-  document.getElementById('descPopup').classList.remove('on');
+  const popup = document.getElementById('descPopup');
+  popup.classList.remove('on');
+  popup.setAttribute('aria-hidden', 'true');
+  if (descPopupOpener && descPopupOpener.focus) descPopupOpener.focus();
+  descPopupOpener = null;
 }
 function closeDescPopupFromOverlay(e) {
   if (e.target === document.getElementById('descPopup')) closeDescPopup();
@@ -2742,10 +2822,12 @@ function toggleShuffle() {
 }
 
 function setState(s) {
-  document.getElementById('stAuth').classList.toggle('on', s === 'auth');
-  document.getElementById('stLoad').classList.toggle('on', s === 'load');
-  document.getElementById('stErr').classList.toggle('on',  s === 'err');
-  document.getElementById('stDone').classList.toggle('on', s === 'done');
+  [['stAuth','auth'],['stLoad','load'],['stErr','err'],['stDone','done']].forEach(([id, key]) => {
+    const el = document.getElementById(id);
+    const on = s === key;
+    el.classList.toggle('on', on);
+    el.setAttribute('aria-hidden', String(!on));
+  });
 }
 function showStage() {
   document.getElementById('stage').classList.add('on');
@@ -2768,6 +2850,7 @@ function updateProgress() {
   bar.style.strokeDasharray = RING_CIRC;
   bar.style.strokeDashoffset = RING_CIRC * (1 - frac);
   document.getElementById('progressCount').textContent = remaining;
+  document.getElementById('progress').setAttribute('aria-label', remaining + (remaining === 1 ? ' title' : ' titles') + ' left to rate');
 }
 
 function fmtDate(ms) {
@@ -2776,7 +2859,7 @@ function fmtDate(ms) {
   if (diff < 2)  return 'yesterday';
   if (diff < 7)  return Math.floor(diff) + 'd ago';
   if (diff < 30) return Math.floor(diff/7) + 'w ago';
-  return d.toLocaleDateString('en-US', { month:'short', year:'numeric' });
+  return d.toLocaleDateString(undefined, { month:'short', year:'numeric' });
 }
 
 function toast(msg, isCelebrate) {
@@ -2799,6 +2882,21 @@ function toast(msg, isCelebrate) {
   clearTimeout(t._t);
   t._t = setTimeout(() => t.classList.remove('on'), isCelebrate ? 3200 : 1600);
 }
+
+window.addEventListener('pagehide', () => {
+  if (!rating || submitting || !ratingTimer || !queue[0]) return;
+  const item = queue[0];
+  try {
+    fetch(`${cfg.url}/:/rate?key=${encodeURIComponent(item.ratingKey)}&identifier=com.plexapp.plugins.library&rating=${rating * 2}`,
+      { method: 'PUT', headers: H(), keepalive: true });
+  } catch {}
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) return;
+  const v = document.getElementById('trailerVideo');
+  if (v && v.src && !v.paused) v.pause();
+});
 
 window.addEventListener('offline', () => toast('You’re offline'));
 window.addEventListener('online',  () => toast('Back online'));
@@ -2874,7 +2972,7 @@ document.addEventListener('keydown', e => {
   } else if (e.key === 'Backspace') {
     e.preventDefault();
     resetRating();
-  } else if (e.key.toLowerCase() === 't') {
+  } else if (e.key && e.key.toLowerCase() === 't') {
     const tb = document.getElementById('btnTrailer');
     if (tb && !tb.classList.contains('hidden') && !tb.classList.contains('skeleton')) {
       e.preventDefault();
