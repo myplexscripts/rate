@@ -57,8 +57,6 @@
   -webkit-tap-highlight-color:transparent;
 }
 
-/* Visible keyboard-focus ring (WCAG 2.4.7 / Apple HIG focus states) —
-   only shown for keyboard/AT users, not on pointer taps. */
 button:focus-visible, [tabindex]:focus-visible, a:focus-visible {
   outline:2px solid var(--star);
   outline-offset:3px;
@@ -88,7 +86,6 @@ html, body {
 
 img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 
-/* SKELETON SHIMMER */
 @keyframes shimmer {
   0% { background-position:-468px 0; }
   100% { background-position:468px 0; }
@@ -101,8 +98,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   animation:shimmer 1.5s ease-in-out infinite;
 }
 .poster.skeleton {
-  /* <img> with no src may collapse to 0 height and ignore aspect-ratio;
-     set height explicitly from the same width basis so 2:3 is guaranteed. */
   width:60vw;
   max-width:280px;
   height:calc(min(60vw, 280px) * 3 / 2);
@@ -119,8 +114,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   vertical-align:middle;
 }
 
-/* ULTRABLUR-STYLE GRADIENT BG — four corner blobs blended together,
-   mirroring Plex's own "ultraBlurColors" artwork-derived backgrounds. */
 #glowBg {
   position:fixed; inset:0;
   z-index:0;
@@ -140,7 +133,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   transition:--glow-tl 0.7s ease, --glow-tr 0.7s ease, --glow-bl 0.7s ease, --glow-br 0.7s ease;
 }
 
-/* STATES */
 .state {
   position:fixed; inset:0;
   display:flex; flex-direction:column;
@@ -154,7 +146,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   transition:opacity 0.4s ease, transform 0.5s cubic-bezier(0.22,1,0.36,1);
 }
 .state.on { opacity:1; transform:none; pointer-events:all; }
-/* Children rise in with a gentle stagger for a touch of dimension. */
 .state.on .state-title { animation:stateRise 0.55s cubic-bezier(0.22,1,0.36,1) both; }
 .state.on .state-sub   { animation:stateRise 0.55s cubic-bezier(0.22,1,0.36,1) 0.06s both; }
 .state.on .state-btn   { animation:stateRise 0.55s cubic-bezier(0.22,1,0.36,1) 0.12s both; }
@@ -183,7 +174,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 }
 @keyframes spin { to { transform:rotate(360deg); } }
 
-/* STAGE */
 #stage {
   position:fixed; inset:0;
   display:flex; align-items:center; justify-content:center;
@@ -193,21 +183,16 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 }
 #stage.on { opacity:1; pointer-events:all; }
 
-/* CARD — top-anchored so the poster's top edge lines up with the filter box.
-   justify-content:flex-start (not center) so the poster truly starts at the
-   padding-top boundary rather than being re-centred in the remaining space. */
 #card {
   position:relative; z-index:1;
   width:100%; height:100%;
   max-width:480px;
   display:flex; flex-direction:column;
   align-items:center; justify-content:flex-start;
-  /* safe-top + progress-ring top (16px) + ring height (36px) + gap to filter (12px) = +64px */
   padding:calc(var(--safe-top) + 64px) 24px calc(var(--safe-bottom) + 20px);
   gap:0;
 }
 
-/* POSTER STACK */
 #posterStack {
   position:relative;
   width:100%;
@@ -217,8 +202,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   min-height:0;
   margin-bottom:28px;
 }
-/* img sized to its own content — aspect-ratio:2/3 keeps skeleton and loaded
-   poster the same shape so layout never shifts when the image loads. */
 .poster {
   position:absolute;
   left:50%; top:50%;
@@ -235,7 +218,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 .poster.p1 { z-index:2; transform:translate(-50%,-50%) scale(1); opacity:0; filter:none; }
 .poster.p2 { z-index:1; transform:translate(-50%,-50%) scale(1); opacity:0; filter:none; }
 
-/* INFO */
 #info {
   width:100%; text-align:center;
   flex-shrink:0; margin-bottom:20px;
@@ -246,9 +228,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   font-size:var(--fs);
   letter-spacing:-0.025em; line-height:1.1;
   color:var(--text); margin-bottom:5px;
-  /* Fixed 2-line box so titles of varying length never shift what's below —
-     content sits at the bottom edge so a 1-line title doesn't leave a gap
-     before the date. */
   display:flex;
   align-items:flex-end;
   justify-content:center;
@@ -277,7 +256,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   -webkit-line-clamp:3;
   -webkit-box-orient:vertical;
   overflow:hidden;
-  /* Fixed 3-line box so 1-line and 3-line summaries take identical space */
   height:calc(0.78rem * 1.55 * 3);
   cursor:pointer;
   transition:color 0.15s;
@@ -285,14 +263,11 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #iSummary:hover { color:var(--text); }
 #iSummary:empty { cursor:default; }
 
-/* SUMMARY POPUP */
 #summaryOverlay {
   position:fixed;
   inset:0;
   z-index:500;
   display:flex; align-items:flex-start; justify-content:center;
-  /* Top matches the poster top (safe-top + 64px) so the summary panel always
-     opens at the same vertical position as the artwork it's describing. */
   padding:calc(var(--safe-top) + 64px) 16px max(16px, env(safe-area-inset-bottom));
   background:rgba(0,0,0,0.6);
   backdrop-filter:blur(2px);
@@ -303,14 +278,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryBox {
   position:relative;
   width:100%; max-width:440px;
-  /* Always fill the full available height so every item opens the same-sized
-     panel — short summaries don't produce a smaller card than long ones. */
   height:100%;
   display:flex; flex-direction:column;
   overflow:hidden;
-  /* --sb-base is blended from the artwork's ultraBlur corner colours (set via
-     JS). It's the colour the backdrop image dissolves INTO — the whole panel
-     sits on this tint so the fade looks seamless instead of fading to grey. */
   --sb-base:#222;
   background:var(--sb-base);
   border-radius:20px;
@@ -322,9 +292,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryScroll {
   flex:1; min-height:0;
   overflow-y:auto;
-  /* `contain` stops the rubber-band/bounce from feeling like it's dragging
-     the whole sheet — scroll chaining and overscroll glow stay inside the
-     panel instead of leaking out to (or bouncing back from) the page edge. */
   overscroll-behavior:contain;
   scrollbar-width:none;
   -ms-overflow-style:none;
@@ -335,7 +302,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 }
 #summaryScroll::-webkit-scrollbar { display:none; }
 #sbBg { display:none; }
-#summaryBackdropImg2 { display:none; }  /* second crossfade layer: desktop only */
+#summaryBackdropImg2 { display:none; }
 #summaryBackdrop {
   display:none;
   position:relative;
@@ -352,10 +319,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   width:100%; height:100%;
   object-fit:cover; display:block;
 }
-/* Fade the image into the ultraBlur — bottom dissolve + vignette that creeps
-   in from all edges with the meniscus bulging up in the centre bottom. */
 #summaryBackdrop {
-  /* Bottom linear fade — top is untouched */
   -webkit-mask-image: linear-gradient(to bottom,
     black 0%, black 44%,
     rgba(0,0,0,0.9) 56%,
@@ -369,8 +333,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     rgba(0,0,0,0.28) 82%,
     transparent 100%);
 }
-/* Corner vignette as an overlay — radials anchored at bottom corners so they
-   can never reach the top edges of the image. */
 #summaryBackdrop::after {
   content:'';
   position:absolute; inset:0;
@@ -382,42 +344,23 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 }
 #summaryBox.has-backdrop #summaryBackdrop,
 #summaryBox.loading-backdrop #summaryBackdrop { display:block; }
-/* The same overlap + reserved height applies the moment we commit to the
-   backdrop layout (skeleton stage included), so the title doesn't shift when
-   the artwork resolves or when an async-loaded logo replaces the text. */
 #summaryBox.has-backdrop #summaryTitle,
 #summaryBox.loading-backdrop #summaryTitle {
   position:relative; z-index:1;
-  /* Reserve a fixed band that overlaps the backdrop (negative top margin) and
-     BOTTOM-align the logo in it (align-items:flex-end, from #summaryTitle).
-     Dynamic sizing changes the logo's HEIGHT, but its baseline — and so the gap
-     down to the meta row — stays put: leftover height is absorbed ABOVE the
-     logo, never below. That keeps the spacing under every logo identical. */
   margin-top:-74px; margin-bottom:2px;
   padding:0 12px;
   min-height:116px;
 }
 #summaryTitle {
-  /* --title-fs is driven down by fitTitle() only when the text would
-     otherwise overflow; short titles keep the full size. */
   --title-fs:1.9rem;
   font-weight:900; font-size:var(--title-fs);
   letter-spacing:-0.02em; line-height:1.12;
   margin-bottom:12px;
   padding:0 44px;
   color:var(--text);
-  /* flex-end bottom-aligns the logo so the gap BELOW it is constant regardless
-     of the logo's height (desktop overrides this to flex-start in its @media). */
   display:flex; align-items:flex-end; justify-content:center;
 }
 #summaryTitle .ttxt { display:block; width:100%; }
-/* The logo is sized so it scales up to fill a generous box in BOTH dimensions:
-   wide logos are bounded by max-width, square/tall ones by max-height — so a
-   square logo no longer ends up tiny just because it isn't very wide.
-   This MUST apply during `loading-backdrop` too: the logo image and the
-   backdrop image load independently, and if the logo wins the race it would
-   otherwise briefly get the small fallback sizing and then jump bigger once
-   the backdrop's `has-backdrop` class lands. */
 #summaryTitle img {
   display:block;
   width:auto; height:auto;
@@ -435,13 +378,11 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   line-height:1.65; color:rgba(255,251,248,0.75);
   min-height:2.9em;
 }
-/* Year + content rating row */
 #summaryRowYearRating {
   display:flex; gap:10px; justify-content:center; align-items:center;
   flex-wrap:wrap; margin-top:14px; margin-bottom:4px;
 }
 #summaryRowYearRating.hidden { display:none; }
-/* Duration / season / episode row */
 #summaryRowDuration {
   display:flex; gap:10px; justify-content:center; align-items:center;
   flex-wrap:wrap; margin-bottom:10px;
@@ -460,7 +401,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   letter-spacing:0.03em;
 }
 .metaDot { color:rgba(255,251,248,0.3); font-weight:600; }
-/* Genres row — plain text separated by dots */
 #summaryGenres {
   font-size:0.78rem; font-weight:500;
   color:rgba(255,251,248,0.5);
@@ -508,9 +448,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   color:rgba(255,251,248,0.68);
   font-weight:600;
 }
-/* Full-bleed to the panel edges: the row's first avatar lines up with the
-   body text (via padding), but avatars scroll straight off the left/right
-   edges and clip there — a clear cue that the row keeps going. */
 #summaryCastWrap {
   margin:18px -24px 0;
   text-align:left;
@@ -542,10 +479,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   overflow:hidden;
 }
 #summaryClose {
-  /* Small controls like this read better as full circles than as
-     near-square corners — concentricity math only pays off at larger sizes.
-     It's a sibling of #summaryScroll (not inside it), so it floats fixed in
-     place over the panel and never scrolls away with the content beneath it. */
   position:absolute; top:16px; right:16px;
   z-index:10;
   width:32px; height:32px;
@@ -557,8 +490,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   transition:background 0.15s;
 }
 #summaryClose:hover { background:rgba(255,251,248,0.2); }
-/* Over a backdrop image the chip needs its own scrim regardless of how
-   light/dark the artwork is, so it stays legible either way. */
 #summaryBox.has-backdrop #summaryClose {
   background:rgba(0,0,0,0.35);
   backdrop-filter:blur(6px);
@@ -568,35 +499,30 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryBox.has-backdrop #summaryClose.on-light:hover { background:rgba(0,0,0,0.45); }
 #summaryClose .icon { width:1.3rem; height:1.3rem; }
 
-/* TRAILER — bare reel-icon button. On mobile it drops to its OWN row beneath
-   the ratings badges (flex-basis:100% forces the wrap) and shows icon only;
-   the "Trailer" label + ratings-pill chrome are desktop-only (see @media). */
 #btnTrailer {
-  display:inline-flex; align-items:center; justify-content:center; gap:6px;
-  flex-basis:100%;            /* own row under the ratings badges on mobile */
-  margin:0; padding:2px;
-  flex-shrink:0;
-  background:none;
-  border:none;
+  display:flex; align-items:center; justify-content:center;
+  width:40px; height:40px;
+  margin:6px auto 14px;
+  padding:0;
+  background-color:rgba(255,251,248,0.07);
+  border:1px solid rgba(255,251,248,0.11);
+  border-radius:50%;
   color:var(--text);
   cursor:pointer;
-  transition:opacity 0.2s, transform 0.15s, background 0.15s;
+  transition:transform 0.15s, background 0.15s;
 }
-#btnTrailer .icon { width:1.5rem; height:1.5rem; filter:drop-shadow(0 1px 3px rgba(0,0,0,0.6)); }
-#btnTrailer .label { display:none; }        /* surfaced only by the desktop pill */
+#btnTrailer .icon { width:20px; height:20px; }
+#btnTrailer .label { display:none; }
 #btnTrailer:hover  { transform:scale(1.08); }
 #btnTrailer:active { transform:scale(0.9); }
 #btnTrailer.hidden { display:none; }
 #btnTrailer.skeleton {
-  flex-basis:auto;
-  width:1.5rem; height:1.5rem; padding:0;
   background-color:rgba(255,251,248,0.06);
   background-image:linear-gradient(100deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0) 70%);
   background-size:468px 100%;
   animation:shimmer 1.5s ease-in-out infinite;
   color:transparent;
   pointer-events:none;
-  border-radius:6px;
 }
 
 #trailerInline { margin:22px 0 18px; position:relative; }
@@ -608,7 +534,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   background:#000;
   display:block;
 }
-/* Close affordance — only surfaced on the desktop right-side player. */
 #trailerClose {
   position:absolute; top:10px; right:10px;
   z-index:4;
@@ -639,15 +564,12 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #trailerError .icon { width:1.3rem; height:1.3rem; }
 #trailerVideo.hidden, #trailerError.hidden, #trailerSkeleton.hidden { display:none; }
 
-/* STARS */
 #starRow {
   display:flex; align-items:center; justify-content:center;
   gap:4px; flex-shrink:0;
   margin-bottom:24px;
   touch-action:none; cursor:pointer;
 }
-/* Inline SVG icons (sprite-based) — fill follows the element's CSS `color`,
-   so they behave exactly like the font-icons they replace. */
 .icon {
   width:1em; height:1em;
   display:inline-block;
@@ -662,7 +584,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 }
 .star.lit { color:var(--star); transform:scale(1.15); }
 
-/* ACTIONS */
 #actions {
   display:flex; align-items:center;
   justify-content:space-between;
@@ -684,11 +605,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 .act-btn.active { color:#f74366; }
 .act-btn.active:hover { color:#f74366; }
 
-/* TOAST — pinned to the top, clear of all centred UI & the progress ring */
 #toast {
   position:fixed;
-  /* Sit at the same vertical band as the streak and progress counters so the
-     three elements read as one horizontal row at the top of the screen. */
   top:calc(var(--safe-top) + 16px);
   left:50%;
   transform:translateX(-50%) translateY(-6px);
@@ -703,13 +621,10 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   text-align:center;
   opacity:0; pointer-events:none;
   transition:opacity 0.2s, transform 0.2s;
-  /* Above the desktop hero overlay (z 500) + stage (550) + counters (600) so
-     toasts — including the milestone "N Titles Rated!" — show in both layouts. */
   z-index:1000;
 }
 #toast.on { opacity:1; transform:translateX(-50%) translateY(0); }
 
-/* PROGRESS RING — subtle indicator of items left */
 #ratedCounter {
   position:fixed;
   top:calc(var(--safe-top) + 16px);
@@ -781,7 +696,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   color:var(--text);
 }
 
-/* TYPE FILTER — sits beneath the progress ring, top-right corner */
 #typeFilter {
   position:fixed;
   top:calc(var(--safe-top) + 16px + 36px + 12px);
@@ -798,11 +712,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #typeFilter.on { opacity:0.55; pointer-events:all; }
 #typeFilter.on:hover { opacity:1; }
 .filter-btn {
-  /* ~44px hit target per Apple HIG / WCAG 2.5.5 minimum tap-target guidance */
   width:40px; height:40px;
   display:flex; align-items:center; justify-content:center;
   background:none; border:none;
-  /* outer radius (14) − container padding (4) keeps the corners concentric */
   border-radius:10px;
   color:var(--muted);
   cursor:pointer;
@@ -822,36 +734,15 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   box-shadow:0 8px 30px rgba(235,175,0,0.4);
 }
 
-/* ════════════════════════════════════════════════════════════
-   DESKTOP / LARGE-SCREEN HERO LAYOUT
-   Placed at the end of the stylesheet so these rules win over the
-   mobile base rules (media queries add no specificity — source
-   order decides). Hard letterbox bars (solid black) frame a central
-   "band": ALL content lives in the band's left half, the backdrop
-   fills its right half with only the LEFT edge dissolving into the
-   artwork's ultraBlur tint; rating controls sit at the band's
-   bottom-left.
-   ════════════════════════════════════════════════════════════ */
 @media (min-width:960px) {
-  /* --bar = hard letterbox bar height. The bars are PART OF THE DESIGN and are
-     always visible — they're a fraction of the viewport (never collapse to 0),
-     so the whole site, bars included, always fits inside the viewport. The
-     band between them holds ALL content on the left + the backdrop on the right. */
   :root {
     --bar: clamp(44px, 8vh, 104px);
-    /* Distance from the band's top edge down to the top of the floating
-       trailer player. The left content column reuses this as its top padding
-       so the LOGO's top lines up exactly with the video player's top. */
     --vplayer-top: clamp(18px, 4vh, 48px);
-    /* One shared gap for an even rhythm down the column:
-       logo · meta · genres · ratings · summary. */
     --stack-gap: clamp(15px, 2.3vh, 24px);
   }
 
   #glowBg { display:none; }
 
-  /* Stage is a click-through top layer on desktop even when .on — otherwise it
-     covers the whole hero and eats clicks meant for the trailer button etc. */
   #stage.on { pointer-events:none; }
 
   #summaryOverlay {
@@ -863,12 +754,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   #summaryBox {
     max-width:none; width:100%; height:100%;
     border-radius:0; transform:none !important;
-    background:#000;                 /* the solid letterbox bars */
+    background:#000;
   }
 
-  /* Ultrablur mesh / letterbox-tint crossfade layer. Sits behind the band and
-     shows through in the bars. The incoming mesh fades in over the committed
-     one (held on #summaryBox background) for a smooth color transition. */
   #sbBg {
     display:block;
     position:absolute; inset:0; z-index:0;
@@ -876,34 +764,23 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     transition:opacity 0.55s ease;
   }
 
-  /* Stage is a transparent top layer; only the control cluster is clickable.
-     Controls sit bottom-LEFT inside the band, just above the bottom bar. */
   #stage { z-index:550; pointer-events:none; }
-  /* Rating cluster lives in the bottom-RIGHT of the band, over the lower
-     portion of the backdrop. Big stars on top, nav controls beneath. */
   #card {
     position:absolute; left:auto; top:auto;
-    /* bottom matches the band's bottom padding so the nav row lines up with the
-       cast/personal block on the left. */
     right:clamp(48px, 7vw, 150px); bottom:calc(var(--bar) + clamp(22px, 4.5vh, 54px));
     width:auto; max-width:none; height:auto;
     flex-direction:column; align-items:center;
     padding:0; gap:18px;
     background:transparent;
-    pointer-events:none; /* pass clicks through to #btnTrailer etc. */
+    pointer-events:none;
   }
   #posterStack, #info { display:none; }
   #starRow { margin:0; pointer-events:all; cursor:pointer; }
-  /* Subtle drop-shadow on the star icons themselves for contrast over artwork */
   .star { font-size:3.6rem; filter:drop-shadow(0 1px 3px rgba(0,0,0,0.6)); }
   #actions { width:auto; justify-content:center; gap:22px; padding:0; pointer-events:all; }
-  /* Trim padding so the visible chevron glyphs sit flush at the cluster's
-     bottom edge, lining up with the personal-stats row on the left. */
   .act-btn { padding:4px; }
   .act-btn .icon { width:1.55rem; height:1.55rem; filter:drop-shadow(0 1px 3px rgba(0,0,0,0.6)); }
 
-  /* The band: a horizontal strip between the two hard bars, tinted with the
-     artwork's ultraBlur colour. Holds the text content on the left. */
   #summaryScroll {
     position:absolute; left:0; right:0;
     top:var(--bar); bottom:var(--bar);
@@ -911,8 +788,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     flex:none;
     display:flex; flex-direction:column; justify-content:flex-start;
     align-items:flex-start;
-    /* top block sits at the top, cast/personal anchor to the bottom (see the
-       auto margins on #summaryText), so every screen lines up identically. */
     padding:var(--vplayer-top) 46% clamp(22px, 4.5vh, 54px) 64px;
     text-align:left; overflow:hidden;
     background-color:var(--sb-base);
@@ -920,12 +795,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     text-shadow:0 1px 14px rgba(0,0,0,0.45);
     z-index:1;
   }
-  /* Content paints above the backdrop within the band. */
   #summaryScroll > :not(#summaryBackdrop) { position:relative; z-index:1; }
 
-  /* Cross-fade when switching items: the left content column fades out
-     instantly then the new content fades in. The backdrop's own opacity
-     transition handles the right side. */
   #summaryScroll.lsx-fade-out > :not(#summaryBackdrop) {
     opacity:0;
     transition:opacity 0.18s ease;
@@ -939,7 +810,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     to   { opacity:1; transform:translateY(0); }
   }
 
-  /* Stagger children so they rise in sequence like mobile's state screens */
   #summaryScroll.lsx-fade-in > :not(#summaryBackdrop):nth-child(2)  { animation-delay:0.04s; }
   #summaryScroll.lsx-fade-in > :not(#summaryBackdrop):nth-child(3)  { animation-delay:0.07s; }
   #summaryScroll.lsx-fade-in > :not(#summaryBackdrop):nth-child(4)  { animation-delay:0.10s; }
@@ -949,8 +819,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   #summaryScroll.lsx-fade-in > :not(#summaryBackdrop):nth-child(8)  { animation-delay:0.22s; }
   #summaryScroll.lsx-fade-in > :not(#summaryBackdrop):nth-child(n+9){ animation-delay:0.24s; }
 
-  /* Star "reset" pulse: a left-to-right ripple when the rating clears between
-     items, so the cluster feels alive without fading in/out. */
   @keyframes starReset {
     0%   { transform:scale(1); }
     35%  { transform:scale(0.8); }
@@ -963,8 +831,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   #starRow.resetting .star:nth-child(4){ animation-delay:0.15s; }
   #starRow.resetting .star:nth-child(5){ animation-delay:0.20s; }
 
-  /* Backdrop fills the band on the RIGHT. Its top/bottom are HARD (flush with
-     the bars); only the LEFT edge is masked so it dissolves into --sb-base. */
   #summaryBox.has-backdrop #summaryBackdrop,
   #summaryBox.loading-backdrop #summaryBackdrop {
     display:block;
@@ -977,22 +843,16 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   #summaryBackdrop img {
     position:absolute;
     right:0; top:0;
-    height:100%; width:auto; /* natural 16:9 ratio, never cropped */
+    height:100%; width:auto;
     z-index:1;
-    opacity:0; /* both layers start hidden; JS crossfades them */
+    opacity:0;
     transition:opacity 0.55s ease, filter 0.55s ease, transform 0.55s ease;
     -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.15) 16%, #000 44%);
     mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,0.15) 16%, #000 44%);
   }
-  #summaryBackdropImg2 { display:block; }  /* enable the second crossfade layer */
-  /* The currently-shown backdrop layer */
+  #summaryBackdropImg2 { display:block; }
   #summaryBackdrop img.bd-show { opacity:1; }
-  /* Keep the container fully shown on desktop; crossfade happens per-layer */
   #summaryBox.has-backdrop #summaryBackdrop { opacity:1; }
-  /* Dynamic contrast: darken only the zones that hold UI — the left column
-     (logo · meta · summary · cast), the bottom strip, and a soft pool behind
-     the bottom-right rating cluster. The centre/right artwork stays bright, so
-     the ultrablur look isn't flattened. */
   #summaryBackdrop::after {
     z-index:2;
     background:
@@ -1005,23 +865,14 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     --title-fs: clamp(1.9rem, 3.2vw, 3.2rem);
     justify-content:flex-start; align-items:flex-start;
     padding:0; width:100%;
-    /* The box hugs the logo and top-aligns it, so the logo's TOP sits exactly
-       at the band's top padding (var(--vplayer-top)) — level with the top of
-       the video player on the right, whatever the logo's aspect ratio. */
     min-height:0;
-    /* Same gap down to the meta row as between every other block. */
     margin-bottom:var(--stack-gap);
   }
   #summaryBox.has-backdrop #summaryTitle,
   #summaryBox.loading-backdrop #summaryTitle {
-    /* Override the mobile has-backdrop rule (min-height:116px, margin-bottom:2px)
-       so the box keeps hugging the logo with the shared gap beneath it. */
     margin-top:0; margin-bottom:var(--stack-gap); padding:0;
     min-height:0;
   }
-  /* Dynamic logo sizing: max-height + max-width with auto on both lets the box
-     shrink to the rendered logo, so its top edge is exact for any aspect ratio.
-     object-fit:contain never distorts it. */
   #summaryTitle img,
   #summaryBox.has-backdrop #summaryTitle img,
   #summaryBox.loading-backdrop #summaryTitle img {
@@ -1030,21 +881,16 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     max-height:clamp(66px, 10.5vh, 110px);
     max-width:min(88%, 440px);
     object-fit:contain; object-position:left top;
-    /* Soft dark drop for legibility on light art — no light halo/glow. */
     filter:drop-shadow(0 2px 8px rgba(0,0,0,0.45));
   }
 
-  /* Even vertical rhythm: every block carries the same gap beneath it, so the
-     spacing logo→meta→genres→ratings→summary is identical. */
   #summaryRowYearRating { justify-content:flex-start; gap:9px; margin-top:0; margin-bottom:var(--stack-gap); }
   #summaryGenres        { text-align:left; margin-bottom:var(--stack-gap); }
   #summaryRatings       { justify-content:flex-start; gap:10px; margin-bottom:var(--stack-gap); }
 
-  /* The trailer control reads as one more ratings pill — reel icon + "Trailer"
-     label, same chip treatment — sitting inline at the end of the row. */
   #btnTrailer {
-    flex-basis:auto;          /* sit inline at the row's end, not on its own row */
-    gap:5px;
+    width:auto; height:auto;
+    margin:0; gap:5px;
     padding:5px 10px;
     background:rgba(255,251,248,0.07);
     border:1px solid rgba(255,251,248,0.11);
@@ -1058,20 +904,13 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   #btnTrailer:active { transform:scale(0.97); }
   #btnTrailer.skeleton { flex-basis:auto; width:86px; height:30px; border-radius:8px; }
 
-
-  /* Summary butts directly under the ratings row, then takes all the remaining
-     space down to the bottom block (margin-bottom:auto pushes cast/personal to
-     the band bottom). Long blurbs get room; short ones just leave space. */
   #summaryText {
     text-align:left; min-height:0;
-    /* Gap comes from the ratings row's margin-bottom, keeping the rhythm even. */
     margin-top:0; margin-bottom:auto;
     font-size:0.92rem; line-height:1.62; max-width:620px;
     display:-webkit-box; -webkit-box-orient:vertical;
     -webkit-line-clamp:6; overflow:hidden;
   }
-  /* When the blurb is too long to fit the clamp, it becomes a clickable
-     affordance that opens the full description in a popup. */
   #summaryText.clamped {
     cursor:pointer;
     -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent 100%);
@@ -1079,7 +918,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   }
   #summaryText.clamped:hover { color:rgba(255,251,248,0.95); }
 
-  /* Cast + personal stats are the bottom block — anchored to the band bottom. */
   #summaryCastWrap { margin:0; width:100%; max-width:600px; }
   #summaryCast { padding:0; }
 
@@ -1091,8 +929,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 
   #summaryClose { display:none !important; }
 
-  /* Counters + filter live IN the top letterbox bar, right-aligned, with
-     generous spacing so they read as three distinct controls. */
   #ratedCounter, #progress, #typeFilter { z-index:600; }
   #ratedCounter {
     top:calc(var(--bar) / 2 - 11px);
@@ -1118,7 +954,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   #typeFilter.on { opacity:0.8; }
   #typeFilter.on:hover { opacity:1; }
 
-  /* ── LSX skeleton: shown while the very first item's extra data loads ── */
   #lsxSkeleton {
     display:none;
     position:absolute; left:0; right:0;
@@ -1137,10 +972,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   .lsx-skel-cast  { display:flex; gap:14px; margin-top:8px; }
   .lsx-skel-head  { width:56px; height:56px; border-radius:50%; flex-shrink:0; }
 
-  /* ── Desktop trailer player ──────────────────────────────
-     Clicking Trailer blurs the crisp backdrop into an ultraBlur backdrop and
-     floats a framed 16:9 player on the right (where the artwork was), so the
-     content stays put on the left. */
   #summaryBox.playing-trailer #summaryBackdrop img.bd-show {
     filter:blur(34px) brightness(0.42) saturate(1.2);
     transform:scale(1.14);
@@ -1149,8 +980,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     display:block;
     position:absolute;
     right:clamp(28px, 3.5vw, 72px);
-    /* Anchored toward the TOP of the band, with the bottom reserving room for
-       the rating cluster so the player never touches the stars. */
     top:clamp(18px, 4vh, 48px);
     transform:none;
     width:min(46%, calc((100vh - 2 * var(--bar) - 210px) * 16 / 9));
@@ -1169,8 +998,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   }
 }
 
-/* ── Full-description popup (super-long blurbs) ──────────────
-   Opened by clicking a clamped #summaryText. Centered modal over a scrim. */
 #descPopup {
   position:fixed; inset:0; z-index:700;
   display:flex; align-items:center; justify-content:center;
@@ -1307,10 +1134,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 
 <div id="summaryOverlay" onclick="closeSummaryFromOverlay(event)" role="dialog" aria-modal="true" aria-labelledby="summaryTitle">
   <div id="summaryBox">
-    <!-- Crossfade layer for the ultraBlur mesh / letterbox tint (desktop) -->
     <div id="sbBg" aria-hidden="true"></div>
     <button id="summaryClose" onclick="closeSummary()" aria-label="Close summary"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-x"/></svg></button>
-    <!-- LSX skeleton: visible on desktop while the first item's data loads -->
     <div id="lsxSkeleton" aria-hidden="true">
       <div class="lsx-skel-logo skeleton"></div>
       <div class="lsx-skel-line lsx-skel-wide skeleton"></div>
@@ -1357,8 +1182,6 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   </div>
 </div>
 
-
-
 <script>
 const PLEX_PRODUCT = 'Rate It';
 const STORE_TOKEN = 'rateit_token';
@@ -1385,19 +1208,16 @@ let hist  = [];
 let allItems = [];
 let chronological = [];
 let shuffled = false;
-// Always starts unfiltered — the user opts into a movies/TV-only view each session.
 let typeFilter = 'all';
 let rating = 0;
 let ratingTimer = null;
 let busy = false;
-let ratedCount = 0;   // RATED items only (not skips)
+let ratedCount = 0;
 
 function updateRatedCounter() {
   document.getElementById('ratedCounterNum').textContent = ratedCount;
 }
 
-// Brief explanatory bubble for the rated/remaining counters — appears near
-// the tapped element, then fades itself out after a moment.
 let counterTipTimer = null;
 function showCounterTip(anchor, text) {
   let tip = document.getElementById('counterTip');
@@ -1457,7 +1277,6 @@ async function plexGet(path) {
   }
 }
 
-// ── Plex OAuth sign-in ────────────────────────────────────
 function signOut() {
   localStorage.removeItem(STORE_TOKEN);
   localStorage.removeItem(STORE_URL);
@@ -1538,8 +1357,6 @@ function pollForToken(pinId) {
   });
 }
 
-// Fetch with a hard timeout — unreachable hosts/relays can otherwise hang
-// the request indefinitely, stalling the "Connecting…" screen forever.
 function fetchWithTimeout(url, opts, ms) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), ms);
@@ -1587,10 +1404,6 @@ async function loadItems() {
     let all = [];
     for (const lib of libs) {
       const t = lib.type === 'movie' ? 1 : 2;
-      // Movies: only ones that have been watched (checked client-side below
-      // via viewCount, since not all PMS versions accept the same filter
-      // operator syntax server-side — better to fetch everything and be sure).
-      // Shows: fetch all, then require >50% of episodes watched.
       const d = await plexGet(`/library/sections/${lib.key}/all?type=${t}&sort=lastViewedAt%3Adesc&X-Plex-Container-Size=10000&X-Plex-Container-Start=0`);
       for (const m of (d.MediaContainer.Metadata || [])) {
         if (m.userRating || seen.has(m.ratingKey)) continue;
@@ -1626,7 +1439,6 @@ async function loadItems() {
   }
 }
 
-// ── Type filter (movies / TV shows) ───────────────────────
 function rebuildQueueFromFilter() {
   chronological = (typeFilter === 'all')
     ? allItems.slice()
@@ -1674,7 +1486,6 @@ function setTypeFilter(type) {
   toast(typeFilter === 'all' ? 'Showing movies & TV' : (typeFilter === 'movie' ? 'Movies only' : 'TV shows only'));
 }
 
-// ── Full rebuild (initial & back) ─────────────────────────
 function rebuild() {
   const item = queue[0];
   if (!item) return;
@@ -1705,17 +1516,13 @@ function setInfo(item) {
   preloadInfo();
   if (isDesktop() && summaryItem !== item) {
     if (item._extra) {
-      // Extra cached — cross-fade straight to new content
       lsxTransition(() => openSummary(item));
     } else {
-      // First load or cache miss: show skeleton immediately, then fade in
-      // once the data arrives.
       if (summaryItem === null) {
-        // Very first item: overlay isn't open yet — show skeleton while loading
         document.getElementById('summaryOverlay').classList.add('on');
         document.getElementById('lsxSkeleton').classList.add('on');
       } else {
-        lsxTransition(() => {});  // fade out current content, leave blank briefly
+        lsxTransition(() => {});
       }
       loadExtraInfo(item).then(() => {
         if (summaryItem !== item) openSummary(item);
@@ -1724,7 +1531,6 @@ function setInfo(item) {
   }
 }
 
-// ── Trailer ───────────────────────────────────────────────
 async function loadTrailer(item) {
   if (item._trailer !== undefined) return item._trailer;
   try {
@@ -1740,14 +1546,11 @@ async function loadTrailer(item) {
   return item._trailer;
 }
 
-// Reveals the trailer player inline inside the summary popup (no nested popup).
 function playInlineTrailer() {
   const item = queue[0];
   if (!item || !item._trailer) return;
   const box = document.getElementById('summaryBox');
   const desktop = isDesktop();
-  // Desktop: the player is a toggle — clicking Trailer again (or the X on the
-  // player) closes it and restores the backdrop.
   if (desktop && box.classList.contains('playing-trailer')) { stopInlineTrailer(); return; }
   const btn = document.getElementById('btnTrailer');
   const wrap = document.getElementById('trailerInline');
@@ -1755,8 +1558,6 @@ function playInlineTrailer() {
   const errEl = document.getElementById('trailerError');
   const skel = document.getElementById('trailerSkeleton');
   if (desktop) {
-    // Blur the backdrop into an ultraBlur and float the player on the right
-    // (handled by the .playing-trailer CSS); leave the left content in place.
     box.classList.add('playing-trailer');
   } else {
     btn.classList.add('hidden');
@@ -1770,10 +1571,9 @@ function playInlineTrailer() {
   video.src = item._trailer.url;
   video.play().catch(err => console.warn('[trailer] play() rejected', err));
 }
-// Stop + tear down the player (called on close, item change, summary close).
 function stopInlineTrailer() {
   const box = document.getElementById('summaryBox');
-  box.classList.remove('playing-trailer');   // restores the crisp backdrop (CSS transition)
+  box.classList.remove('playing-trailer');
   const wrap = document.getElementById('trailerInline');
   const video = document.getElementById('trailerVideo');
   const skel = document.getElementById('trailerSkeleton');
@@ -1786,7 +1586,6 @@ function stopInlineTrailer() {
   video.load();
 }
 
-// Inline SVG placeholders shown when posters / cast photos fail to load.
 const PLACEHOLDER_POSTER = 'data:image/svg+xml;utf8,' + encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 450">
     <rect width="300" height="450" fill="#262626"/>
@@ -1801,9 +1600,6 @@ const PLACEHOLDER_CAST = 'data:image/svg+xml;utf8,' + encodeURIComponent(
     <path d="M20 92 Q50 62 80 92 Z" fill="#555"/>
   </svg>`);
 
-// Cache poster blob URLs + glow colours — max 30 entries to cap memory use.
-// Oldest entries are evicted (with URL.revokeObjectURL to free the blob) when
-// the limit is reached, which happens naturally during long sessions.
 const posterCache = new Map();
 const POSTER_CACHE_MAX = 30;
 function posterCacheSet(key, val) {
@@ -1838,8 +1634,6 @@ async function loadPoster(item, img, isTop) {
     posterCache.delete(key + '_pending');
     img.onload = async () => {
       img.classList.remove('skeleton');
-      // UltraBlurColors from Plex metadata are server-extracted and match Plex's
-      // own UI — use them directly when available, skipping the pixel scan entirely.
       const c = ultraBlur ? ultraBlur : await getEdgeColors(img);
       img._glow = c;
       posterCacheSet(key, { url: obj, glow: c });
@@ -1853,9 +1647,6 @@ async function loadPoster(item, img, isTop) {
   }
 }
 
-// On cellular (or when the user has Data Saver on), background prefetching
-// of posters/cast photos/backdrops just competes with what's on screen for
-// limited bandwidth — so we scale it back instead of firing it all eagerly.
 function isMeteredConnection() {
   const c = navigator.connection || navigator.webkitConnection || navigator.mozConnection;
   if (!c) return false;
@@ -1875,18 +1666,6 @@ function preloadAhead() {
   }
 }
 
-// Quietly warm the summary-popup data (extra info + trailer lookup + cast
-// photos) for the current item plus the next couple of titles, so it's
-// already cached by the time the user opens the popup. queue[0] is included
-// because the very first title shown has no "previous" item to have preloaded
-// it. queue[1]/queue[2] are "up next" regardless of chronological vs shuffled
-// order, since shuffle simply reorders the queue itself.
-// On metered connections we only warm queue[0] (the item the user is looking
-// at right now) and skip the cast-photo downloads — those only matter once
-// the summary popup is actually opened, where loadExtraInfo() is re-run and
-// covers them anyway.
-// Pre-fetch a URL as a blob and cache the object URL on the item under `key`.
-// Guards against concurrent fetches for the same key.
 async function prefetchBlob(item, key, url) {
   if (item[key] || item[key + '_pending']) return;
   item[key + '_pending'] = true;
@@ -1894,7 +1673,7 @@ async function prefetchBlob(item, key, url) {
     const r = await fetch(url, { headers: H() });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     item[key] = URL.createObjectURL(await r.blob());
-  } catch { /* non-fatal — openSummary will fetch on demand */ }
+  } catch {  }
   delete item[key + '_pending'];
 }
 
@@ -1906,7 +1685,6 @@ function preloadInfo() {
     if (!item) continue;
     loadExtraInfo(item).then(extra => {
       if (metered) return;
-      // Backdrop + logo: cache as blob URLs so openSummary is instant.
       if (extra.backdrop) prefetchBlob(item, '_backdropBlobUrl', extra.backdrop);
       if (extra.logo)     prefetchBlob(item, '_logoBlobUrl',     extra.logo);
       extra.cast.forEach(c => { if (c.photo) prefetchCastPhoto(c.photo); });
@@ -1915,9 +1693,6 @@ function preloadInfo() {
   }
 }
 
-// ── Colour extraction ─────────────────────────────────────
-// Samples the dominant colour from the left 30% and right 30% of the
-// poster so the page glow can blend the two, mirroring the artwork.
 function getEdgeColors(imgEl) {
   return new Promise(resolve => {
     const run = () => { try {
@@ -1956,8 +1731,6 @@ function getEdgeColors(imgEl) {
   });
 }
 
-// Samples the corner of a backdrop image where the close button sits, so it
-// can switch to a dark icon/scrim when the artwork there is light.
 function sampleCornerBrightness(imgEl) {
   return new Promise(resolve => {
     try {
@@ -1978,11 +1751,6 @@ function sampleCornerBrightness(imgEl) {
   });
 }
 
-// Called on #summaryScroll scroll and when the backdrop brightness result lands.
-// The close button is pinned to the box (position:absolute, outside the scroll
-// container), so as the user scrolls, the backdrop image slides past it. Once
-// the backdrop has scrolled clear of the button we know only the dark panel bg
-// is behind it, so on-light is safe to remove without any extra sampling.
 function updateCloseAdaptation() {
   const scrollEl = document.getElementById('summaryScroll');
   const box = document.getElementById('summaryBox');
@@ -1992,8 +1760,6 @@ function updateCloseAdaptation() {
     closeBtn.classList.remove('on-light');
     return;
   }
-  // getBoundingClientRect() gives live viewport positions that already
-  // account for scrolling — no need to walk the offsetParent chain manually.
   const backdropBottom = backdropEl.getBoundingClientRect().bottom;
   const btnRect = closeBtn.getBoundingClientRect();
   const btnCentre = (btnRect.top + btnRect.bottom) / 2;
@@ -2004,12 +1770,6 @@ function updateCloseAdaptation() {
   }
 }
 
-// ── Backdrop parallax (mobile) ────────────────────────────
-// As the sheet scrolls, the key-art drifts up at a fraction of the scroll speed
-// so it reads as a layer sitting BEHIND the logo/metadata that slide over it —
-// the depth effect of a hero parallax. The backdrop moves at (1 - FACTOR) of the
-// content's speed. Desktop has no vertical scroll here (the band is fixed), so
-// it's a no-op there.
 const PARALLAX_FACTOR = 0.5;
 function updateBackdropParallax() {
   const backdrop = document.getElementById('summaryBackdrop');
@@ -2021,22 +1781,11 @@ function updateBackdropParallax() {
   backdrop.style.transform = 'translate3d(0,' + offset + 'px,0)';
 }
 
-// Single passive scroll handler for the summary sheet.
 function onSummaryScroll() {
   updateCloseAdaptation();
   updateBackdropParallax();
 }
 
-// Turns an ultraBlur corner hex into two derived colours for the summary
-// panel: a `glow` (the corner tint, darkened and luminance-capped so white
-// text keeps a comfortable contrast ratio over it) and a `fade` (that glow
-// composited over the #222 base, used by the cast-row edge fades so they
-// blend seamlessly into the tinted bottom corners).
-// Blend all available ultraBlur corner hex strings into a single dark tinted
-// colour used as the panel's solid background — the colour the backdrop image
-// dissolves into. Averaging keeps the hue representative while the luminance
-// cap (≤72) ensures white text stays legible (~7:1 contrast or better).
-// Darkens a single [r,g,b] corner from UltraBlurColors to panel-background level.
 function ubDarken(rgb) {
   if (!rgb) return null;
   let [r, g, b] = rgb.map(v => Math.round(v * 0.55));
@@ -2044,7 +1793,6 @@ function ubDarken(rgb) {
   if (lum > 88) { const k = 88 / lum; r = Math.round(r*k); g = Math.round(g*k); b = Math.round(b*k); }
   return `rgb(${r},${g},${b})`;
 }
-// Fallback single average colour (used when only some corners are present).
 function ubBlend(hexCorners) {
   const parsed = hexCorners.map(hexToRgb).filter(Boolean);
   if (!parsed.length) return null;
@@ -2053,12 +1801,6 @@ function ubBlend(hexCorners) {
   return ubDarken([r / parsed.length, g / parsed.length, b / parsed.length]);
 }
 
-// Text titles start at full size and only shrink (down to a floor) when they'd
-// otherwise spill past two lines — so most titles stay big and legible, and
-// only the genuinely long ones scale down to fit. No-ops for logo titles.
-// The text lives in an inner <span> so we measure the text's own height rather
-// than the title box (whose min-height — reserved for logos — would otherwise
-// make every title look like it overflows and shrink to the floor).
 function fitTitle(el) {
   if (!el || el.querySelector('img')) return;
   const text = el.textContent;
@@ -2076,9 +1818,6 @@ function fitTitle(el) {
   }
 }
 
-// Plex tags most artwork with "ultraBlurColors" — four corner colours
-// (already extracted server-side) that its own apps use for ambient
-// backgrounds. Prefer that real metadata over guessing from pixels.
 function hexToRgb(hex) {
   if (!hex) return null;
   const h = hex.replace('#', '');
@@ -2105,7 +1844,6 @@ function setGlow({ tl, tr, bl, br }) {
   bg.style.setProperty('--glow-br', `rgb(${br[0]},${br[1]},${br[2]})`);
 }
 
-// ── Stars ─────────────────────────────────────────────────
 (function buildStars() {
   const row = document.getElementById('starRow');
   for (let n = 1; n <= 5; n++) {
@@ -2142,7 +1880,6 @@ function setGlow({ tl, tr, bl, br }) {
     });
   }
 
-  // Mobile: live drag rating
   let sliding = false;
   row.addEventListener('pointerdown', e => {
     if (busy || isDesktop()) return;
@@ -2154,14 +1891,12 @@ function setGlow({ tl, tr, bl, br }) {
   row.addEventListener('pointerup',     () => { sliding = false; });
   row.addEventListener('pointercancel', () => { sliding = false; });
 
-  // Desktop: hover = visual preview (no timer), click = commit
   row.addEventListener('mousemove', e => {
     if (!isDesktop() || busy) return;
     paintStars(ratingFromX(e.clientX));
   });
   row.addEventListener('mouseleave', () => {
     if (!isDesktop()) return;
-    // restore actual committed state (or clear if none)
     if (rating > 0) paintStars(rating);
     else paintStars(0);
   });
@@ -2200,11 +1935,10 @@ function resetRating() {
     s.setAttribute('class', 'icon star');
     s.querySelector('use').setAttribute('href', '#icon-star-empty');
   });
-  // Smooth left-to-right "reset" ripple on desktop (the cluster doesn't fade).
   if (isDesktop()) {
     const row = document.getElementById('starRow');
     row.classList.remove('resetting');
-    void row.offsetWidth;          // restart the animation
+    void row.offsetWidth;
     row.classList.add('resetting');
     clearTimeout(row._resetTimer);
     row._resetTimer = setTimeout(() => row.classList.remove('resetting'), 700);
@@ -2232,18 +1966,16 @@ async function submitRating() {
   } else {
     toast('Failed to save rating');
   }
-  advance('right');   // rated → flies RIGHT
+  advance('right');
 }
 
 function doSkip() {
   if (busy) return;
   clearTimeout(ratingTimer);
   toast('Skipped');
-  advance('left');    // skipped → flies LEFT
+  advance('left');
 }
 
-// ── Confetti milestones ───────────────────────────────────
-// Fire at 5, 10, 25, 50, then every 50 thereafter (100, 150, 200, 250, …).
 function isMilestone(n) {
   if (n === 5 || n === 10 || n === 25 || n === 50) return true;
   return n >= 100 && n % 50 === 0;
@@ -2251,15 +1983,9 @@ function isMilestone(n) {
 function celebrate(n) {
   toast(n + ' Titles Rated!', true);
   if (typeof confetti !== 'function') return;
-  // Render above the desktop hero overlay (z-index 500+) so the burst shows in
-  // BOTH experiences: on mobile you rate on the bare card, on desktop you rate
-  // inside the full-screen summary overlay — at the default z-index 100 the
-  // confetti would be painted behind that overlay and never seen.
   const CONFETTI_Z = 1200;
-  // Two colours per side (rather than all four on both) so each burst reads as its own palette.
   const leftColors  = ['#F7C600', '#15A9FC'];
   const rightColors = ['#F74366', '#69DD58'];
-  // Bursts fired from the left and right edges, angled inward toward centre.
   confetti({ particleCount: 110, spread: 70, startVelocity: 50, angle: 60,  origin: { x: 0, y: 0.75 }, colors: leftColors,  zIndex: CONFETTI_Z });
   confetti({ particleCount: 110, spread: 70, startVelocity: 50, angle: 120, origin: { x: 1, y: 0.75 }, colors: rightColors, zIndex: CONFETTI_Z });
   setTimeout(() => {
@@ -2268,7 +1994,6 @@ function celebrate(n) {
   }, 200);
 }
 
-// ── Advance ───────────────────────────────────────────────
 function advance(dir) {
   if (busy) return;
   busy = true;
@@ -2289,11 +2014,6 @@ function advance(dir) {
 
   if (p1) {
     p1.className = 'poster p0';
-    // Defer the glow change by two frames so the browser commits the current
-    // (outgoing) glow as the transition's start value first — otherwise a
-    // synchronous set at swipe-time finishes its 0.7s fade before the new
-    // poster has even slid in, reading as an instant jump. goBack gets this
-    // deferral for free via the new poster's async img.onload.
     if (p1._glow) requestAnimationFrame(() => requestAnimationFrame(() => setGlow(p1._glow)));
   }
   if (p2) { p2.className = 'poster p1'; }
@@ -2310,9 +2030,6 @@ function advance(dir) {
   if (after) { const im = new Image(); im.src = posterUrl(after); }
 
   resetRating();
-  // Update deck text + Detail panel for the next item immediately so they
-  // change in sync with the poster animation rather than waiting 400ms for
-  // the shift to complete. setInfo handles both (and openSummary on desktop).
   if (queue[1]) setInfo(queue[1]);
 
   setTimeout(() => {
@@ -2326,7 +2043,6 @@ function advance(dir) {
   }, 400);
 }
 
-// ── Summary popup ─────────────────────────────────────────
 const castPhotoCache = new Map();
 async function loadCastPhoto(url, img) {
   const cached = castPhotoCache.get(url);
@@ -2348,12 +2064,9 @@ async function loadCastPhoto(url, img) {
   }
 }
 
-// Silently warms castPhotoCache (no <img> involved) so by the time the
-// summary popup renders the real photo elements, loadCastPhoto hits cache.
 async function prefetchCastPhoto(url) {
   if (!url || castPhotoCache.has(url)) return;
   if (!url.startsWith(cfg.url)) {
-    // External (e.g. TMDB) CDN photo — just warm the browser's HTTP cache.
     const im = new Image();
     im.src = url;
     return;
@@ -2372,8 +2085,6 @@ function formatDuration(ms) {
   return h ? `${h}h ${m % 60}m` : `${m}m`;
 }
 
-// Parse Plex rating image strings like "rottentomatoes://image.rating.ripe"
-// Returns { label, score } for display, or null.
 function ratingBadge(imageStr, score) {
   if (!imageStr || score == null) return null;
   const s = String(imageStr).toLowerCase();
@@ -2392,7 +2103,7 @@ function ratingBadge(imageStr, score) {
   return { imgSrc: null, label: '★', score: score.toFixed(1), pct, fillColor: 'rgba(255,251,248,0.13)' };
 }
 
-const EXTRA_TTL = 24 * 60 * 60 * 1000; // 24 h
+const EXTRA_TTL = 24 * 60 * 60 * 1000;
 function lsExtraGet(ratingKey) {
   try {
     const raw = localStorage.getItem('px_ex_' + ratingKey);
@@ -2408,7 +2119,6 @@ function lsExtraSet(ratingKey, data) {
 
 async function loadExtraInfo(item) {
   if (item._extra !== undefined) return item._extra;
-  // Return cached metadata from localStorage to avoid a network round-trip
   const cached = lsExtraGet(item.ratingKey);
   if (cached) { item._extra = cached; return item._extra; }
   try {
@@ -2425,8 +2135,6 @@ async function loadExtraInfo(item) {
       bl: ub.bottomLeft ? ubDarken(hexToRgb(ub.bottomLeft)) : null,
       br: ub.bottomRight? ubDarken(hexToRgb(ub.bottomRight)): null,
     } : null;
-    // Ratings — prefer the Rating[] array (newer Plex) which carries all
-    // sources; fall back to the scalar fields for older servers.
     const ratingArr = (meta && meta.Rating) || [];
     item._extra = {
       year: (meta && meta.year) || null,
@@ -2458,7 +2166,6 @@ async function loadExtraInfo(item) {
       viewCount: item.viewCount || (meta && meta.viewCount) || null,
       firstViewedAt: null
     };
-    // Fetch first-viewed timestamp from watch history (separate call, only if watched)
     if (item._extra.viewCount > 0) {
       try {
         const hist = await plexGet(`/status/sessions/history/all?metadataItemID=${item.ratingKey}&sort=viewedAt%3Aasc&X-Plex-Container-Size=1&X-Plex-Container-Start=0`);
@@ -2474,14 +2181,12 @@ async function loadExtraInfo(item) {
 }
 
 let summaryOpener = null;
-let summaryItem = null; // tracks which item the summary is currently showing
+let summaryItem = null;
 let _lsxFadeTimer = null;
 
 function lsxTransition(populate) {
   if (!isDesktop()) { populate(); return; }
   const scroll = document.getElementById('summaryScroll');
-  // Only the content column fades — the nav/star cluster stays anchored in
-  // place (it gets its own "reset" pulse via resetRating instead).
   scroll.classList.remove('lsx-fade-in');
   scroll.classList.add('lsx-fade-out');
   clearTimeout(_lsxFadeTimer);
@@ -2489,23 +2194,19 @@ function lsxTransition(populate) {
     populate();
     scroll.classList.remove('lsx-fade-out');
     scroll.classList.add('lsx-fade-in');
-    // Clean up animation classes once they've played
     setTimeout(() => {
       scroll.classList.remove('lsx-fade-in');
     }, 500);
   }, 180);
 }
 
-// Crossfade the ultrablur mesh / letterbox tint. The incoming mesh is painted
-// on the #sbBg overlay and faded in over the committed mesh (on #summaryBox),
-// then committed once the fade completes.
 let _meshTimer = null;
 function applySummaryMesh(box, meshCss) {
   if (!isDesktop()) { box.style.background = meshCss; return; }
   const bg = document.getElementById('sbBg');
   bg.style.background = meshCss;
   bg.style.opacity = '0';
-  void bg.offsetWidth;          // reflow so the 0→1 transition fires
+  void bg.offsetWidth;
   bg.style.opacity = '1';
   clearTimeout(_meshTimer);
   _meshTimer = setTimeout(() => {
@@ -2514,8 +2215,6 @@ function applySummaryMesh(box, meshCss) {
   }, 600);
 }
 
-// Tracks which of the two stacked backdrop <img> layers is currently shown,
-// so each new artwork can crossfade in over the previous one (desktop).
 let _bdShownId = 'summaryBackdropImg';
 
 function openSummary(forItem) {
@@ -2528,12 +2227,8 @@ function openSummary(forItem) {
   const backdrop = document.getElementById('summaryBackdrop');
   const backdropImg = document.getElementById('summaryBackdropImg');
 
-  // Hide LSX skeleton once real content is ready
   document.getElementById('lsxSkeleton').classList.remove('on');
 
-  // On desktop we crossfade between items, so we DON'T tear down the current
-  // backdrop / ultrablur here — the old visuals stay put and the new ones fade
-  // in over them. On mobile the popup is opened fresh each time, so reset fully.
   if (!isDesktop()) {
     box.classList.remove('has-backdrop');
     backdrop.classList.remove('on');
@@ -2552,39 +2247,23 @@ function openSummary(forItem) {
     el.innerHTML = '';
     el.classList.add('hidden');
   });
-  // Ratings row hosts the trailer button, so clear only the badges (an
-  // innerHTML wipe would destroy the button element).
   const ratingsReset = document.getElementById('summaryRatings');
   ratingsReset.querySelectorAll('.ratingBadge').forEach(b => b.remove());
   ratingsReset.classList.add('hidden');
 
-  // Background prefetch (preloadInfo) usually has the extra info cached by the
-  // time the popup opens, so we know up front whether a backdrop exists. Only
-  // reserve the 16:9 backdrop skeleton when we genuinely don't know yet —
-  // otherwise the panel would visibly stretch then snap back when an item
-  // turns out to have no backdrop.
   const known = item._extra;
-  // On desktop we keep the old backdrop visible and crossfade — so we skip the
-  // skeleton shimmer (it would flash over the whole band). Mobile reserves it.
   if ((!known || known.backdrop) && !isDesktop()) {
     box.classList.add('loading-backdrop');
     backdrop.classList.add('skeleton');
   }
-  // If we already know a logo is coming, leave the title slot empty (its space
-  // is reserved by min-height) rather than flashing the text title for a frame
-  // before the logo image swaps in. Otherwise render the text title now.
   if (known && known.backdrop && known.logo) {
     titleEl.innerHTML = '';
   } else {
     titleEl.textContent = item.title || '';
     fitTitle(titleEl);
   }
-  // Year is known up front whenever the extra info is cached, so we can set it
-  // immediately — that keeps its row from popping in later and nudging layout.
   const summaryTextEl = document.getElementById('summaryText');
   summaryTextEl.textContent = item.summary;
-  // On desktop the blurb is line-clamped; if it overflows, mark it clickable
-  // so the full text can be read in a popup. Checked after layout settles.
   summaryTextEl.classList.remove('clamped');
   if (isDesktop()) {
     requestAnimationFrame(() => {
@@ -2601,12 +2280,9 @@ function openSummary(forItem) {
   castEl.scrollLeft = 0;
   const scrollEl = document.getElementById('summaryScroll');
   scrollEl.scrollTop = 0;
-  document.getElementById('summaryBackdrop').style.transform = '';   // clear last item's parallax
+  document.getElementById('summaryBackdrop').style.transform = '';
   scrollEl.removeEventListener('scroll', onSummaryScroll);
   scrollEl.addEventListener('scroll', onSummaryScroll, { passive: true });
-  // Skeleton placeholders are only needed when the extra info isn't cached yet.
-  // When it is (the common case, thanks to prefetch), we render the real
-  // content synchronously below so the panel never resizes after it appears.
   if (!known) {
     castEl.innerHTML = Array.from({ length: 6 }).map(() => `
       <div class="castMember">
@@ -2616,9 +2292,6 @@ function openSummary(forItem) {
     castWrap.classList.remove('hidden');
   }
 
-  // Reset trailer state for this item. If we already know (from prefetch)
-  // whether a trailer exists, render the final state immediately so the panel
-  // doesn't reserve a button slot that then vanishes; otherwise show a skeleton.
   stopInlineTrailer();
   const trailerKnown = item._trailer;
   trailerBtn.innerHTML = '';
@@ -2641,14 +2314,12 @@ function openSummary(forItem) {
     } else {
       trailerBtn.classList.add('hidden');
     }
-    // Keep the ratings row visible if it's hosting the trailer button, even
-    // when the title has no rating badges.
     const ratingsEl = document.getElementById('summaryRatings');
     const hasBadges = ratingsEl.querySelector('.ratingBadge');
-    ratingsEl.classList.toggle('hidden', !hasBadges && trailerBtn.classList.contains('hidden'));
+    const keepForTrailer = isDesktop() && !trailerBtn.classList.contains('hidden');
+    ratingsEl.classList.toggle('hidden', !hasBadges && !keepForTrailer);
   });
 
-  // Hide any lingering toast so it can't sit on top of the popup.
   document.getElementById('toast').classList.remove('on');
   document.getElementById('summaryOverlay').classList.add('on');
   if (!isDesktop()) document.getElementById('summaryClose').focus();
@@ -2656,9 +2327,6 @@ function openSummary(forItem) {
   const applyExtra = extra => {
     if (summaryItem !== item) return;
 
-    // Row 1: year · content-rating · duration · seasons · episodes (single line).
-    // Year + the content-rating pill stay grouped (just a space); everything
-    // else is dot-separated so the row reads "2021 PG-13 · 2h 18m · 2 Seasons".
     const yearRatingEl = document.getElementById('summaryRowYearRating');
     const lead = [];
     if (extra.year) lead.push(`<span class="metaText">${escHtml(String(extra.year))}</span>`);
@@ -2673,10 +2341,8 @@ function openSummary(forItem) {
       yearRatingEl.classList.remove('hidden');
     } else yearRatingEl.classList.add('hidden');
 
-    // The duration row is now folded into row 1 above; keep it empty/hidden.
     document.getElementById('summaryRowDuration').classList.add('hidden');
 
-    // Row 3: ratings
     const ratingsEl = document.getElementById('summaryRatings');
     const mkBadge = b => {
       const img = b.imgSrc ? `<img src="${escHtml(b.imgSrc)}" class="rIcon" alt="${escHtml(b.label)}" onerror="this.style.display='none'">` : '';
@@ -2684,7 +2350,6 @@ function openSummary(forItem) {
     };
     const badges = (extra.ratings || []).map(r => ratingBadge(r.image, r.value)).filter(Boolean);
     ratingsEl.innerHTML = badges.map(mkBadge).join('');
-    // Trigger fill animation on next frame so the transition fires from 0
     if (badges.length) {
       requestAnimationFrame(() => requestAnimationFrame(() => {
         ratingsEl.querySelectorAll('.ratingBadge').forEach(el => {
@@ -2692,18 +2357,18 @@ function openSummary(forItem) {
         });
       }));
     }
-    // The circular trailer button rides at the END of the ratings row (it was
-    // emptied above by innerHTML, so re-attach it here). The row shows whenever
-    // there are badges OR a trailer to host.
-    ratingsEl.appendChild(trailerBtn);
-    ratingsEl.classList.toggle('hidden', !badges.length && trailerBtn.classList.contains('hidden'));
+    if (isDesktop()) {
+      ratingsEl.appendChild(trailerBtn);
+      ratingsEl.classList.toggle('hidden', !badges.length && trailerBtn.classList.contains('hidden'));
+    } else {
+      ratingsEl.insertAdjacentElement('afterend', trailerBtn);
+      ratingsEl.classList.toggle('hidden', !badges.length);
+    }
 
-    // Row 4: genres as plain text
     const genresEl = document.getElementById('summaryGenres');
     if (extra.genres && extra.genres.length) { genresEl.textContent = extra.genres.join(' · '); genresEl.classList.remove('hidden'); }
     else genresEl.classList.add('hidden');
 
-    // Personal data section
     const personalEl = document.getElementById('summaryPersonal');
     const personalRows = [];
     const fmtTs = ts => {
@@ -2717,10 +2382,6 @@ function openSummary(forItem) {
     if (personalRows.length) { personalEl.innerHTML = personalRows.join(''); personalEl.classList.remove('hidden'); }
     else personalEl.classList.add('hidden');
 
-    // Paint the bottom corners with the artwork's ultraBlur tint (or clear it
-    // for items without that metadata). The band reads --sb-base (which has its
-    // own background-color transition); the mesh on the box/letterbox crossfades
-    // via #sbBg so switching items fades the ambient colour smoothly.
     if (extra.ubTints) {
       const { tl, tr, bl, br } = extra.ubTints;
       const validCorners = [tl, tr, bl, br].filter(Boolean);
@@ -2732,8 +2393,6 @@ function openSummary(forItem) {
         bl ? `radial-gradient(ellipse at 0% 100%, ${bl} 0%, transparent 70%)` : '',
         br ? `radial-gradient(ellipse at 100% 100%, ${br} 0%, transparent 70%)` : '',
       ].filter(Boolean);
-      // Bake the base colour literally so the committed (box) and incoming (#sbBg)
-      // layers are independent of the --sb-base var while crossfading.
       const meshCss = corners.length ? `${corners.join(',')}, ${avg}` : avg;
       applySummaryMesh(box, meshCss);
     } else {
@@ -2741,18 +2400,12 @@ function openSummary(forItem) {
       applySummaryMesh(box, '#161616');
     }
 
-    // Backdrop + logo go together: no backdrop means we keep the plain
-    // text-title layout untouched, even if a logo happens to be available.
     if (extra.backdrop) {
       const applyBackdropBlob = blobUrl => {
         if (summaryItem !== item) return;
-        // Expose the URL so the desktop hero's ::before can render a blurred,
-        // darkened full-screen copy behind the crisp 16:9 frame (cinematic bars).
         backdrop.style.setProperty('--bd-img', `url("${blobUrl}")`);
 
         if (isDesktop()) {
-          // Crossfade: load the new art into the hidden layer, then fade it in
-          // over the currently-shown one.
           const curId  = _bdShownId;
           const nextId = curId === 'summaryBackdropImg' ? 'summaryBackdropImg2' : 'summaryBackdropImg';
           const curEl  = document.getElementById(curId);
@@ -2799,7 +2452,6 @@ function openSummary(forItem) {
         box.classList.remove('loading-backdrop', 'has-backdrop');
         backdrop.classList.remove('on');
       };
-      // Use pre-cached blob URL if preloadInfo already fetched it; otherwise fetch now.
       if (item._backdropBlobUrl) {
         applyBackdropBlob(item._backdropBlobUrl);
       } else {
@@ -2830,7 +2482,6 @@ function openSummary(forItem) {
     } else {
       backdrop.classList.remove('skeleton');
       box.classList.remove('loading-backdrop');
-      // No backdrop for this item — fade the previous artwork out (desktop).
       if (isDesktop()) {
         document.getElementById('summaryBackdropImg').classList.remove('bd-show');
         document.getElementById('summaryBackdropImg2').classList.remove('bd-show');
@@ -2850,8 +2501,6 @@ function openSummary(forItem) {
         if (c.photo) {
           loadCastPhoto(c.photo, imgs[i]);
         } else {
-          // No photo for this actor — drop the shimmer skeleton and show the
-          // silhouette placeholder right away (otherwise it sits blank/grey).
           imgs[i].classList.remove('skeleton');
           imgs[i].src = PLACEHOLDER_CAST;
         }
@@ -2876,10 +2525,8 @@ function closeSummaryFromOverlay(e) {
   if (e.target === document.getElementById('summaryOverlay')) closeSummary();
 }
 
-// ── Full-description popup ────────────────────────────────
 function openDescPopup() {
   const el = document.getElementById('summaryText');
-  // Only when the blurb is actually clamped (otherwise it's fully visible).
   if (!el.classList.contains('clamped')) return;
   const item = summaryItem;
   if (!item) return;
@@ -2911,7 +2558,6 @@ function goBack() {
   if (p1) p1.className = 'poster p2';
   if (p0) p0.className = 'poster p1';
 
-  // Returning poster re-enters from the side it originally exited toward
   const img = document.createElement('img');
   img.className = 'poster p0 skeleton';
   img.alt = item.title || '';
@@ -2945,7 +2591,6 @@ function goBack() {
   }, 420);
 }
 
-// ── Shuffle ───────────────────────────────────────────────
 function shuffleArray(arr) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -2976,7 +2621,6 @@ function toggleShuffle() {
   toast(shuffled ? 'Shuffle on' : 'Shuffle off');
 }
 
-// ── UI helpers ────────────────────────────────────────────
 function setState(s) {
   document.getElementById('stAuth').classList.toggle('on', s === 'auth');
   document.getElementById('stLoad').classList.toggle('on', s === 'load');
@@ -3017,8 +2661,6 @@ function fmtDate(ms) {
 
 function toast(msg, isCelebrate) {
   const t = document.getElementById('toast');
-  // Float just above the poster stack, in the open space below the
-  // counters/filters, so it never overlaps the poster, title, stars or actions.
   const stackRect = document.getElementById('posterStack').getBoundingClientRect();
   if (stackRect.height) {
     t.style.top = (stackRect.top - 46) + 'px';
@@ -3031,7 +2673,6 @@ function toast(msg, isCelebrate) {
   t._t = setTimeout(() => t.classList.remove('on'), isCelebrate ? 2600 : 1600);
 }
 
-// iOS webapp hardening: block pinch/double-tap zoom & rubber-banding
 ['gesturestart','gesturechange','gestureend'].forEach(ev =>
   document.addEventListener(ev, e => e.preventDefault())
 );
@@ -3047,7 +2688,6 @@ document.addEventListener('touchmove', e => {
 }, { passive: false });
 
 document.addEventListener('keydown', e => {
-  // The description popup is the topmost layer — Escape closes it first.
   if (document.getElementById('descPopup').classList.contains('on')) {
     if (e.key === 'Escape') closeDescPopup();
     return;
@@ -3055,9 +2695,6 @@ document.addEventListener('keydown', e => {
   const overlayOn = document.getElementById('summaryOverlay').classList.contains('on');
   const desktop = isDesktop();
 
-  // On mobile the summary is a modal: trap focus and only allow Escape/Tab.
-  // On desktop the summary is the always-on hero, so it isn't modal — fall
-  // through to the rating/navigation shortcuts below.
   if (overlayOn && !desktop) {
     if (e.key === 'Escape') { closeSummary(); return; }
     if (e.key === 'Tab') {
@@ -3073,14 +2710,10 @@ document.addEventListener('keydown', e => {
     return;
   }
 
-  // Don't hijack keys while typing in a field.
   const t = e.target;
   if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
   if (busy || !queue[0]) return;
 
-  // Number keys rate in whole stars; hold Shift for the half-star below
-  // (e.g. "3" = 3 stars, Shift+"3" = 2.5). Match on e.code, not e.key, so Shift
-  // works regardless of keyboard layout (Shift+3 yields e.key '#' on US layouts).
   const digit = e.code && /^(?:Digit|Numpad)([0-5])$/.exec(e.code);
   if (digit) {
     e.preventDefault();
@@ -3088,14 +2721,12 @@ document.addEventListener('keydown', e => {
     if (n === 0) resetRating();
     else setRating(e.shiftKey ? n - 0.5 : n);
   } else if (e.key === 'ArrowUp') {
-    // Nudge the rating up by half a star (live; auto-submits after the pause).
     e.preventDefault();
     setRating(Math.min(5, (rating || 0) + 0.5));
   } else if (e.key === 'ArrowDown') {
     e.preventDefault();
     setRating(Math.max(0.5, (rating || 0.5) - 0.5));
   } else if (e.key === 'Enter') {
-    // Commit the current rating immediately instead of waiting for the timer.
     if (rating) { e.preventDefault(); clearTimeout(ratingTimer); submitRating(); }
   } else if (e.key === 'ArrowLeft') {
     e.preventDefault();
@@ -3115,7 +2746,6 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// ── Boot ──────────────────────────────────────────────────
 if (cfg.token && cfg.url) {
   loadItems();
 } else {
