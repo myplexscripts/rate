@@ -424,6 +424,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   border:1px solid rgba(255,251,248,0.11);
   border-radius:8px;
   padding:5px 10px;
+  cursor:help;
   transition:background-size 0.9s cubic-bezier(0.25,1,0.5,1);
 }
 .ratingBadge .rIcon {
@@ -644,7 +645,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 
 .counterTip {
   position:fixed;
-  z-index:70;
+  z-index:1100;
   max-width:180px;
   padding:8px 12px;
   border-radius:10px;
@@ -1247,6 +1248,11 @@ function showCounterTip(anchor, text) {
   counterTipTimer = setTimeout(() => tip.classList.remove('on'), 1800);
 }
 
+function ratingTip(el, ev) {
+  if (ev) ev.stopPropagation();
+  showCounterTip(el, el.dataset.tip);
+}
+
 const escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 const H = () => ({ 'X-Plex-Token': cfg.token, 'Accept': 'application/json' });
@@ -1465,8 +1471,6 @@ function setTypeFilter(type) {
   updateFilterButtons();
   clearTimeout(ratingTimer);
   hist = [];
-  ratedCount = 0;
-  updateRatedCounter();
   rebuildQueueFromFilter();
   if (!queue.length) {
     hideStage();
@@ -2093,14 +2097,14 @@ function ratingBadge(imageStr, score) {
     const isAudience = s.includes('audience') || s.includes('upright') || s.includes('popcorn') || s.includes('want');
     if (isAudience) {
       const fresh = s.includes('upright') || s.includes('want') || s.includes('fresh');
-      return { imgSrc: `images/icons/ui/${fresh ? 'Rotten_Tomatoes_Popcorn' : 'Rotten_Tomatoes_Popcorn_tipped'}.svg`, label: 'Audience', score: Math.round(score * 10) + '%', pct, fillColor: fresh ? 'rgba(255,120,30,0.22)' : 'rgba(130,130,130,0.18)' };
+      return { imgSrc: `images/icons/ui/${fresh ? 'Rotten_Tomatoes_Popcorn' : 'Rotten_Tomatoes_Popcorn_tipped'}.svg`, label: 'Audience', tip: 'Rotten Tomatoes Popcorn — share of the audience who liked it', score: Math.round(score * 10) + '%', pct, fillColor: fresh ? 'rgba(255,120,30,0.22)' : 'rgba(130,130,130,0.18)' };
     }
     const fresh = s.includes('ripe') || s.includes('certified') || s.includes('fresh');
-    return { imgSrc: `images/icons/ui/${fresh ? 'Certified_Fresh' : 'Rotten_Tomatoes_rotten'}.svg`, label: 'RT', score: Math.round(score * 10) + '%', pct, fillColor: fresh ? 'rgba(250,60,20,0.22)' : 'rgba(130,130,130,0.18)' };
+    return { imgSrc: `images/icons/ui/${fresh ? 'Certified_Fresh' : 'Rotten_Tomatoes_rotten'}.svg`, label: 'RT', tip: 'Rotten Tomatoes Tomatometer — share of critics who liked it', score: Math.round(score * 10) + '%', pct, fillColor: fresh ? 'rgba(250,60,20,0.22)' : 'rgba(130,130,130,0.18)' };
   }
-  if (s.includes('themoviedb')) return { imgSrc: 'images/icons/ui/TMDB.svg', label: 'TMDb', score: score.toFixed(1), pct, fillColor: 'rgba(1,180,228,0.2)' };
-  if (s.includes('imdb')) return { imgSrc: 'images/icons/ui/IMDB.svg', label: 'IMDb', score: score.toFixed(1), pct, fillColor: 'rgba(245,197,24,0.22)' };
-  return { imgSrc: null, label: '★', score: score.toFixed(1), pct, fillColor: 'rgba(255,251,248,0.13)' };
+  if (s.includes('themoviedb')) return { imgSrc: 'images/icons/ui/TMDB.svg', label: 'TMDb', tip: 'TMDB — average user score out of 10', score: score.toFixed(1), pct, fillColor: 'rgba(1,180,228,0.2)' };
+  if (s.includes('imdb')) return { imgSrc: 'images/icons/ui/IMDB.svg', label: 'IMDb', tip: 'IMDb — average user rating out of 10', score: score.toFixed(1), pct, fillColor: 'rgba(245,197,24,0.22)' };
+  return { imgSrc: null, label: '★', tip: 'Average user rating', score: score.toFixed(1), pct, fillColor: 'rgba(255,251,248,0.13)' };
 }
 
 const EXTRA_TTL = 24 * 60 * 60 * 1000;
@@ -2346,7 +2350,8 @@ function openSummary(forItem) {
     const ratingsEl = document.getElementById('summaryRatings');
     const mkBadge = b => {
       const img = b.imgSrc ? `<img src="${escHtml(b.imgSrc)}" class="rIcon" alt="${escHtml(b.label)}" onerror="this.style.display='none'">` : '';
-      return `<span class="ratingBadge" data-pct="${b.pct}" style="--badge-fill:${b.fillColor}">${img}${escHtml(b.score)}</span>`;
+      const tip = escHtml(b.tip || b.label);
+      return `<span class="ratingBadge" data-pct="${b.pct}" data-tip="${tip}" title="${tip}" role="button" tabindex="0" onclick="ratingTip(this, event)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();ratingTip(this, event);}" style="--badge-fill:${b.fillColor}">${img}${escHtml(b.score)}</span>`;
     };
     const badges = (extra.ratings || []).map(r => ratingBadge(r.image, r.value)).filter(Boolean);
     ratingsEl.innerHTML = badges.map(mkBadge).join('');
