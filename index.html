@@ -644,31 +644,57 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 }
 #toast.on { opacity:1; transform:translateX(-50%) translateY(0); }
 
-#ratedCounter {
+#counters {
   position:fixed;
   top:calc(var(--safe-top) + 16px);
   left:18px;
   z-index:60;
+  display:flex; align-items:center; gap:16px;
+  opacity:0; pointer-events:none;
+  transition:opacity 0.25s;
+}
+#counters.on { opacity:0.55; pointer-events:all; }
+#ratedCounter, #starCounter {
   display:flex; align-items:center; gap:6px;
   font-size:0.8rem; font-weight:700;
   color:var(--text);
-  opacity:0; pointer-events:none;
   letter-spacing:0.01em;
-  transition:opacity 0.25s;
+  cursor:pointer;
 }
-#ratedCounter.on { opacity:0.55; pointer-events:all; }
-#ratedCounter .icon {
+#ratedCounter .icon, #starCounter .icon {
   width:15px; height:15px;
-  color:var(--star);
 }
-#ratedCounterNum { display:inline-block; }
+#ratedCounter .icon { color:#ff7a2f; }
+#starCounter .icon { color:var(--star); }
+#ratedCounterNum, #starCounterNum { display:inline-block; }
 @keyframes counterPop {
   0%   { transform:scale(1); }
   40%  { transform:scale(1.4); }
   100% { transform:scale(1); }
 }
-#ratedCounterNum.pop { animation:counterPop 0.35s cubic-bezier(0.34,1.56,0.64,1); }
-#ratedCounter, #progress { cursor:pointer; }
+#ratedCounterNum.pop, #starCounterNum.pop { animation:counterPop 0.35s cubic-bezier(0.34,1.56,0.64,1); }
+#progress { cursor:pointer; }
+
+.flyStar {
+  position:fixed;
+  width:0; height:0;
+  z-index:1150;
+  pointer-events:none;
+  transition:transform 0.65s cubic-bezier(0.2,0.7,0.5,1);
+}
+.flyStar .icon {
+  display:block;
+  width:24px; height:24px;
+  margin:-12px 0 0 -12px;
+  color:var(--star);
+  filter:drop-shadow(0 1px 4px rgba(0,0,0,0.45));
+  animation:flySpawn 0.2s ease-out;
+  transition:transform 0.65s cubic-bezier(0.6,-0.1,0.8,0.5), opacity 0.65s ease;
+}
+@keyframes flySpawn {
+  from { scale:0.4; }
+  to   { scale:1; }
+}
 
 .counterTip {
   position:fixed;
@@ -843,15 +869,21 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
     right:clamp(48px, 7vw, 150px); bottom:calc(var(--bar) + clamp(22px, 4.5vh, 54px));
     width:auto; max-width:none; height:auto;
     flex-direction:column; align-items:center;
-    padding:0; gap:18px;
-    background:transparent;
+    padding:18px 26px 16px; gap:16px;
+    background:rgba(10,10,14,0.38);
+    backdrop-filter:blur(18px) saturate(1.15);
+    -webkit-backdrop-filter:blur(18px) saturate(1.15);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:26px;
+    box-shadow:0 14px 44px rgba(0,0,0,0.35);
     pointer-events:none;
   }
   #posterStack, #info { display:none; }
   #starRow { margin:0; pointer-events:all; cursor:pointer; }
   .star { font-size:3.6rem; filter:drop-shadow(0 1px 3px rgba(0,0,0,0.6)); }
+  #starRow .star:not(.lit) { color:rgba(255,251,248,0.34); }
   #actions { width:auto; justify-content:center; gap:22px; padding:0; pointer-events:all; }
-  .act-btn { padding:4px; }
+  .act-btn { padding:4px; color:rgba(255,251,248,0.62); }
   .act-btn .icon { width:1.55rem; height:1.55rem; filter:drop-shadow(0 1px 3px rgba(0,0,0,0.6)); }
 
   #summaryScroll {
@@ -1002,14 +1034,16 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 
   #summaryClose { display:none !important; }
 
-  #ratedCounter, #progress, #typeFilter { z-index:600; }
-  #ratedCounter {
-    top:calc(var(--bar) / 2 - 11px);
-    left:auto; right:256px;
-    font-size:0.95rem; gap:7px;
+  #counters, #progress, #typeFilter { z-index:600; }
+  #counters {
+    top:calc(var(--bar) / 2 - 22px);
+    height:44px;
+    left:auto; right:264px;
+    gap:20px;
   }
-  #ratedCounter.on { opacity:0.8; }
-  #ratedCounter .icon { width:18px; height:18px; }
+  #counters.on { opacity:0.8; }
+  #ratedCounter, #starCounter { font-size:0.95rem; gap:7px; }
+  #ratedCounter .icon, #starCounter .icon { width:18px; height:18px; }
   #progress {
     top:calc(var(--bar) / 2 - 19px);
     right:200px;
@@ -1025,7 +1059,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   #btnSignOut:hover { opacity:1; }
   #btnSignOut .icon { width:19px; height:19px; }
   #typeFilter {
-    top:calc(var(--bar) / 2 - 22px);
+    top:calc(var(--bar) / 2 - 20px);
     right:92px;
     flex-direction:row;
     opacity:0;
@@ -1135,6 +1169,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   <symbol id="icon-star-fill" viewBox="0 0 256 256"><path d="M234.29,114.85l-45,38.83L203,211.75a16.4,16.4,0,0,1-24.5,17.82L128,198.49,77.47,229.57A16.4,16.4,0,0,1,53,211.75l13.76-58.07-45-38.83A16.46,16.46,0,0,1,31.08,86l59-4.76,22.76-55.08a16.36,16.36,0,0,1,30.27,0l22.75,55.08,59,4.76a16.46,16.46,0,0,1,9.37,28.86Z"/></symbol>
   <symbol id="icon-star-half" viewBox="0 0 256 256"><path d="M239.18,97.26A16.38,16.38,0,0,0,224.92,86l-59-4.76L143.14,26.15a16.36,16.36,0,0,0-30.27,0L90.11,81.23,31.08,86a16.46,16.46,0,0,0-9.37,28.86l45,38.83L53,211.75a16.4,16.4,0,0,0,24.5,17.82L128,198.49l50.53,31.08A16.4,16.4,0,0,0,203,211.75l-13.76-58.07,45-38.83A16.43,16.43,0,0,0,239.18,97.26Zm-15.34,5.47-48.7,42a8,8,0,0,0-2.56,7.91l14.88,62.8a.37.37,0,0,1-.17.48c-.18.14-.23.11-.38,0l-54.72-33.65A8,8,0,0,0,128,181.1V32c.24,0,.27.08.35.26L153,91.86a8,8,0,0,0,6.75,4.92l63.91,5.16c.16,0,.25,0,.34.29S224,102.63,223.84,102.73Z"/></symbol>
   <symbol id="icon-sign-out" viewBox="0 0 256 256"><path d="M120,216a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V40a8,8,0,0,1,8-8h64a8,8,0,0,1,0,16H56V208h56A8,8,0,0,1,120,216Zm109.66-93.66-40-40a8,8,0,0,0-11.32,11.32L204.69,120H112a8,8,0,0,0,0,16h92.69l-26.35,26.34a8,8,0,0,0,11.32,11.32l40-40A8,8,0,0,0,229.66,122.34Z"/></symbol>
+  <symbol id="icon-flame" viewBox="0 0 256 256"><path d="M183.89,153.34a57.6,57.6,0,0,1-46.56,46.55A8.75,8.75,0,0,1,136,200a8,8,0,0,1-1.32-15.89c16.57-2.79,30.63-16.85,33.44-33.45a8,8,0,0,1,15.78,2.68ZM216,144a88,88,0,0,1-176,0c0-27.92,11-56.47,32.66-84.85a8,8,0,0,1,11.93-.89l24.12,23.41,22-60.41a8,8,0,0,1,12.63-3.41C165.21,36,216,84.55,216,144Zm-16,0c0-46.09-35.79-85.92-58.21-106.33L119.52,98.74a8,8,0,0,1-13.09,3L80.06,76.16C64.09,99.21,56,122,56,144a72,72,0,0,0,144,0Z"/></symbol>
 </svg>
 
 <noscript><div class="state on"><div class="state-title">JavaScript required</div><div class="state-sub">Rate It needs JavaScript enabled to connect to your Plex server.</div></div></noscript>
@@ -1191,11 +1226,19 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 
 <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<div id="ratedCounter" role="status" aria-live="polite" aria-label="Titles rated this session" tabindex="0"
-     onclick="showCounterTip(this, 'Titles you\'ve rated this session')"
-     onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showCounterTip(this, 'Titles you\'ve rated this session');}">
-  <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-star-fill"/></svg>
-  <span id="ratedCounterNum">0</span>
+<div id="counters">
+  <div id="ratedCounter" role="status" aria-live="polite" aria-label="Rating streak this session" tabindex="0"
+       onclick="showCounterTip(this, 'Titles you\'ve rated this session')"
+       onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showCounterTip(this, 'Titles you\'ve rated this session');}">
+    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-flame"/></svg>
+    <span id="ratedCounterNum">0</span>
+  </div>
+  <div id="starCounter" role="status" aria-live="polite" aria-label="Total stars given this session" tabindex="0"
+       onclick="showCounterTip(this, 'Total stars you\'ve given this session')"
+       onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showCounterTip(this, 'Total stars you\'ve given this session');}">
+    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-star-fill"/></svg>
+    <span id="starCounterNum">0</span>
+  </div>
 </div>
 
 <div id="progress" title="Items left to rate" role="img" aria-label="Items left to rate" tabindex="0"
@@ -1307,15 +1350,73 @@ let ratingTimer = null;
 let busy = false;
 let ratedCount = 0;
 let lastCelebrated = 0;
+let starsGiven = 0;
+let displayedStars = 0;
+
+function popNum(el) {
+  el.classList.remove('pop');
+  void el.offsetWidth;
+  el.classList.add('pop');
+}
 
 function updateRatedCounter(animate) {
   const el = document.getElementById('ratedCounterNum');
   el.textContent = ratedCount;
-  if (animate) {
-    el.classList.remove('pop');
-    void el.offsetWidth;
-    el.classList.add('pop');
+  if (animate) popNum(el);
+}
+
+const fmtStars = n => (n % 1 ? n.toFixed(1) : String(n));
+
+function updateStarCounter(animate) {
+  const el = document.getElementById('starCounterNum');
+  el.textContent = fmtStars(displayedStars);
+  if (animate) popNum(el);
+}
+
+const FLY_MS = 650;
+function flyStars(r) {
+  const counterIcon = document.querySelector('#starCounter .icon');
+  const target = counterIcon.getBoundingClientRect();
+  const lit = [...document.querySelectorAll('#starRow .star.lit')];
+  const steps = [];
+  for (let i = 0; i < Math.floor(r); i++) steps.push(1);
+  if (r % 1) steps.push(0.5);
+
+  if (!lit.length || !target.width || !document.getElementById('counters').classList.contains('on')
+      || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    displayedStars = starsGiven;
+    updateStarCounter(true);
+    return;
   }
+
+  const tx = target.left + target.width / 2;
+  const ty = target.top + target.height / 2;
+  steps.forEach((inc, i) => {
+    const src = lit[Math.min(i, lit.length - 1)].getBoundingClientRect();
+    const sx = src.left + src.width / 2;
+    const sy = src.top + src.height / 2;
+    const outer = document.createElement('div');
+    outer.className = 'flyStar';
+    outer.style.left = sx + 'px';
+    outer.style.top = sy + 'px';
+    const delay = i * 90;
+    outer.style.transitionDelay = delay + 'ms';
+    outer.innerHTML = `<svg class="icon" aria-hidden="true" style="transition-delay:${delay}ms"><use href="#icon-star-${inc === 1 ? 'fill' : 'half'}"/></svg>`;
+    document.body.appendChild(outer);
+    const inner = outer.firstChild;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      outer.style.transform = `translate3d(${tx - sx}px,0,0)`;
+      inner.style.transform = `translateY(${ty - sy}px) scale(0.45)`;
+      inner.style.opacity = '0.85';
+    }));
+    setTimeout(() => {
+      outer.remove();
+      displayedStars = Math.min(starsGiven, displayedStars + inc);
+      if (i === steps.length - 1) displayedStars = starsGiven;
+      updateStarCounter(true);
+      buzz(6);
+    }, delay + FLY_MS);
+  });
 }
 
 let counterTipTimer = null;
@@ -1523,7 +1624,10 @@ async function loadItems() {
   hist = [];
   ratedCount = 0;
   lastCelebrated = 0;
+  starsGiven = 0;
+  displayedStars = 0;
   updateRatedCounter();
+  updateStarCounter();
   try {
     const sd = await plexGet('/library/sections');
     const libs = (sd.MediaContainer.Directory || []).filter(d => d.type === 'movie' || d.type === 'show');
@@ -2166,6 +2270,8 @@ async function submitRating() {
 
   ratedCount++;
   updateRatedCounter(true);
+  starsGiven += r;
+  flyStars(r);
   if (isMilestone(ratedCount) && ratedCount > lastCelebrated) {
     lastCelebrated = ratedCount;
     celebrate(ratedCount);
@@ -2578,7 +2684,8 @@ function openSummary(forItem) {
     ratingsEl.classList.toggle('hidden', !hasBadges && !keepForTrailer);
   });
 
-  document.getElementById('toast').classList.remove('on');
+  const toastEl = document.getElementById('toast');
+  if (!toastEl.classList.contains('celebrate')) toastEl.classList.remove('on');
   const overlayEl = document.getElementById('summaryOverlay');
   overlayEl.classList.add('on');
   overlayEl.setAttribute('aria-hidden', 'false');
@@ -2830,6 +2937,9 @@ function goBack() {
   if (dir === 'right' && ratedCount > 0) {
     ratedCount--;
     updateRatedCounter();
+    starsGiven = Math.max(0, starsGiven - (item.userRating ? item.userRating / 2 : 0));
+    displayedStars = starsGiven;
+    updateStarCounter();
   }
 
   const stack = document.getElementById('posterStack');
@@ -2916,7 +3026,7 @@ function showStage() {
   document.getElementById('stage').classList.add('on');
   document.getElementById('progress').classList.add('on');
   document.getElementById('typeFilter').classList.add('on');
-  document.getElementById('ratedCounter').classList.add('on');
+  document.getElementById('counters').classList.add('on');
   document.getElementById('btnSignOut').classList.add('on');
   ['stAuth','stLoad','stErr','stDone'].forEach(id => document.getElementById(id).classList.remove('on'));
 }
@@ -2924,7 +3034,7 @@ function hideStage() {
   document.getElementById('stage').classList.remove('on');
   document.getElementById('progress').classList.remove('on');
   document.getElementById('typeFilter').classList.remove('on');
-  document.getElementById('ratedCounter').classList.remove('on');
+  document.getElementById('counters').classList.remove('on');
   document.getElementById('btnSignOut').classList.remove('on');
 }
 
