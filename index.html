@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#000000">
-<meta name="description" content="Rate It — quickly rate your watched Plex movies and shows.">
+<meta name="description" content="Rate It: quickly rate your watched Plex movies and shows.">
 <meta name="format-detection" content="telephone=no">
 <meta name="color-scheme" content="dark">
 <meta name="apple-mobile-web-app-title" content="Rate It">
@@ -284,7 +284,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   inset:0;
   z-index:500;
   display:flex; align-items:flex-start; justify-content:center;
-  padding:calc(var(--safe-top) + 64px) 16px max(16px, env(safe-area-inset-bottom));
+  padding:calc(var(--safe-top) + 36px) 16px calc(var(--safe-bottom) + 60px);
   background:rgba(0,0,0,0.6);
   backdrop-filter:blur(2px);
   opacity:0; pointer-events:none;
@@ -1139,7 +1139,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   <div id="card">
     <div id="posterStack"></div>
     <div id="info">
-      <div id="iTitle"><span id="iTitleText">—</span></div>
+      <div id="iTitle"><span id="iTitleText">&hellip;</span></div>
       <div id="iDate"></div>
       <div id="iSummary" onclick="openSummary()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openSummary();}" aria-label="View full summary, cast and trailer"></div>
     </div>
@@ -1327,11 +1327,26 @@ const plexHeaders = () => ({
   'X-Plex-Product': PLEX_PRODUCT,
   'X-Plex-Client-Identifier': clientId
 });
+const IMG_DPR = Math.min(Math.ceil(window.devicePixelRatio || 1), 2);
+function transcodeUrl(path, w, h) {
+  if (!path) return '';
+  if (/^https?:\/\//.test(path)) return path;
+  const inner = path + (path.includes('?') ? '&' : '?') + 'X-Plex-Token=' + cfg.token;
+  const p = new URLSearchParams({
+    width: Math.min(1920, Math.round(w * IMG_DPR)),
+    height: Math.min(1920, Math.round(h * IMG_DPR)),
+    minSize: 1,
+    upscale: 1,
+    url: inner,
+    'X-Plex-Token': cfg.token
+  });
+  return `${cfg.url}/photo/:/transcode?${p.toString()}`;
+}
 const posterUrl = it => {
   const k = it && (it.thumb || it.art);
   if (!k) return '';
-  const w = isMeteredConnection() ? 480 : 800;
-  return `${cfg.url}${k}?X-Plex-Token=${cfg.token}&width=${w}`;
+  const w = isMeteredConnection() ? 200 : 300;
+  return transcodeUrl(k, w, w * 1.5);
 };
 
 async function plexGet(path) {
@@ -1969,17 +1984,23 @@ function setGlow({ tl, tr, bl, br }) {
 
   function ratingFromX(x) {
     const stars = [...row.querySelectorAll('.star')];
-    let picked = 0.5;
+    let picked = 0;
     for (const s of stars) {
       const rect = s.getBoundingClientRect();
       const mid  = rect.left + rect.width / 2;
       const n    = parseInt(s.dataset.n);
       if (x >= rect.left) picked = x < mid ? n - 0.5 : n;
     }
-    return Math.max(0.5, picked);
+    return picked;
   }
 
-  function applyFromX(x) { setRating(ratingFromX(x)); }
+  function applyFromX(x) {
+    const v = ratingFromX(x);
+    if (v === 0) {
+      if (rating !== 0) buzz(8);
+      resetRating();
+    } else setRating(v);
+  }
 
   function paintStars(n) {
     document.querySelectorAll('.star').forEach(s => {
@@ -2081,7 +2102,7 @@ async function submitRating() {
   submitting = false;
 
   if (!ok) {
-    if (queue[0] === item) toast('Couldn’t save — tap a star to retry');
+    if (queue[0] === item) toast('Couldn’t save. Tap a star to retry');
     return;
   }
 
@@ -2121,7 +2142,7 @@ function milestoneLine(n) {
 }
 function celebrate(n) {
   buzz([30, 40, 30]);
-  toast(`${n} rated — ${milestoneLine(n)}`, true);
+  toast(`${n} rated! ${milestoneLine(n)}`, true);
   if (typeof confetti !== 'function') return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const CONFETTI_Z = 1200;
@@ -2255,13 +2276,13 @@ function ratingBadge(imageStr, score) {
     const isAudience = s.includes('audience') || s.includes('upright') || s.includes('popcorn') || s.includes('want');
     if (isAudience) {
       const fresh = s.includes('upright') || s.includes('want') || s.includes('fresh');
-      return { imgSrc: `images/icons/ui/${fresh ? 'Rotten_Tomatoes_Popcorn' : 'Rotten_Tomatoes_Popcorn_tipped'}.svg`, label: 'Audience', tip: 'Rotten Tomatoes Popcorn — share of the audience who liked it', score: Math.round(score * 10) + '%', pct, fillColor: fresh ? 'rgba(255,120,30,0.22)' : 'rgba(130,130,130,0.18)' };
+      return { imgSrc: `images/icons/ui/${fresh ? 'Rotten_Tomatoes_Popcorn' : 'Rotten_Tomatoes_Popcorn_tipped'}.svg`, label: 'Audience', tip: 'Rotten Tomatoes Popcorn: share of the audience who liked it', score: Math.round(score * 10) + '%', pct, fillColor: fresh ? 'rgba(255,120,30,0.22)' : 'rgba(130,130,130,0.18)' };
     }
     const fresh = s.includes('ripe') || s.includes('certified') || s.includes('fresh');
-    return { imgSrc: `images/icons/ui/${fresh ? 'Certified_Fresh' : 'Rotten_Tomatoes_rotten'}.svg`, label: 'RT', tip: 'Rotten Tomatoes Tomatometer — share of critics who liked it', score: Math.round(score * 10) + '%', pct, fillColor: fresh ? 'rgba(250,60,20,0.22)' : 'rgba(130,130,130,0.18)' };
+    return { imgSrc: `images/icons/ui/${fresh ? 'Certified_Fresh' : 'Rotten_Tomatoes_rotten'}.svg`, label: 'RT', tip: 'Rotten Tomatoes Tomatometer: share of critics who liked it', score: Math.round(score * 10) + '%', pct, fillColor: fresh ? 'rgba(250,60,20,0.22)' : 'rgba(130,130,130,0.18)' };
   }
-  if (s.includes('themoviedb')) return { imgSrc: 'images/icons/ui/TMDB.svg', label: 'TMDb', tip: 'TMDB — average user score out of 10', score: score.toFixed(1), pct, fillColor: 'rgba(1,180,228,0.2)' };
-  if (s.includes('imdb')) return { imgSrc: 'images/icons/ui/IMDB.svg', label: 'IMDb', tip: 'IMDb — average user rating out of 10', score: score.toFixed(1), pct, fillColor: 'rgba(245,197,24,0.22)' };
+  if (s.includes('themoviedb')) return { imgSrc: 'images/icons/ui/TMDB.svg', label: 'TMDb', tip: 'TMDB: average user score out of 10', score: score.toFixed(1), pct, fillColor: 'rgba(1,180,228,0.2)' };
+  if (s.includes('imdb')) return { imgSrc: 'images/icons/ui/IMDB.svg', label: 'IMDb', tip: 'IMDb: average user rating out of 10', score: score.toFixed(1), pct, fillColor: 'rgba(245,197,24,0.22)' };
   return { imgSrc: null, label: '★', tip: 'Average user rating', score: score.toFixed(1), pct, fillColor: 'rgba(255,251,248,0.13)' };
 }
 
@@ -2314,16 +2335,16 @@ async function loadExtraInfo(item) {
     item._extra = {
       year: (meta && meta.year) || null,
       ubTints,
-      backdrop: artPath ? `${cfg.url}${artPath}?X-Plex-Token=${cfg.token}&width=700` : '',
+      backdrop: artPath
+        ? transcodeUrl(artPath, isDesktop() ? 960 : 480, isDesktop() ? 540 : 270)
+        : '',
       logo: logoImg && logoImg.url
         ? (/^https?:\/\//.test(logoImg.url) ? logoImg.url : `${cfg.url}${logoImg.url}?X-Plex-Token=${cfg.token}`)
         : '',
       genres: (meta && meta.Genre || []).map(g => g.tag).slice(0, 2),
       cast: (meta && meta.Role || []).slice(0, 6).map(r => ({
         name: r.tag,
-        photo: r.thumb
-          ? (/^https?:\/\//.test(r.thumb) ? r.thumb : `${cfg.url}${r.thumb}?X-Plex-Token=${cfg.token}`)
-          : ''
+        photo: r.thumb ? transcodeUrl(r.thumb, 80, 80) : ''
       })),
       runtime: (meta && meta.duration) ? formatDuration(meta.duration) : null,
       contentRating: (meta && meta.contentRating) || null,
@@ -2564,7 +2585,15 @@ function openSummary(forItem) {
     if (extra.addedAt) personalRows.push(`<div class="personalRow">Added to library <span>${fmtTs(extra.addedAt)}</span></div>`);
     if (extra.firstViewedAt) personalRows.push(`<div class="personalRow">First watched <span>${fmtTs(extra.firstViewedAt)}</span></div>`);
     if (extra.lastViewedAt && extra.lastViewedAt !== extra.firstViewedAt) personalRows.push(`<div class="personalRow">Last watched <span>${fmtTs(extra.lastViewedAt)}</span></div>`);
-    if (extra.viewCount > 1) personalRows.push(`<div class="personalRow">Watched <span>${extra.viewCount} times</span></div>`);
+    if (item.libType === 'show' && item.viewedLeafCount > 0) {
+      const epWatched = item.viewedLeafCount;
+      const epTotal = item.leafCount || 0;
+      const plays = extra.viewCount || 0;
+      const playsNote = plays > epWatched ? `, ${plays} plays` : '';
+      personalRows.push(`<div class="personalRow">Watched <span>${epWatched}${epTotal ? ' of ' + epTotal : ''} episode${epWatched !== 1 ? 's' : ''}${playsNote}</span></div>`);
+    } else if (extra.viewCount > 1) {
+      personalRows.push(`<div class="personalRow">Watched <span>${extra.viewCount} times</span></div>`);
+    }
     if (personalRows.length) { personalEl.innerHTML = personalRows.join(''); personalEl.classList.remove('hidden'); }
     else personalEl.classList.add('hidden');
 
@@ -2870,7 +2899,7 @@ function toast(msg, isCelebrate) {
     t.style.bottom = 'auto';
   }
   if (isCelebrate) {
-    t.innerHTML = '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-star-fill"/></svg>' + escHtml(msg);
+    t.innerHTML = '<img src="images/icons/ui/trophy.svg" class="icon" alt="" onerror="this.style.display=\'none\'">' + escHtml(msg);
     t.classList.add('celebrate');
     t.classList.remove('on');
     void t.offsetWidth;
