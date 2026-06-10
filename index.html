@@ -1392,7 +1392,7 @@ function flyStars(r) {
   const tx = target.left + target.width / 2;
   const ty = target.top + target.height / 2;
   steps.forEach((inc, i) => {
-    const src = lit[Math.min(i, lit.length - 1)].getBoundingClientRect();
+    const src = lit[Math.max(0, lit.length - steps.length + i)].getBoundingClientRect();
     const sx = src.left + src.width / 2;
     const sy = src.top + src.height / 2;
     const outer = document.createElement('div');
@@ -1417,6 +1417,45 @@ function flyStars(r) {
       buzz(6);
     }, delay + FLY_MS);
   });
+}
+
+function flyStarsBack(delta) {
+  const counterIcon = document.querySelector('#starCounter .icon');
+  const from = counterIcon.getBoundingClientRect();
+  const rowRect = document.getElementById('starRow').getBoundingClientRect();
+  displayedStars = starsGiven;
+  updateStarCounter(true);
+
+  if (!from.width || !rowRect.width || !document.getElementById('counters').classList.contains('on')
+      || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    return;
+  }
+  const steps = [];
+  for (let i = 0; i < Math.floor(delta); i++) steps.push(1);
+  if (delta % 1) steps.push(0.5);
+
+  const sx = from.left + from.width / 2;
+  const sy = from.top + from.height / 2;
+  const tx = rowRect.left + rowRect.width / 2;
+  const ty = rowRect.top + rowRect.height / 2;
+  steps.forEach((inc, i) => {
+    const outer = document.createElement('div');
+    outer.className = 'flyStar';
+    outer.style.left = sx + 'px';
+    outer.style.top = sy + 'px';
+    const delay = i * 90;
+    outer.style.transitionDelay = delay + 'ms';
+    outer.innerHTML = `<svg class="icon" aria-hidden="true" style="transform:scale(0.45);transition-delay:${delay}ms"><use href="#icon-star-${inc === 1 ? 'fill' : 'half'}"/></svg>`;
+    document.body.appendChild(outer);
+    const inner = outer.firstChild;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      outer.style.transform = `translate3d(${tx - sx}px,0,0)`;
+      inner.style.transform = `translateY(${ty - sy}px) scale(1)`;
+      inner.style.opacity = '0';
+    }));
+    setTimeout(() => outer.remove(), delay + FLY_MS + 50);
+  });
+  buzz(6);
 }
 
 let counterTipTimer = null;
@@ -1731,7 +1770,8 @@ function rebuild() {
     loadPoster(top3[i], img, i === 0);
   }
   setInfo(item);
-  resetRating();
+  if (item.userRating) showRating(item.userRating / 2);
+  else resetRating();
   document.getElementById('btnBack').disabled = hist.length === 0;
   updateProgress();
   preloadAhead();
@@ -2196,10 +2236,7 @@ function setGlow({ tl, tr, bl, br }) {
   });
 })();
 
-function setRating(n) {
-  if (rating !== n) buzz(8);
-  rating = n;
-  document.getElementById('starRow').classList.remove('resetting');
+function paintRating(n) {
   document.querySelectorAll('.star').forEach(s => {
     const sn = parseInt(s.dataset.n);
     const use = s.querySelector('use');
@@ -2216,22 +2253,31 @@ function setRating(n) {
   });
   const rowEl = document.getElementById('starRow');
   rowEl.setAttribute('aria-valuenow', n);
-  rowEl.setAttribute('aria-valuetext', n + (n === 1 ? ' star' : ' stars'));
+  rowEl.setAttribute('aria-valuetext', n ? n + (n === 1 ? ' star' : ' stars') : 'Not rated');
+}
+
+function setRating(n) {
+  if (rating !== n) buzz(8);
+  rating = n;
+  document.getElementById('starRow').classList.remove('resetting');
+  paintRating(n);
   clearTimeout(ratingTimer);
   ratingTimer = setTimeout(submitRating, 1500);
+}
+
+function showRating(n) {
+  rating = n;
+  clearTimeout(ratingTimer);
+  ratingTimer = null;
+  document.getElementById('starRow').classList.remove('resetting');
+  paintRating(n);
 }
 
 function resetRating() {
   clearTimeout(ratingTimer);
   ratingTimer = null;
   rating = 0;
-  document.querySelectorAll('.star').forEach(s => {
-    s.setAttribute('class', 'icon star');
-    s.querySelector('use').setAttribute('href', '#icon-star-empty');
-  });
-  const rowAria = document.getElementById('starRow');
-  rowAria.setAttribute('aria-valuenow', '0');
-  rowAria.setAttribute('aria-valuetext', 'Not rated');
+  paintRating(0);
   if (isDesktop()) {
     const row = document.getElementById('starRow');
     row.classList.remove('resetting');
@@ -2264,17 +2310,26 @@ async function submitRating() {
     return;
   }
 
+  const prev = item.userRating ? item.userRating / 2 : 0;
   item.userRating = r * 2;
   const ai = allItems.indexOf(item);
   if (ai !== -1) allItems.splice(ai, 1);
 
-  ratedCount++;
-  updateRatedCounter(true);
-  starsGiven += r;
-  flyStars(r);
-  if (isMilestone(ratedCount) && ratedCount > lastCelebrated) {
-    lastCelebrated = ratedCount;
-    celebrate(ratedCount);
+  if (!prev) {
+    ratedCount++;
+    updateRatedCounter(true);
+    starsGiven += r;
+    flyStars(r);
+    if (isMilestone(ratedCount) && ratedCount > lastCelebrated) {
+      lastCelebrated = ratedCount;
+      celebrate(ratedCount);
+    }
+  } else if (r > prev) {
+    starsGiven += r - prev;
+    flyStars(r - prev);
+  } else if (r < prev) {
+    starsGiven = Math.max(0, starsGiven - (prev - r));
+    flyStarsBack(prev - r);
   }
   if (queue[0] === item) advance('right');
 }
@@ -2362,8 +2417,10 @@ function advance(dir) {
   }
   preloadAhead();
 
-  resetRating();
-  if (queue[1]) setInfo(queue[1]);
+  const upcoming = queue[1];
+  if (upcoming && upcoming.userRating) showRating(upcoming.userRating / 2);
+  else resetRating();
+  if (upcoming) setInfo(upcoming);
 
   setTimeout(() => {
     if (p0) p0.remove();
@@ -2934,13 +2991,6 @@ function goBack() {
 
   const { item, dir } = hist.pop();
   queue.unshift(item);
-  if (dir === 'right' && ratedCount > 0) {
-    ratedCount--;
-    updateRatedCounter();
-    starsGiven = Math.max(0, starsGiven - (item.userRating ? item.userRating / 2 : 0));
-    displayedStars = starsGiven;
-    updateStarCounter();
-  }
 
   const stack = document.getElementById('posterStack');
   const p0 = stack.querySelector('.poster.p0');
@@ -2972,7 +3022,8 @@ function goBack() {
   });
 
   setInfo(item);
-  resetRating();
+  if (item.userRating) showRating(item.userRating / 2);
+  else resetRating();
   document.getElementById('btnBack').disabled = hist.length === 0;
   updateProgress();
   preloadAhead();
