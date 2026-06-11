@@ -871,6 +871,27 @@ function sampleCornerBrightness(imgEl) {
   });
 }
 
+function logoNeedsInvert(imgEl) {
+  try {
+    const W = 80;
+    const ratio = (imgEl.naturalWidth && imgEl.naturalHeight) ? imgEl.naturalHeight / imgEl.naturalWidth : 0.4;
+    const H = Math.max(8, Math.min(80, Math.round(W * ratio)));
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(imgEl, 0, 0, W, H);
+    const data = ctx.getImageData(0, 0, W, H).data;
+    let visible = 0, dark = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] < 40) continue;
+      visible++;
+      const lum = (data[i] * 299 + data[i + 1] * 587 + data[i + 2] * 114) / 1000;
+      if (lum < 48) dark++;
+    }
+    return visible > 20 && dark / visible >= 0.98;
+  } catch { return false; }
+}
+
 function updateCloseAdaptation() {
   const box = document.getElementById('summaryBox');
   const closeBtn = document.getElementById('summaryClose');
@@ -1770,7 +1791,13 @@ function openSummary(forItem) {
           if (summaryItem !== item) return;
           const logoImg = new Image();
           logoImg.alt = item.title || '';
-          logoImg.onload = () => { if (summaryItem !== item) return; titleEl.innerHTML = ''; titleEl.appendChild(logoImg); };
+          logoImg.onload = () => {
+            if (summaryItem !== item) return;
+            if (item._logoInvert === undefined) item._logoInvert = logoNeedsInvert(logoImg);
+            logoImg.classList.toggle('logo-inverted', !!item._logoInvert);
+            titleEl.innerHTML = '';
+            titleEl.appendChild(logoImg);
+          };
           logoImg.onerror = () => { titleEl.textContent = item.title || ''; fitTitle(titleEl); };
           logoImg.src = src;
         };
