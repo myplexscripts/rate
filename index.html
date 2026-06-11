@@ -326,7 +326,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #summaryBackdrop {
   display:none;
   position:relative;
-  transform-origin:top center;
+  transform-origin:bottom center;
   will-change:transform;
   margin:-26px -24px 16px;
   aspect-ratio:16/9;
@@ -2385,8 +2385,8 @@ function updateCloseAdaptation() {
 }
 
 const PARALLAX_FACTOR = 0.5;
-const STRETCH_GAIN = 0.6;
-const STRETCH_MAX = 0.22;
+const STRETCH_GAIN = 1.06;
+const STRETCH_MAX = 0.45;
 let _bdHeight = 0;
 function updateBackdropParallax() {
   const backdrop = document.getElementById('summaryBackdrop');
@@ -2398,14 +2398,14 @@ function updateBackdropParallax() {
   if (st < 0) {
     const h = _bdHeight || (_bdHeight = backdrop.offsetHeight || 1);
     const grow = Math.min((-st / h) * STRETCH_GAIN, STRETCH_MAX);
-    backdrop.style.transform = 'translate3d(0,' + st + 'px,0) scale(' + (1 + grow) + ')';
+    backdrop.style.transform = 'scale(' + (1 + grow) + ')';
   } else {
     backdrop.style.transform = 'translate3d(0,' + (st * PARALLAX_FACTOR) + 'px,0)';
   }
 }
 
 function onSummaryScroll() {
-  updateCloseAdaptation();
+  if (document.getElementById('summaryScroll').scrollTop >= 0) updateCloseAdaptation();
   updateBackdropParallax();
 }
 
