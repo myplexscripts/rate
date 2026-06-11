@@ -1089,7 +1089,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   #counters {
     top:calc(var(--bar) / 2 - 22px);
     height:44px;
-    left:auto; right:264px;
+    left:auto; right:318px;
     gap:20px;
   }
   #counters.on { opacity:0.8; }
@@ -1097,7 +1097,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   #ratedCounter .icon, #starCounter .icon { width:18px; height:18px; }
   #progress {
     top:calc(var(--bar) / 2 - 19px);
-    right:200px;
+    right:254px;
     width:38px; height:38px;
   }
   #progress.on { opacity:0.8; }
