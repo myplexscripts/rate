@@ -16,6 +16,7 @@
 <meta property="og:description" content="Quickly rate your watched Plex movies and shows.">
 <meta property="og:type" content="website">
 <title>Rate It</title>
+<link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" href="images/icons/app-icon.png">
 <link rel="apple-touch-icon" href="images/icons/app-icon.png">
 <link rel="preconnect" href="https://dvdbsh.github.io" crossorigin>
@@ -788,6 +789,58 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #btnSignOut:active { transform:scale(0.9); }
 #btnSignOut .icon { width:18px; height:18px; }
 
+#btnHelp { display:none; }
+
+#rotateOverlay {
+  display:none;
+  position:fixed; inset:0;
+  z-index:2000;
+  flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:18px;
+  background:var(--bg);
+  text-align:center;
+  padding:32px;
+}
+#rotateOverlay .icon {
+  width:44px; height:44px;
+  color:var(--star);
+  animation:rotateHint 2.2s ease-in-out infinite;
+}
+@keyframes rotateHint {
+  0%, 55%, 100% { transform:rotate(0deg); }
+  20%, 35% { transform:rotate(-90deg); }
+}
+#rotateOverlay .rotate-title { font-weight:900; font-size:1.15rem; letter-spacing:-0.02em; }
+#rotateOverlay .rotate-sub { font-size:0.82rem; color:var(--muted); line-height:1.6; max-width:240px; }
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+  #rotateOverlay { display:flex; }
+}
+
+.helpRows { display:flex; flex-direction:column; gap:11px; margin-top:6px; }
+.helpRow {
+  display:flex; justify-content:space-between; align-items:center; gap:18px;
+  font-size:0.85rem; color:rgba(255,251,248,0.75); font-weight:500;
+}
+.helpRow .keys { display:flex; gap:5px; flex-shrink:0; }
+.helpRow kbd {
+  background:rgba(255,251,248,0.08);
+  border:1px solid rgba(255,251,248,0.16);
+  border-bottom-width:2px;
+  border-radius:6px;
+  padding:2px 8px;
+  font-family:'Circular',sans-serif;
+  font-size:0.72rem; font-weight:700;
+  color:var(--text);
+  white-space:nowrap;
+}
+.helpHint {
+  margin-top:18px;
+  font-size:0.76rem; color:var(--muted); line-height:1.6;
+}
+
+.recapUnsnooze { margin-top:22px; width:100%; }
+
 #typeFilter {
   position:fixed;
   top:calc(var(--safe-top) + 16px + 36px + 12px);
@@ -1080,6 +1133,24 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   #btnSignOut.on { opacity:0.8; }
   #btnSignOut:hover { opacity:1; }
   #btnSignOut .icon { width:19px; height:19px; }
+  #btnHelp {
+    display:flex;
+    position:fixed;
+    top:calc(var(--bar) / 2 - 22px);
+    left:32px;
+    z-index:600;
+    width:44px; height:44px;
+    align-items:center; justify-content:center;
+    background:none; border:none; padding:0;
+    color:var(--text);
+    cursor:pointer;
+    opacity:0; pointer-events:none;
+    transition:opacity 0.25s, transform 0.12s;
+  }
+  #btnHelp.on { opacity:0.8; pointer-events:all; }
+  #btnHelp:hover { opacity:1; }
+  #btnHelp:active { transform:scale(0.9); }
+  #btnHelp .icon { width:20px; height:20px; }
   #typeFilter {
     top:calc(var(--bar) / 2 - 20px);
     right:92px;
@@ -1135,7 +1206,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   }
 }
 
-#descPopup, #recapPopup {
+#descPopup, #recapPopup, #helpPopup {
   position:fixed; inset:0; z-index:700;
   display:flex; align-items:center; justify-content:center;
   padding:40px;
@@ -1144,8 +1215,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   opacity:0; pointer-events:none;
   transition:opacity 0.22s ease;
 }
-#descPopup.on, #recapPopup.on { opacity:1; pointer-events:all; }
-#descPopupBox, #recapBox {
+#descPopup.on, #recapPopup.on, #helpPopup.on { opacity:1; pointer-events:all; }
+#descPopupBox, #recapBox, #helpBox {
   position:relative;
   max-width:560px; width:100%; max-height:80vh;
   overflow-y:auto;
@@ -1157,17 +1228,17 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   transform:scale(0.95); transition:transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
   scrollbar-width:thin;
 }
-#descPopup.on #descPopupBox, #recapPopup.on #recapBox { transform:scale(1); }
-#descPopupClose, #recapClose {
+#descPopup.on #descPopupBox, #recapPopup.on #recapBox, #helpPopup.on #helpBox { transform:scale(1); }
+#descPopupClose, #recapClose, #helpClose {
   position:absolute; top:16px; right:16px;
   width:32px; height:32px; border:none; border-radius:50%;
   background:rgba(255,251,248,0.1); color:var(--text);
   display:flex; align-items:center; justify-content:center; cursor:pointer;
   transition:background 0.15s;
 }
-#descPopupClose:hover, #recapClose:hover { background:rgba(255,251,248,0.2); }
-#descPopupClose .icon, #recapClose .icon { width:1.2rem; height:1.2rem; }
-#descPopupTitle, #recapTitle {
+#descPopupClose:hover, #recapClose:hover, #helpClose:hover { background:rgba(255,251,248,0.2); }
+#descPopupClose .icon, #recapClose .icon, #helpClose .icon { width:1.2rem; height:1.2rem; }
+#descPopupTitle, #recapTitle, #helpTitle {
   font-weight:900; font-size:1.2rem; letter-spacing:-0.02em;
   color:var(--text); margin:0 36px 14px 0; line-height:1.2;
 }
@@ -1176,6 +1247,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   color:rgba(255,251,248,0.82);
 }
 #recapBox { max-width:420px; }
+#helpBox { max-width:430px; }
 .recapEmpty {
   font-size:0.88rem; line-height:1.6;
   color:var(--muted);
@@ -1226,6 +1298,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   <symbol id="icon-sign-out" viewBox="0 0 256 256"><path d="M120,216a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V40a8,8,0,0,1,8-8h64a8,8,0,0,1,0,16H56V208h56A8,8,0,0,1,120,216Zm109.66-93.66-40-40a8,8,0,0,0-11.32,11.32L204.69,120H112a8,8,0,0,0,0,16h92.69l-26.35,26.34a8,8,0,0,0,11.32,11.32l40-40A8,8,0,0,0,229.66,122.34Z"/></symbol>
   <symbol id="icon-flame" viewBox="0 0 256 256"><path d="M183.89,153.34a57.6,57.6,0,0,1-46.56,46.55A8.75,8.75,0,0,1,136,200a8,8,0,0,1-1.32-15.89c16.57-2.79,30.63-16.85,33.44-33.45a8,8,0,0,1,15.78,2.68ZM216,144a88,88,0,0,1-176,0c0-27.92,11-56.47,32.66-84.85a8,8,0,0,1,11.93-.89l24.12,23.41,22-60.41a8,8,0,0,1,12.63-3.41C165.21,36,216,84.55,216,144Zm-16,0c0-46.09-35.79-85.92-58.21-106.33L119.52,98.74a8,8,0,0,1-13.09,3L80.06,76.16C64.09,99.21,56,122,56,144a72,72,0,0,0,144,0Z"/></symbol>
   <symbol id="icon-sort" viewBox="0 0 256 256"><path d="M117.66,170.34a8,8,0,0,1,0,11.32l-32,32a8,8,0,0,1-11.32,0l-32-32a8,8,0,0,1,11.32-11.32L72,188.69V48a8,8,0,0,1,16,0V188.69l18.34-18.35A8,8,0,0,1,117.66,170.34Zm96-96-32-32a8,8,0,0,0-11.32,0l-32,32a8,8,0,0,0,11.32,11.32L168,67.31V208a8,8,0,0,0,16,0V67.31l18.34,18.35a8,8,0,0,0,11.32-11.32Z"/></symbol>
+  <symbol id="icon-info" viewBox="0 0 256 256"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm16-40a8,8,0,0,1-8,8,16,16,0,0,1-16-16V128a8,8,0,0,1,0-16,16,16,0,0,1,16,16v40A8,8,0,0,1,144,176ZM112,84a12,12,0,1,1,12,12A12,12,0,0,1,112,84Z"/></symbol>
+  <symbol id="icon-phone" viewBox="0 0 256 256"><path d="M176,16H80A24,24,0,0,0,56,40V216a24,24,0,0,0,24,24h96a24,24,0,0,0,24-24V40A24,24,0,0,0,176,16Zm8,200a8,8,0,0,1-8,8H80a8,8,0,0,1-8-8V40a8,8,0,0,1,8-8h96a8,8,0,0,1,8,8ZM140,60a12,12,0,1,1-12-12A12,12,0,0,1,140,60Z"/></symbol>
 </svg>
 
 <noscript><div class="state on"><div class="state-title">JavaScript required</div><div class="state-sub">Rate It needs JavaScript enabled to connect to your Plex server.</div></div></noscript>
@@ -1315,6 +1389,10 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-sign-out"/></svg>
 </button>
 
+<button id="btnHelp" onclick="openHelp()" title="Shortcuts & tips (?)" aria-label="Show shortcuts and tips" aria-keyshortcuts="?">
+  <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-info"/></svg>
+</button>
+
 <div id="typeFilter" role="group" aria-label="Queue filters and order">
   <button id="filterMovie" class="filter-btn" onclick="setTypeFilter('movie')" title="Movies only" aria-label="Show movies only" aria-pressed="false">
     <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-movies"/></svg>
@@ -1385,6 +1463,32 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   </div>
 </div>
 
+<div id="helpPopup" onclick="closeHelpFromOverlay(event)" role="dialog" aria-modal="true" aria-label="Shortcuts and tips" aria-hidden="true">
+  <div id="helpBox">
+    <button id="helpClose" onclick="closeHelp()" aria-label="Close shortcuts"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-x"/></svg></button>
+    <div id="helpTitle">Shortcuts &amp; tips</div>
+    <div class="helpRows">
+      <div class="helpRow"><span>Rate 1–5 stars</span><span class="keys"><kbd>1</kbd><kbd>…</kbd><kbd>5</kbd></span></div>
+      <div class="helpRow"><span>Half stars</span><span class="keys"><kbd>Shift</kbd><kbd>1–5</kbd></span></div>
+      <div class="helpRow"><span>Nudge rating up / down</span><span class="keys"><kbd>↑</kbd><kbd>↓</kbd></span></div>
+      <div class="helpRow"><span>Save rating now</span><span class="keys"><kbd>Enter</kbd></span></div>
+      <div class="helpRow"><span>Previous title</span><span class="keys"><kbd>←</kbd></span></div>
+      <div class="helpRow"><span>Skip (snoozed for 7 days)</span><span class="keys"><kbd>→</kbd></span></div>
+      <div class="helpRow"><span>Reset / remove rating</span><span class="keys"><kbd>Backspace</kbd></span></div>
+      <div class="helpRow"><span>Play / stop trailer</span><span class="keys"><kbd>T</kbd></span></div>
+      <div class="helpRow"><span>Close trailer or dialogs</span><span class="keys"><kbd>Esc</kbd></span></div>
+      <div class="helpRow"><span>This sheet</span><span class="keys"><kbd>?</kbd></span></div>
+    </div>
+    <div class="helpHint">Hover the stars to preview a rating before clicking. Ratings auto-save a moment after you choose. Tap the 🔥 or ★ counters any time for your session recap.</div>
+  </div>
+</div>
+
+<div id="rotateOverlay" role="status">
+  <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-phone"/></svg>
+  <div class="rotate-title">Better in portrait</div>
+  <div class="rotate-sub">Rate It is designed for portrait. Rotate your phone back to keep rating.</div>
+</div>
+
 <script>
 const PLEX_PRODUCT = 'Rate It';
 const STORE_TOKEN = 'rateit_token';
@@ -1441,7 +1545,7 @@ function saveSnooze() { lsSet(SNOOZE_KEY, JSON.stringify(snoozeMap)); }
 function unsnoozeAll() {
   snoozeMap = {};
   saveSnooze();
-  loadItems();
+  loadItems(true);
 }
 
 const SORT_KEY = 'rateit_sortMode';
@@ -1778,61 +1882,131 @@ async function discoverServer(token) {
 }
 
 let loadingItems = false;
-async function loadItems() {
+async function loadItems(preserveSession) {
   if (loadingItems) return;
   loadingItems = true;
   setState('load');
   hideStage();
   hist = [];
-  ratedCount = 0;
-  lastCelebrated = 0;
-  starsGiven = 0;
-  displayedStars = 0;
-  sessionRatings = [];
-  updateRatedCounter();
-  updateStarCounter();
+  if (!preserveSession) {
+    ratedCount = 0;
+    lastCelebrated = 0;
+    starsGiven = 0;
+    displayedStars = 0;
+    sessionRatings = [];
+    updateRatedCounter();
+    updateStarCounter();
+  }
+  allItems = [];
+  let anyShown = false;
   try {
     const sd = await plexGet('/library/sections');
     const libs = (sd.MediaContainer.Directory || []).filter(d => d.type === 'movie' || d.type === 'show');
+    updateFilterButtons();
     const seen = new Set();
-    let all = [];
-    for (const lib of libs) {
-      const t = lib.type === 'movie' ? 1 : 2;
-      const d = await plexGet(`/library/sections/${lib.key}/all?type=${t}&sort=lastViewedAt%3Adesc&X-Plex-Container-Size=10000&X-Plex-Container-Start=0`);
-      for (const m of (d.MediaContainer.Metadata || [])) {
-        if (m.userRating || seen.has(m.ratingKey) || snoozeMap[m.ratingKey]) continue;
-        if (t === 1) {
-          if (!(m.viewCount > 0)) continue;
-        } else {
-          const total = m.leafCount || 0;
-          const watched = m.viewedLeafCount || 0;
-          if (!total || watched / total <= 0.5) continue;
+    let firstError = null;
+
+    const addBatch = fresh => {
+      if (!fresh.length) return;
+      allItems.push(...fresh);
+      if (!anyShown) {
+        rebuildQueueFromFilter();
+        if (queue.length) {
+          anyShown = true;
+          rebuild();
+          showStage();
         }
-        seen.add(m.ratingKey);
-        all.push({ ...m, libType: lib.type });
+      } else {
+        applyMerge();
+      }
+    };
+
+    await Promise.all(libs.map(async lib => {
+      const t = lib.type === 'movie' ? 1 : 2;
+      try {
+        const d = await plexGet(`/library/sections/${lib.key}/all?type=${t}&sort=lastViewedAt%3Adesc&X-Plex-Container-Size=10000&X-Plex-Container-Start=0`);
+        const fresh = [];
+        for (const m of (d.MediaContainer.Metadata || [])) {
+          if (m.userRating || seen.has(m.ratingKey) || snoozeMap[m.ratingKey]) continue;
+          if (t === 1) {
+            if (!(m.viewCount > 0)) continue;
+          } else {
+            const total = m.leafCount || 0;
+            const watched = m.viewedLeafCount || 0;
+            if (!total || watched / total <= 0.5) continue;
+          }
+          seen.add(m.ratingKey);
+          fresh.push({ ...m, libType: lib.type });
+        }
+        addBatch(fresh);
+      } catch (e) {
+        console.warn('[load] library failed', lib.title, e);
+        firstError = e;
+      }
+    }));
+
+    if (!anyShown) {
+      if (firstError && !allItems.length) throw firstError;
+      rebuildQueueFromFilter();
+      if (queue.length) {
+        rebuild();
+        showStage();
+      } else {
+        document.getElementById('doneSub').textContent = typeFilter === 'movie'
+          ? 'No unrated watched movies.'
+          : typeFilter === 'show'
+            ? 'No unrated watched TV shows.'
+            : 'No more unrated watched items.';
+        setState('done');
       }
     }
-    all.sort((a, b) => (b.lastViewedAt || 0) - (a.lastViewedAt || 0));
-    allItems = all;
-    updateFilterButtons();
-    rebuildQueueFromFilter();
-    if (!queue.length) {
-      document.getElementById('doneSub').textContent = typeFilter === 'movie'
-        ? 'No unrated watched movies.'
-        : typeFilter === 'show'
-          ? 'No unrated watched TV shows.'
-          : 'No more unrated watched items.';
-      setState('done');
-      return;
-    }
-    rebuild();
-    showStage();
   } catch(e) {
     setState('err');
     document.getElementById('errMsg').textContent = e.message || 'Connection failed.';
   } finally {
     loadingItems = false;
   }
+}
+
+function mergeQueue() {
+  const current = queue[0] || null;
+  const filtered = (typeFilter === 'all')
+    ? allItems
+    : allItems.filter(it => it.libType === typeFilter);
+  chronological = sortItems(filtered);
+  let rest = chronological.filter(it => it !== current);
+  if (shuffled) rest = shuffleArray(rest);
+  queue = current ? [current, ...rest] : rest.slice();
+  updateProgress();
+}
+
+function rebuildUnderStack() {
+  const stack = document.getElementById('posterStack');
+  stack.querySelectorAll('.poster.p1, .poster.p2').forEach(el => el.remove());
+  for (const i of [1, 2]) {
+    const it = queue[i];
+    if (!it) continue;
+    const img = document.createElement('img');
+    img.className = 'poster p' + i + ' skeleton';
+    img.alt = it.title || '';
+    stack.insertBefore(img, stack.firstChild);
+    loadPoster(it, img, false);
+  }
+}
+
+function applyMerge() {
+  if (busy) { setTimeout(applyMerge, 460); return; }
+  if (!queue.length && !allItems.length) return;
+  mergeQueue();
+  if (!queue.length) return;
+  if (!document.getElementById('stage').classList.contains('on')) {
+    rebuild();
+    showStage();
+    return;
+  }
+  rebuildUnderStack();
+  preloadAhead();
+  preloadInfo();
 }
 
 function rebuildQueueFromFilter() {
@@ -3204,6 +3378,12 @@ function openRecap() {
       <div class="recapHist" role="img" aria-label="Rating distribution">${bars}</div>
       <div class="recapHistLabels" aria-hidden="true">${labels}</div>`;
   }
+  const snoozed = Object.keys(snoozeMap).length;
+  if (snoozed) {
+    const body2 = document.getElementById('recapBody');
+    body2.insertAdjacentHTML('beforeend',
+      `<button class="state-btn recapUnsnooze" onclick="closeRecap();unsnoozeAll()">Bring back ${snoozed} skipped title${snoozed !== 1 ? 's' : ''}</button>`);
+  }
   recapOpener = document.activeElement;
   const popup = document.getElementById('recapPopup');
   popup.classList.add('on');
@@ -3219,6 +3399,25 @@ function closeRecap() {
 }
 function closeRecapFromOverlay(e) {
   if (e.target === document.getElementById('recapPopup')) closeRecap();
+}
+
+let helpOpener = null;
+function openHelp() {
+  helpOpener = document.activeElement;
+  const popup = document.getElementById('helpPopup');
+  popup.classList.add('on');
+  popup.setAttribute('aria-hidden', 'false');
+  document.getElementById('helpClose').focus();
+}
+function closeHelp() {
+  const popup = document.getElementById('helpPopup');
+  popup.classList.remove('on');
+  popup.setAttribute('aria-hidden', 'true');
+  if (helpOpener && helpOpener.focus) helpOpener.focus();
+  helpOpener = null;
+}
+function closeHelpFromOverlay(e) {
+  if (e.target === document.getElementById('helpPopup')) closeHelp();
 }
 
 function goBack() {
@@ -3327,6 +3526,7 @@ function showStage() {
   document.getElementById('typeFilter').classList.add('on');
   document.getElementById('counters').classList.add('on');
   document.getElementById('btnSignOut').classList.add('on');
+  document.getElementById('btnHelp').classList.add('on');
   ['stAuth','stLoad','stErr','stDone'].forEach(id => document.getElementById(id).classList.remove('on'));
 }
 function hideStage() {
@@ -3335,6 +3535,7 @@ function hideStage() {
   document.getElementById('typeFilter').classList.remove('on');
   document.getElementById('counters').classList.remove('on');
   document.getElementById('btnSignOut').classList.remove('on');
+  document.getElementById('btnHelp').classList.remove('on');
 }
 
 const RING_CIRC = 2 * Math.PI * 15.5;
@@ -3412,6 +3613,10 @@ document.addEventListener('touchmove', e => {
 }, { passive: false });
 
 document.addEventListener('keydown', e => {
+  if (document.getElementById('helpPopup').classList.contains('on')) {
+    if (e.key === 'Escape') closeHelp();
+    return;
+  }
   if (document.getElementById('recapPopup').classList.contains('on')) {
     if (e.key === 'Escape') closeRecap();
     return;
@@ -3446,6 +3651,11 @@ document.addEventListener('keydown', e => {
 
   const t = e.target;
   if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  if (e.key === '?' && desktop && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault();
+    openHelp();
+    return;
+  }
   if (busy || !queue[0]) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
 
@@ -3488,6 +3698,12 @@ document.addEventListener('keydown', e => {
     }
   }
 });
+
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(e => console.warn('[sw]', e));
+  });
+}
 
 updateSortButton();
 if (cfg.token && cfg.url) {

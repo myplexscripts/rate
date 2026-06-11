@@ -1,0 +1,19 @@
+{
+  "name": "Rate It",
+  "short_name": "Rate It",
+  "description": "Quickly rate your watched Plex movies and shows.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "images/icons/app-icon.png",
+      "sizes": "200x200",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
