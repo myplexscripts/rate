@@ -1,5 +1,5 @@
-const CACHE = 'rateit-v1';
-const ASSETS = ['./', './index.html', './images/icons/app-icon.png'];
+const CACHE = 'rateit-v2';
+const ASSETS = ['./', './index.html', './styles.css', './app.js', './manifest.json', './images/icons/app-icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
