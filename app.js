@@ -1226,7 +1226,7 @@ function doSkip() {
     saveSnooze();
     const ai = allItems.indexOf(item);
     if (ai !== -1) allItems.splice(ai, 1);
-    toast('Skipped — back in 7 days');
+    toast('Skipped. Back in 7 days');
   } else {
     toast('Skipped');
   }
@@ -1886,7 +1886,7 @@ let recapOpener = null;
 function openRecap() {
   const body = document.getElementById('recapBody');
   if (!sessionRatings.length) {
-    body.innerHTML = '<div class="recapEmpty">Nothing rated yet — rate a few titles and your session stats will show up here.</div>';
+    body.innerHTML = '<div class="recapEmpty">Nothing rated yet. Rate a few titles and your session stats will show up here.</div>';
   } else {
     const n = sessionRatings.length;
     const movies = sessionRatings.filter(s => s.libType === 'movie').length;
