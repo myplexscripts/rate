@@ -584,11 +584,31 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 #trailerVideo.hidden, #trailerError.hidden, #trailerSkeleton.hidden { display:none; }
 
 #starRow {
+  position:relative;
   display:flex; align-items:center; justify-content:center;
   gap:4px; flex-shrink:0;
   margin-bottom:24px;
   touch-action:none; cursor:pointer;
 }
+#clearRating {
+  position:absolute;
+  top:100%; left:50%;
+  transform:translateX(-50%);
+  margin-top:2px;
+  padding:3px 11px;
+  background:rgba(255,251,248,0.07);
+  border:1px solid rgba(255,251,248,0.12);
+  border-radius:50px;
+  color:var(--muted);
+  font-family:'Circular',sans-serif;
+  font-size:0.66rem; font-weight:600;
+  white-space:nowrap;
+  cursor:pointer;
+  opacity:0; pointer-events:none;
+  transition:opacity 0.2s, color 0.15s;
+}
+#clearRating.on { opacity:1; pointer-events:all; }
+#clearRating:hover { color:var(--text); background:rgba(255,251,248,0.12); }
 .icon {
   width:1em; height:1em;
   display:inline-block;
@@ -752,7 +772,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 
 #btnSignOut {
   position:fixed;
-  top:calc(var(--safe-top) + 166px);
+  top:calc(var(--safe-top) + 210px);
   right:13px;
   z-index:60;
   width:44px; height:44px;
@@ -880,6 +900,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   }
   #posterStack, #info { display:none; }
   #starRow { margin:0; pointer-events:all; cursor:pointer; }
+  #card:has(#clearRating.on) { gap:32px; }
+  #clearRating { margin-top:6px; }
   .star { font-size:3.6rem; filter:drop-shadow(0 1px 3px rgba(0,0,0,0.6)); }
   #starRow .star:not(.lit) { color:rgba(255,251,248,0.34); }
   #actions { width:auto; justify-content:center; gap:22px; padding:0; pointer-events:all; }
@@ -1113,7 +1135,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   }
 }
 
-#descPopup {
+#descPopup, #recapPopup {
   position:fixed; inset:0; z-index:700;
   display:flex; align-items:center; justify-content:center;
   padding:40px;
@@ -1122,8 +1144,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   opacity:0; pointer-events:none;
   transition:opacity 0.22s ease;
 }
-#descPopup.on { opacity:1; pointer-events:all; }
-#descPopupBox {
+#descPopup.on, #recapPopup.on { opacity:1; pointer-events:all; }
+#descPopupBox, #recapBox {
   position:relative;
   max-width:560px; width:100%; max-height:80vh;
   overflow-y:auto;
@@ -1135,23 +1157,56 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   transform:scale(0.95); transition:transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
   scrollbar-width:thin;
 }
-#descPopup.on #descPopupBox { transform:scale(1); }
-#descPopupClose {
+#descPopup.on #descPopupBox, #recapPopup.on #recapBox { transform:scale(1); }
+#descPopupClose, #recapClose {
   position:absolute; top:16px; right:16px;
   width:32px; height:32px; border:none; border-radius:50%;
   background:rgba(255,251,248,0.1); color:var(--text);
   display:flex; align-items:center; justify-content:center; cursor:pointer;
   transition:background 0.15s;
 }
-#descPopupClose:hover { background:rgba(255,251,248,0.2); }
-#descPopupClose .icon { width:1.2rem; height:1.2rem; }
-#descPopupTitle {
+#descPopupClose:hover, #recapClose:hover { background:rgba(255,251,248,0.2); }
+#descPopupClose .icon, #recapClose .icon { width:1.2rem; height:1.2rem; }
+#descPopupTitle, #recapTitle {
   font-weight:900; font-size:1.2rem; letter-spacing:-0.02em;
   color:var(--text); margin:0 36px 14px 0; line-height:1.2;
 }
 #descPopupText {
   font-size:0.95rem; line-height:1.65;
   color:rgba(255,251,248,0.82);
+}
+#recapBox { max-width:420px; }
+.recapEmpty {
+  font-size:0.88rem; line-height:1.6;
+  color:var(--muted);
+  padding:8px 0 4px;
+}
+.recapRows { display:flex; flex-direction:column; gap:11px; margin-top:4px; }
+.recapRow {
+  display:flex; justify-content:space-between; align-items:baseline; gap:16px;
+  font-size:0.85rem; color:var(--muted); font-weight:500;
+}
+.recapRow b {
+  color:var(--text); font-weight:700;
+  text-align:right;
+  max-width:62%;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.recapRow b .icon { width:0.85em; height:0.85em; color:var(--star); margin-right:3px; }
+.recapSub { color:var(--muted); font-weight:500; }
+.recapHist { display:flex; align-items:flex-end; gap:3px; height:60px; margin-top:22px; }
+.recapBar {
+  flex:1; min-height:3px;
+  background:var(--star);
+  border-radius:3px 3px 0 0;
+  transform-origin:bottom;
+  animation:recapBarIn 0.45s cubic-bezier(0.22,1,0.36,1) both;
+}
+@keyframes recapBarIn { from { transform:scaleY(0); } to { transform:scaleY(1); } }
+.recapHistLabels { display:flex; gap:3px; margin-top:5px; }
+.recapHistLabels span {
+  flex:1; text-align:center;
+  font-size:0.62rem; font-weight:600; color:var(--muted);
 }
 </style>
 </head>
@@ -1170,6 +1225,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   <symbol id="icon-star-half" viewBox="0 0 256 256"><path d="M239.18,97.26A16.38,16.38,0,0,0,224.92,86l-59-4.76L143.14,26.15a16.36,16.36,0,0,0-30.27,0L90.11,81.23,31.08,86a16.46,16.46,0,0,0-9.37,28.86l45,38.83L53,211.75a16.4,16.4,0,0,0,24.5,17.82L128,198.49l50.53,31.08A16.4,16.4,0,0,0,203,211.75l-13.76-58.07,45-38.83A16.43,16.43,0,0,0,239.18,97.26Zm-15.34,5.47-48.7,42a8,8,0,0,0-2.56,7.91l14.88,62.8a.37.37,0,0,1-.17.48c-.18.14-.23.11-.38,0l-54.72-33.65A8,8,0,0,0,128,181.1V32c.24,0,.27.08.35.26L153,91.86a8,8,0,0,0,6.75,4.92l63.91,5.16c.16,0,.25,0,.34.29S224,102.63,223.84,102.73Z"/></symbol>
   <symbol id="icon-sign-out" viewBox="0 0 256 256"><path d="M120,216a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V40a8,8,0,0,1,8-8h64a8,8,0,0,1,0,16H56V208h56A8,8,0,0,1,120,216Zm109.66-93.66-40-40a8,8,0,0,0-11.32,11.32L204.69,120H112a8,8,0,0,0,0,16h92.69l-26.35,26.34a8,8,0,0,0,11.32,11.32l40-40A8,8,0,0,0,229.66,122.34Z"/></symbol>
   <symbol id="icon-flame" viewBox="0 0 256 256"><path d="M183.89,153.34a57.6,57.6,0,0,1-46.56,46.55A8.75,8.75,0,0,1,136,200a8,8,0,0,1-1.32-15.89c16.57-2.79,30.63-16.85,33.44-33.45a8,8,0,0,1,15.78,2.68ZM216,144a88,88,0,0,1-176,0c0-27.92,11-56.47,32.66-84.85a8,8,0,0,1,11.93-.89l24.12,23.41,22-60.41a8,8,0,0,1,12.63-3.41C165.21,36,216,84.55,216,144Zm-16,0c0-46.09-35.79-85.92-58.21-106.33L119.52,98.74a8,8,0,0,1-13.09,3L80.06,76.16C64.09,99.21,56,122,56,144a72,72,0,0,0,144,0Z"/></symbol>
+  <symbol id="icon-sort" viewBox="0 0 256 256"><path d="M117.66,170.34a8,8,0,0,1,0,11.32l-32,32a8,8,0,0,1-11.32,0l-32-32a8,8,0,0,1,11.32-11.32L72,188.69V48a8,8,0,0,1,16,0V188.69l18.34-18.35A8,8,0,0,1,117.66,170.34Zm96-96-32-32a8,8,0,0,0-11.32,0l-32,32a8,8,0,0,0,11.32,11.32L168,67.31V208a8,8,0,0,0,16,0V67.31l18.34,18.35a8,8,0,0,0,11.32-11.32Z"/></symbol>
 </svg>
 
 <noscript><div class="state on"><div class="state-title">JavaScript required</div><div class="state-sub">Rate It needs JavaScript enabled to connect to your Plex server.</div></div></noscript>
@@ -1198,6 +1254,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 <div class="state" id="stDone">
   <div class="state-title">All done</div>
   <div class="state-sub" id="doneSub">No more unrated watched items.</div>
+  <button class="state-btn primary" onclick="openRecap()">Session recap</button>
+  <button class="state-btn" id="btnUnsnooze" onclick="unsnoozeAll()" style="display:none">Bring back skipped</button>
   <button class="state-btn" onclick="loadItems()">Refresh</button>
 </div>
 
@@ -1209,7 +1267,9 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
       <div id="iDate"></div>
       <div id="iSummary" onclick="openSummary()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openSummary();}" aria-label="View full summary, cast and trailer"></div>
     </div>
-    <div id="starRow" role="slider" tabindex="0" aria-label="Rate this title" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0" aria-valuetext="Not rated" aria-keyshortcuts="1 2 3 4 5 ArrowUp ArrowDown"></div>
+    <div id="starRow" role="slider" tabindex="0" aria-label="Rate this title" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0" aria-valuetext="Not rated" aria-keyshortcuts="1 2 3 4 5 ArrowUp ArrowDown"><button id="clearRating" type="button" aria-label="Remove saved rating"
+      onpointerdown="event.stopPropagation()"
+      onclick="event.stopPropagation();clearRating()">Remove rating</button></div>
     <div id="actions">
       <button class="act-btn" id="btnBack" onclick="goBack()" disabled title="Back (←)" aria-label="Go back to previous title" aria-keyshortcuts="ArrowLeft">
         <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-back"/></svg>
@@ -1227,15 +1287,15 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <div id="counters">
-  <div id="ratedCounter" role="status" aria-live="polite" aria-label="Rating streak this session" tabindex="0"
-       onclick="showCounterTip(this, 'Titles you\'ve rated this session')"
-       onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showCounterTip(this, 'Titles you\'ve rated this session');}">
+  <div id="ratedCounter" role="button" aria-label="Titles rated this session — view session recap" tabindex="0"
+       onclick="openRecap()"
+       onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRecap();}">
     <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-flame"/></svg>
     <span id="ratedCounterNum">0</span>
   </div>
-  <div id="starCounter" role="status" aria-live="polite" aria-label="Total stars given this session" tabindex="0"
-       onclick="showCounterTip(this, 'Total stars you\'ve given this session')"
-       onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showCounterTip(this, 'Total stars you\'ve given this session');}">
+  <div id="starCounter" role="button" aria-label="Total stars given this session — view session recap" tabindex="0"
+       onclick="openRecap()"
+       onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRecap();}">
     <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-star-fill"/></svg>
     <span id="starCounterNum">0</span>
   </div>
@@ -1255,12 +1315,15 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-sign-out"/></svg>
 </button>
 
-<div id="typeFilter" role="group" aria-label="Filter by type">
+<div id="typeFilter" role="group" aria-label="Queue filters and order">
   <button id="filterMovie" class="filter-btn" onclick="setTypeFilter('movie')" title="Movies only" aria-label="Show movies only" aria-pressed="false">
     <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-movies"/></svg>
   </button>
   <button id="filterShow" class="filter-btn" onclick="setTypeFilter('show')" title="TV shows only" aria-label="Show TV shows only" aria-pressed="false">
     <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-television"/></svg>
+  </button>
+  <button id="sortBtn" class="filter-btn" onclick="cycleSortMode()" title="Change queue order" aria-label="Change queue order">
+    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-sort"/></svg>
   </button>
 </div>
 
@@ -1314,6 +1377,14 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   </div>
 </div>
 
+<div id="recapPopup" onclick="closeRecapFromOverlay(event)" role="dialog" aria-modal="true" aria-label="Session recap" aria-hidden="true">
+  <div id="recapBox">
+    <button id="recapClose" onclick="closeRecap()" aria-label="Close recap"><svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-x"/></svg></button>
+    <div id="recapTitle">Session recap</div>
+    <div id="recapBody"></div>
+  </div>
+</div>
+
 <script>
 const PLEX_PRODUCT = 'Rate It';
 const STORE_TOKEN = 'rateit_token';
@@ -1352,6 +1423,58 @@ let ratedCount = 0;
 let lastCelebrated = 0;
 let starsGiven = 0;
 let displayedStars = 0;
+let sessionRatings = [];
+
+const SNOOZE_KEY = 'rateit_snooze';
+const SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
+let snoozeMap = {};
+(function loadSnooze() {
+  try { snoozeMap = JSON.parse(lsGet(SNOOZE_KEY)) || {}; } catch { snoozeMap = {}; }
+  const now = Date.now();
+  let dirty = false;
+  for (const k in snoozeMap) {
+    if (!snoozeMap[k] || now - snoozeMap[k] > SNOOZE_MS) { delete snoozeMap[k]; dirty = true; }
+  }
+  if (dirty) saveSnooze();
+})();
+function saveSnooze() { lsSet(SNOOZE_KEY, JSON.stringify(snoozeMap)); }
+function unsnoozeAll() {
+  snoozeMap = {};
+  saveSnooze();
+  loadItems();
+}
+
+const SORT_KEY = 'rateit_sortMode';
+const SORT_MODES = ['recent', 'oldest', 'added'];
+const SORT_LABELS = {
+  recent: 'Newest watches first',
+  oldest: 'Oldest watches first',
+  added:  'Recently added first'
+};
+let sortMode = SORT_MODES.includes(lsGet(SORT_KEY)) ? lsGet(SORT_KEY) : 'recent';
+function sortItems(arr) {
+  const a = arr.slice();
+  if (sortMode === 'oldest')     a.sort((x, y) => (x.lastViewedAt || 0) - (y.lastViewedAt || 0));
+  else if (sortMode === 'added') a.sort((x, y) => (y.addedAt || 0) - (x.addedAt || 0));
+  else                           a.sort((x, y) => (y.lastViewedAt || 0) - (x.lastViewedAt || 0));
+  return a;
+}
+function updateSortButton() {
+  const btn = document.getElementById('sortBtn');
+  btn.title = 'Queue order: ' + SORT_LABELS[sortMode];
+  btn.setAttribute('aria-label', 'Queue order: ' + SORT_LABELS[sortMode] + '. Activate to change');
+}
+function cycleSortMode() {
+  if (busy || !queue.length) return;
+  sortMode = SORT_MODES[(SORT_MODES.indexOf(sortMode) + 1) % SORT_MODES.length];
+  lsSet(SORT_KEY, sortMode);
+  updateSortButton();
+  clearTimeout(ratingTimer);
+  hist = [];
+  rebuildQueueFromFilter();
+  rebuild();
+  toast(SORT_LABELS[sortMode]);
+}
 
 function popNum(el) {
   el.classList.remove('pop');
@@ -1665,6 +1788,7 @@ async function loadItems() {
   lastCelebrated = 0;
   starsGiven = 0;
   displayedStars = 0;
+  sessionRatings = [];
   updateRatedCounter();
   updateStarCounter();
   try {
@@ -1676,7 +1800,7 @@ async function loadItems() {
       const t = lib.type === 'movie' ? 1 : 2;
       const d = await plexGet(`/library/sections/${lib.key}/all?type=${t}&sort=lastViewedAt%3Adesc&X-Plex-Container-Size=10000&X-Plex-Container-Start=0`);
       for (const m of (d.MediaContainer.Metadata || [])) {
-        if (m.userRating || seen.has(m.ratingKey)) continue;
+        if (m.userRating || seen.has(m.ratingKey) || snoozeMap[m.ratingKey]) continue;
         if (t === 1) {
           if (!(m.viewCount > 0)) continue;
         } else {
@@ -1712,9 +1836,9 @@ async function loadItems() {
 }
 
 function rebuildQueueFromFilter() {
-  chronological = (typeFilter === 'all')
-    ? allItems.slice()
-    : allItems.filter(it => it.libType === typeFilter);
+  chronological = sortItems((typeFilter === 'all')
+    ? allItems
+    : allItems.filter(it => it.libType === typeFilter));
   queue = chronological.slice();
   shuffled = false;
   const shuffleBtn = document.getElementById('btnShuffle');
@@ -2271,6 +2395,7 @@ function showRating(n) {
   ratingTimer = null;
   document.getElementById('starRow').classList.remove('resetting');
   paintRating(n);
+  document.getElementById('clearRating').classList.add('on');
 }
 
 function resetRating() {
@@ -2278,6 +2403,7 @@ function resetRating() {
   ratingTimer = null;
   rating = 0;
   paintRating(0);
+  document.getElementById('clearRating').classList.remove('on');
   if (isDesktop()) {
     const row = document.getElementById('starRow');
     row.classList.remove('resetting');
@@ -2315,6 +2441,16 @@ async function submitRating() {
   const ai = allItems.indexOf(item);
   if (ai !== -1) allItems.splice(ai, 1);
 
+  const rec = sessionRatings.find(s => s.key === item.ratingKey);
+  if (rec) rec.r = r;
+  else sessionRatings.push({
+    key: item.ratingKey,
+    title: item.title || '',
+    r,
+    libType: item.libType,
+    genres: (item._extra && item._extra.genres) || []
+  });
+
   if (!prev) {
     ratedCount++;
     updateRatedCounter(true);
@@ -2334,10 +2470,47 @@ async function submitRating() {
   if (queue[0] === item) advance('right');
 }
 
+async function clearRating() {
+  if (busy || submitting) return;
+  const item = queue[0];
+  if (!item || !item.userRating) return;
+  const prev = item.userRating / 2;
+  submitting = true;
+  let ok = true;
+  try {
+    const res = await fetch(
+      `${cfg.url}/:/rate?key=${encodeURIComponent(item.ratingKey)}&identifier=com.plexapp.plugins.library&rating=-1`,
+      { method: 'PUT', headers: H() }
+    );
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+  } catch { ok = false; }
+  submitting = false;
+  if (!ok) { toast('Couldn’t remove rating'); return; }
+
+  delete item.userRating;
+  if (allItems.indexOf(item) === -1) allItems.push(item);
+  sessionRatings = sessionRatings.filter(s => s.key !== item.ratingKey);
+  if (ratedCount > 0) ratedCount--;
+  updateRatedCounter(true);
+  starsGiven = Math.max(0, starsGiven - prev);
+  flyStarsBack(prev);
+  if (queue[0] === item) resetRating();
+  toast('Rating removed');
+}
+
 function doSkip() {
   if (busy) return;
   clearTimeout(ratingTimer);
-  toast('Skipped');
+  const item = queue[0];
+  if (item && !item.userRating) {
+    snoozeMap[item.ratingKey] = Date.now();
+    saveSnooze();
+    const ai = allItems.indexOf(item);
+    if (ai !== -1) allItems.splice(ai, 1);
+    toast('Skipped — back in 7 days');
+  } else {
+    toast('Skipped');
+  }
   advance('left');
 }
 
@@ -2984,6 +3157,70 @@ function closeDescPopupFromOverlay(e) {
   if (e.target === document.getElementById('descPopup')) closeDescPopup();
 }
 
+let recapOpener = null;
+function openRecap() {
+  const body = document.getElementById('recapBody');
+  if (!sessionRatings.length) {
+    body.innerHTML = '<div class="recapEmpty">Nothing rated yet — rate a few titles and your session stats will show up here.</div>';
+  } else {
+    const n = sessionRatings.length;
+    const movies = sessionRatings.filter(s => s.libType === 'movie').length;
+    const shows = n - movies;
+    const sum = sessionRatings.reduce((a, s) => a + s.r, 0);
+    let hi = sessionRatings[0], lo = sessionRatings[0];
+    for (const s of sessionRatings) {
+      if (s.r > hi.r) hi = s;
+      if (s.r < lo.r) lo = s;
+    }
+    const gCount = {};
+    sessionRatings.forEach(s => (s.genres || []).forEach(g => { gCount[g] = (gCount[g] || 0) + 1; }));
+    const topGenre = Object.entries(gCount).sort((a, b) => b[1] - a[1])[0];
+
+    const star = '<svg class="icon" aria-hidden="true"><use href="#icon-star-fill"/></svg>';
+    const split = [
+      movies ? `${movies} movie${movies !== 1 ? 's' : ''}` : '',
+      shows ? `${shows} show${shows !== 1 ? 's' : ''}` : ''
+    ].filter(Boolean).join(' · ');
+    const row = (label, val) => `<div class="recapRow"><span>${label}</span><b>${val}</b></div>`;
+    const rows = [
+      row('Titles rated', `${n} <span class="recapSub">${escHtml(split)}</span>`),
+      row('Stars given', `${star}${fmtStars(sum)}`),
+      row('Average rating', `${star}${(sum / n).toFixed(1)}`)
+    ];
+    if (n > 1 && hi !== lo) {
+      rows.push(row('Highest', `${star}${fmtStars(hi.r)} <span class="recapSub">${escHtml(hi.title)}</span>`));
+      rows.push(row('Lowest', `${star}${fmtStars(lo.r)} <span class="recapSub">${escHtml(lo.title)}</span>`));
+    }
+    if (topGenre && topGenre[1] > 1) rows.push(row('Top genre', escHtml(topGenre[0])));
+
+    const buckets = Array(10).fill(0);
+    sessionRatings.forEach(s => { buckets[Math.min(9, Math.max(0, Math.round(s.r * 2) - 1))]++; });
+    const max = Math.max(...buckets);
+    const bars = buckets.map((c, i) =>
+      `<div class="recapBar" style="height:${max ? Math.max(5, (c / max) * 100) : 5}%;opacity:${c ? 0.9 : 0.16};animation-delay:${i * 30}ms" title="${(i + 1) / 2} stars: ${c}"></div>`
+    ).join('');
+    const labels = Array.from({ length: 10 }, (_, i) => `<span>${i % 2 ? (i + 1) / 2 : ''}</span>`).join('');
+    body.innerHTML = `<div class="recapRows">${rows.join('')}</div>
+      <div class="recapHist" role="img" aria-label="Rating distribution">${bars}</div>
+      <div class="recapHistLabels" aria-hidden="true">${labels}</div>`;
+  }
+  recapOpener = document.activeElement;
+  const popup = document.getElementById('recapPopup');
+  popup.classList.add('on');
+  popup.setAttribute('aria-hidden', 'false');
+  document.getElementById('recapClose').focus();
+}
+function closeRecap() {
+  const popup = document.getElementById('recapPopup');
+  popup.classList.remove('on');
+  popup.setAttribute('aria-hidden', 'true');
+  if (recapOpener && recapOpener.focus) recapOpener.focus();
+  recapOpener = null;
+}
+function closeRecapFromOverlay(e) {
+  if (e.target === document.getElementById('recapPopup')) closeRecap();
+}
+
 function goBack() {
   if (!hist.length || busy) return;
   busy = true;
@@ -2991,6 +3228,11 @@ function goBack() {
 
   const { item, dir } = hist.pop();
   queue.unshift(item);
+  if (snoozeMap[item.ratingKey]) {
+    delete snoozeMap[item.ratingKey];
+    saveSnooze();
+    if (!item.userRating && allItems.indexOf(item) === -1) allItems.push(item);
+  }
 
   const stack = document.getElementById('posterStack');
   const p0 = stack.querySelector('.poster.p0');
@@ -3072,6 +3314,12 @@ function setState(s) {
     el.classList.toggle('on', on);
     el.setAttribute('aria-hidden', String(!on));
   });
+  if (s === 'done') {
+    const n = Object.keys(snoozeMap).length;
+    const u = document.getElementById('btnUnsnooze');
+    u.style.display = n ? '' : 'none';
+    u.textContent = n === 1 ? 'Bring back 1 skipped title' : `Bring back ${n} skipped titles`;
+  }
 }
 function showStage() {
   document.getElementById('stage').classList.add('on');
@@ -3164,6 +3412,10 @@ document.addEventListener('touchmove', e => {
 }, { passive: false });
 
 document.addEventListener('keydown', e => {
+  if (document.getElementById('recapPopup').classList.contains('on')) {
+    if (e.key === 'Escape') closeRecap();
+    return;
+  }
   if (document.getElementById('descPopup').classList.contains('on')) {
     if (e.key === 'Escape') closeDescPopup();
     return;
@@ -3219,7 +3471,15 @@ document.addEventListener('keydown', e => {
     doSkip();
   } else if (e.key === 'Backspace') {
     e.preventDefault();
-    resetRating();
+    const cur = queue[0];
+    if (ratingTimer) {
+      if (cur && cur.userRating) showRating(cur.userRating / 2);
+      else resetRating();
+    } else if (cur && cur.userRating) {
+      clearRating();
+    } else {
+      resetRating();
+    }
   } else if (e.key && e.key.toLowerCase() === 't') {
     const tb = document.getElementById('btnTrailer');
     if (tb && !tb.classList.contains('hidden') && !tb.classList.contains('skeleton')) {
@@ -3229,6 +3489,7 @@ document.addEventListener('keydown', e => {
   }
 });
 
+updateSortButton();
 if (cfg.token && cfg.url) {
   loadItems();
 } else {
