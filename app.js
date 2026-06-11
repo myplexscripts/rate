@@ -881,14 +881,21 @@ function logoNeedsInvert(imgEl) {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(imgEl, 0, 0, W, H);
     const data = ctx.getImageData(0, 0, W, H).data;
-    let visible = 0, dark = 0;
+    let visible = 0, dark = 0, light = 0, colored = 0;
     for (let i = 0; i < data.length; i += 4) {
       if (data[i + 3] < 40) continue;
       visible++;
-      const lum = (data[i] * 299 + data[i + 1] * 587 + data[i + 2] * 114) / 1000;
-      if (lum < 48) dark++;
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      const lum = (r * 299 + g * 587 + b * 114) / 1000;
+      const sat = Math.max(r, g, b) - Math.min(r, g, b);
+      if (sat > 48 && lum > 40) colored++;
+      if (lum < 60) dark++;
+      else if (lum > 160) light++;
     }
-    return visible > 20 && dark / visible >= 0.98;
+    return visible > 20
+      && colored / visible < 0.02
+      && light / visible <= 0.12
+      && dark / visible >= 0.75;
   } catch { return false; }
 }
 
