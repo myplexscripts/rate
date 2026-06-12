@@ -1010,8 +1010,15 @@ function updateCloseAdaptation() {
 }
 
 const PARALLAX_FACTOR = 0.5;
-const BD_BLEED = 'scale(1.25)';
+const BD_BLEED = 1.25;
+const PULL_GAIN = 0.55;
+const PULL_MAX = 0.4;
+const PULL_SMOOTH = 0.22;
 let _bdHeight = 0;
+let _pullExtra = 0;
+let _pullRaf = 0;
+let _pullTouching = false;
+
 function updateBackdropParallax() {
   const backdrop = document.getElementById('summaryBackdrop');
   if (isDesktop() || !document.getElementById('summaryBox').classList.contains('has-backdrop')) {
@@ -1024,7 +1031,7 @@ function updateBackdropParallax() {
   if (st > 0) {
     const h = _bdHeight || (_bdHeight = backdrop.offsetHeight || 1);
     backdrop.style.transition = 'none';
-    backdrop.style.transform = 'translate3d(0,' + (st * PARALLAX_FACTOR).toFixed(2) + 'px,0) ' + BD_BLEED;
+    backdrop.style.transform = 'translate3d(0,' + (st * PARALLAX_FACTOR).toFixed(2) + 'px,0) scale(' + BD_BLEED + ')';
     backdrop.style.opacity = Math.max(0, 1 - st / (h * 0.75)).toFixed(3);
   } else {
     backdrop.style.transform = '';
@@ -1033,10 +1040,46 @@ function updateBackdropParallax() {
   }
 }
 
+function pullFrame() {
+  const backdrop = document.getElementById('summaryBackdrop');
+  const active = !isDesktop() && document.getElementById('summaryBox').classList.contains('has-backdrop');
+  const st = active ? document.getElementById('summaryScroll').scrollTop : 0;
+
+  let target = 0;
+  if (active && st < 0) {
+    const h = _bdHeight || (_bdHeight = backdrop.offsetHeight || 1);
+    target = Math.min((-st / h) * PULL_GAIN, PULL_MAX);
+  }
+  _pullExtra += (target - _pullExtra) * PULL_SMOOTH;
+  if (Math.abs(target - _pullExtra) < 0.001) _pullExtra = target;
+
+  if (active && (st < 0 || _pullExtra > 0)) {
+    backdrop.style.transition = 'none';
+    backdrop.style.opacity = '';
+    backdrop.style.transform = 'scale(' + (BD_BLEED + _pullExtra).toFixed(4) + ')';
+  }
+
+  if (_pullTouching || st < 0 || _pullExtra > 0) {
+    _pullRaf = requestAnimationFrame(pullFrame);
+  } else {
+    _pullRaf = 0;
+    updateBackdropParallax();
+  }
+}
+function kickPull() { if (!_pullRaf) _pullRaf = requestAnimationFrame(pullFrame); }
+
 function onSummaryScroll() {
   updateCloseAdaptation();
-  updateBackdropParallax();
+  if (document.getElementById('summaryScroll').scrollTop < 0) kickPull();
+  else if (!_pullRaf) updateBackdropParallax();
 }
+
+(function initBackdropPull() {
+  const scrollEl = document.getElementById('summaryScroll');
+  scrollEl.addEventListener('touchstart',  () => { _pullTouching = true; kickPull(); }, { passive: true });
+  scrollEl.addEventListener('touchend',    () => { _pullTouching = false; }, { passive: true });
+  scrollEl.addEventListener('touchcancel', () => { _pullTouching = false; }, { passive: true });
+})();
 
 function ubDarken(rgb) {
   if (!rgb) return null;
@@ -1684,6 +1727,7 @@ function openSummary(forItem) {
   bdEl.style.opacity = '';
   bdEl.style.transition = '';
   _bdHeight = 0;
+  _pullExtra = 0;
   scrollEl.removeEventListener('scroll', onSummaryScroll);
   scrollEl.addEventListener('scroll', onSummaryScroll, { passive: true });
   if (!known) {
