@@ -300,6 +300,8 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   display:none;
   position:relative;
   will-change:transform;
+  transform:scale(1.25);
+  transform-origin:bottom center;
   margin:-26px -24px 16px;
   aspect-ratio:16/9;
   overflow:hidden;
@@ -989,6 +991,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
   #starRow.resetting .star:nth-child(4){ animation-delay:0.15s; }
   #starRow.resetting .star:nth-child(5){ animation-delay:0.20s; }
 
+  #summaryBackdrop { transform:none; transform-origin:center; }
   #summaryBox.has-backdrop #summaryBackdrop,
   #summaryBox.loading-backdrop #summaryBackdrop {
     display:block;

@@ -1010,6 +1010,7 @@ function updateCloseAdaptation() {
 }
 
 const PARALLAX_FACTOR = 0.5;
+const BD_BLEED = 'scale(1.25)';
 let _bdHeight = 0;
 function updateBackdropParallax() {
   const backdrop = document.getElementById('summaryBackdrop');
@@ -1023,7 +1024,7 @@ function updateBackdropParallax() {
   if (st > 0) {
     const h = _bdHeight || (_bdHeight = backdrop.offsetHeight || 1);
     backdrop.style.transition = 'none';
-    backdrop.style.transform = 'translate3d(0,' + (st * PARALLAX_FACTOR).toFixed(2) + 'px,0)';
+    backdrop.style.transform = 'translate3d(0,' + (st * PARALLAX_FACTOR).toFixed(2) + 'px,0) ' + BD_BLEED;
     backdrop.style.opacity = Math.max(0, 1 - st / (h * 0.75)).toFixed(3);
   } else {
     backdrop.style.transform = '';
