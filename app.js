@@ -971,6 +971,8 @@ function updateBackdropParallax() {
   const backdrop = document.getElementById('summaryBackdrop');
   if (isDesktop() || !document.getElementById('summaryBox').classList.contains('has-backdrop')) {
     backdrop.style.transform = '';
+    backdrop.style.opacity = '';
+    backdrop.style.transition = '';
     return;
   }
   const st = document.getElementById('summaryScroll').scrollTop;
@@ -978,8 +980,18 @@ function updateBackdropParallax() {
     const h = _bdHeight || (_bdHeight = backdrop.offsetHeight || 1);
     const grow = Math.min((-st / h) * STRETCH_GAIN, STRETCH_MAX);
     backdrop.style.transform = 'scale(' + (1 + grow) + ')';
+    backdrop.style.opacity = '';
+    backdrop.style.transition = '';
   } else {
     backdrop.style.transform = 'translate3d(0,' + (st * PARALLAX_FACTOR) + 'px,0)';
+    if (st > 0) {
+      const h = _bdHeight || (_bdHeight = backdrop.offsetHeight || 1);
+      backdrop.style.transition = 'none';
+      backdrop.style.opacity = Math.max(0, 1 - st / (h * 0.75)).toFixed(3);
+    } else {
+      backdrop.style.opacity = '';
+      backdrop.style.transition = '';
+    }
   }
 }
 
@@ -1646,7 +1658,11 @@ function openSummary(forItem) {
   castEl.scrollLeft = 0;
   const scrollEl = document.getElementById('summaryScroll');
   scrollEl.scrollTop = 0;
-  document.getElementById('summaryBackdrop').style.transform = '';
+  const bdEl = document.getElementById('summaryBackdrop');
+  bdEl.style.transform = '';
+  bdEl.style.opacity = '';
+  bdEl.style.transition = '';
+  _bdHeight = 0;
   scrollEl.removeEventListener('scroll', onSummaryScroll);
   scrollEl.addEventListener('scroll', onSummaryScroll, { passive: true });
   if (!known) {

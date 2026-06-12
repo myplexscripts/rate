@@ -487,12 +487,13 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 }
 #summaryClose:hover { background:rgba(255,251,248,0.2); }
 #summaryBox.has-backdrop #summaryClose {
-  background:rgba(0,0,0,0.35);
+  background:rgba(255,251,248,0.16);
   backdrop-filter:blur(6px);
   -webkit-backdrop-filter:blur(6px);
 }
-#summaryBox.has-backdrop #summaryClose.on-light { color:#1a1a1a; }
-#summaryBox.has-backdrop #summaryClose.on-light:hover { background:rgba(0,0,0,0.45); }
+#summaryBox.has-backdrop #summaryClose:hover { background:rgba(255,251,248,0.28); }
+#summaryBox.has-backdrop #summaryClose.on-light { background:rgba(0,0,0,0.4); }
+#summaryBox.has-backdrop #summaryClose.on-light:hover { background:rgba(0,0,0,0.52); }
 #summaryClose .icon { width:1.3rem; height:1.3rem; }
 
 #btnTrailer {
