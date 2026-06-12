@@ -905,14 +905,14 @@ function sampleCornerBrightness(imgEl) {
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(imgEl, 0, 0, W, H);
-      const cw = Math.round(W * 0.35), ch = Math.round(H * 0.6);
+      const cw = Math.round(W * 0.30), ch = Math.round(H * 0.32);
       const data = ctx.getImageData(W - cw, 0, cw, ch).data;
       let total = 0, n = 0;
       for (let i = 0; i < data.length; i += 4) {
         total += (data[i] * 299 + data[i + 1] * 587 + data[i + 2] * 114) / 1000;
         n++;
       }
-      resolve(n ? (total / n) > 165 : false);
+      resolve(n ? (total / n) > 150 : false);
     } catch { resolve(false); }
   });
 }
@@ -964,7 +964,7 @@ function updateCloseAdaptation() {
 }
 
 const PARALLAX_FACTOR = 0.5;
-const STRETCH_GAIN = 1.06;
+const STRETCH_GAIN = 1.22;
 const STRETCH_MAX = 3;
 let _bdHeight = 0;
 function updateBackdropParallax() {
