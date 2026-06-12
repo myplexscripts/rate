@@ -1023,6 +1023,10 @@ function refreshBdMetrics() {
   if (_bdHeight) backdrop.style.setProperty('--bd-bleed', bdScale().toFixed(4));
 }
 
+let _pullActive = false;
+let _pullSettling = false;
+let _pullSettleTimer = null;
+
 function updateBackdropParallax() {
   const backdrop = document.getElementById('summaryBackdrop');
   if (isDesktop() || !document.getElementById('summaryBox').classList.contains('has-backdrop')) {
@@ -1031,6 +1035,7 @@ function updateBackdropParallax() {
     backdrop.style.transition = '';
     return;
   }
+  if (_pullActive || _pullSettling) return;
   const st = document.getElementById('summaryScroll').scrollTop;
   if (!_bdHeight) refreshBdMetrics();
   if (st > 0) {
@@ -1049,6 +1054,66 @@ function onSummaryScroll() {
   updateCloseAdaptation();
   updateBackdropParallax();
 }
+
+function releasePull(fast) {
+  const backdrop = document.getElementById('summaryBackdrop');
+  _pullActive = false;
+  _pullSettling = true;
+  backdrop.style.transition = 'transform ' + (fast ? '0.2s ease-out' : '0.45s cubic-bezier(0.22,1,0.36,1)');
+  backdrop.style.transform = '';
+  clearTimeout(_pullSettleTimer);
+  _pullSettleTimer = setTimeout(() => {
+    backdrop.style.transition = '';
+    _pullSettling = false;
+    updateBackdropParallax();
+  }, fast ? 220 : 470);
+}
+
+(function initBackdropPull() {
+  const scrollEl = document.getElementById('summaryScroll');
+  let baseY = 0;
+
+  scrollEl.addEventListener('touchstart', e => {
+    baseY = e.touches[0].clientY;
+    _pullActive = false;
+  }, { passive: true });
+
+  scrollEl.addEventListener('touchmove', e => {
+    if (isDesktop() || e.touches.length !== 1
+        || !document.getElementById('summaryBox').classList.contains('has-backdrop')) return;
+    const y = e.touches[0].clientY;
+
+    if (!_pullActive) {
+      if (scrollEl.scrollTop <= 0 && y > baseY) {
+        _pullActive = true;
+        clearTimeout(_pullSettleTimer);
+        _pullSettling = false;
+      } else {
+        baseY = y;
+        return;
+      }
+    }
+
+    const dy = y - baseY;
+    if (dy <= 0) {
+      releasePull(true);
+      baseY = y;
+      return;
+    }
+    if (e.cancelable) e.preventDefault();
+    if (!_bdHeight) refreshBdMetrics();
+    const h = _bdHeight || 1;
+    const extra = 130 * (1 - Math.exp(-dy / 220));
+    const backdrop = document.getElementById('summaryBackdrop');
+    backdrop.style.transition = 'none';
+    backdrop.style.opacity = '';
+    backdrop.style.transform = 'scale(' + (1 + (BD_BLEED_PX + extra) / h).toFixed(4) + ')';
+  }, { passive: false });
+
+  const end = () => { if (_pullActive) releasePull(false); };
+  scrollEl.addEventListener('touchend', end, { passive: true });
+  scrollEl.addEventListener('touchcancel', end, { passive: true });
+})();
 
 function ubDarken(rgb) {
   if (!rgb) return null;
@@ -1696,6 +1761,9 @@ function openSummary(forItem) {
   bdEl.style.opacity = '';
   bdEl.style.transition = '';
   _bdHeight = 0;
+  _pullActive = false;
+  _pullSettling = false;
+  clearTimeout(_pullSettleTimer);
   scrollEl.removeEventListener('scroll', onSummaryScroll);
   scrollEl.addEventListener('scroll', onSummaryScroll, { passive: true });
   if (!known) {
