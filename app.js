@@ -897,25 +897,45 @@ function getEdgeColors(imgEl) {
   });
 }
 
-function sampleCornerBrightness(imgEl) {
-  return new Promise(resolve => {
-    try {
-      const W = 60, H = 34;
-      const canvas = document.createElement('canvas');
-      canvas.width = W; canvas.height = H;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(imgEl, 0, 0, W, H);
-      const cw = Math.round(W * 0.30), ch = Math.round(H * 0.32);
-      const data = ctx.getImageData(W - cw, 0, cw, ch).data;
-      let total = 0, n = 0;
-      for (let i = 0; i < data.length; i += 4) {
-        total += (data[i] * 299 + data[i + 1] * 587 + data[i + 2] * 114) / 1000;
-        n++;
-      }
-      resolve(n ? (total / n) > 150 : false);
-    } catch { resolve(false); }
-  });
+const _closeSample = { data: null, w: 0, h: 0 };
+function setCloseSampleImage(imgEl) {
+  try {
+    const W = 64, H = 36;
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(imgEl, 0, 0, W, H);
+    const d = ctx.getImageData(0, 0, W, H);
+    _closeSample.data = d.data;
+    _closeSample.w = W;
+    _closeSample.h = H;
+  } catch {
+    _closeSample.data = null;
+  }
 }
+
+const BD_MASK_STOPS = [[0, 1], [0.44, 1], [0.56, 0.9], [0.68, 0.65], [0.82, 0.28], [1, 0]];
+function backdropMaskAlpha(v) {
+  if (v <= 0) return 1;
+  if (v >= 1) return 0;
+  for (let i = 1; i < BD_MASK_STOPS.length; i++) {
+    if (v <= BD_MASK_STOPS[i][0]) {
+      const [v0, a0] = BD_MASK_STOPS[i - 1];
+      const [v1, a1] = BD_MASK_STOPS[i];
+      return a0 + (a1 - a0) * ((v - v0) / (v1 - v0));
+    }
+  }
+  return 0;
+}
+
+function meshLuminance() {
+  const base = getComputedStyle(document.getElementById('summaryBox')).getPropertyValue('--sb-base');
+  const m = base.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (!m) return 34;
+  return (+m[1] * 299 + +m[2] * 587 + +m[3] * 114) / 1000;
+}
+
+let _closeIsLight = false;
 
 function logoNeedsInvert(imgEl) {
   try {
@@ -946,32 +966,51 @@ function logoNeedsInvert(imgEl) {
 }
 
 function updateCloseAdaptation() {
-  const box = document.getElementById('summaryBox');
   const closeBtn = document.getElementById('summaryClose');
+  if (!closeBtn.offsetParent) return;
+  const box = document.getElementById('summaryBox');
   const backdropEl = document.getElementById('summaryBackdrop');
-  if (!box.classList.contains('has-backdrop') || !backdropEl.offsetParent) {
-    closeBtn.classList.remove('on-light');
-    return;
+  const baseLum = meshLuminance();
+  let lum = baseLum;
+
+  if (box.classList.contains('has-backdrop') && _closeSample.data && backdropEl.offsetParent) {
+    const bd = backdropEl.getBoundingClientRect();
+    const btn = closeBtn.getBoundingClientRect();
+    const cx = (btn.left + btn.right) / 2;
+    const cy = (btn.top + btn.bottom) / 2;
+    if (bd.width > 0 && bd.height > 0 && cx >= bd.left && cx <= bd.right && cy >= bd.top && cy <= bd.bottom) {
+      const u = (cx - bd.left) / bd.width;
+      const v = (cy - bd.top) / bd.height;
+      const { data, w, h } = _closeSample;
+      const px = Math.round(u * (w - 1));
+      const py = Math.round(v * (h - 1));
+      const rad = 4;
+      let total = 0, n = 0;
+      for (let y = Math.max(0, py - rad); y <= Math.min(h - 1, py + rad); y++) {
+        for (let x = Math.max(0, px - rad); x <= Math.min(w - 1, px + rad); x++) {
+          const i = (y * w + x) * 4;
+          total += (data[i] * 299 + data[i + 1] * 587 + data[i + 2] * 114) / 1000;
+          n++;
+        }
+      }
+      if (n) {
+        const op = backdropEl.style.opacity === '' ? 1 : (parseFloat(backdropEl.style.opacity) || 0);
+        const a = Math.max(0, Math.min(1, op * backdropMaskAlpha(v)));
+        lum = (total / n) * a + baseLum * (1 - a);
+      }
+    }
   }
-  const backdropBottom = backdropEl.getBoundingClientRect().bottom;
-  const btnRect = closeBtn.getBoundingClientRect();
-  const btnCentre = (btnRect.top + btnRect.bottom) / 2;
-  if (backdropBottom <= btnCentre) {
-    closeBtn.classList.remove('on-light');
+
+  if (_closeIsLight) {
+    if (lum < 140) _closeIsLight = false;
   } else {
-    closeBtn.classList.toggle('on-light', closeBtn._backdropIsLight === true);
+    if (lum > 158) _closeIsLight = true;
   }
+  closeBtn.classList.toggle('on-light', _closeIsLight);
 }
 
 const PARALLAX_FACTOR = 0.5;
-const STRETCH_GAIN = 1.22;
-const STRETCH_MAX = 3;
-const STRETCH_SMOOTH = 0.4;
 let _bdHeight = 0;
-let _bdScale = 1;
-let _bdRaf = 0;
-let _bdTouching = false;
-
 function updateBackdropParallax() {
   const backdrop = document.getElementById('summaryBackdrop');
   if (isDesktop() || !document.getElementById('summaryBox').classList.contains('has-backdrop')) {
@@ -981,60 +1020,22 @@ function updateBackdropParallax() {
     return;
   }
   const st = document.getElementById('summaryScroll').scrollTop;
-  if (st < 0 || _bdScale > 1.001) return;
   if (st > 0) {
     const h = _bdHeight || (_bdHeight = backdrop.offsetHeight || 1);
     backdrop.style.transition = 'none';
-    backdrop.style.opacity = Math.max(0, 1 - st / (h * 0.75)).toFixed(3);
     backdrop.style.transform = 'translate3d(0,' + (st * PARALLAX_FACTOR).toFixed(2) + 'px,0)';
+    backdrop.style.opacity = Math.max(0, 1 - st / (h * 0.75)).toFixed(3);
   } else {
-    backdrop.style.opacity = '';
     backdrop.style.transform = '';
+    backdrop.style.opacity = '';
     backdrop.style.transition = '';
   }
 }
 
-function backdropStretchFrame() {
-  const backdrop = document.getElementById('summaryBackdrop');
-  const active = !isDesktop() && document.getElementById('summaryBox').classList.contains('has-backdrop');
-  const st = active ? document.getElementById('summaryScroll').scrollTop : 0;
-
-  let target = 1;
-  if (active && st < 0) {
-    const h = _bdHeight || (_bdHeight = backdrop.offsetHeight || 1);
-    target = 1 + Math.min((-st / h) * STRETCH_GAIN, STRETCH_MAX);
-  }
-  _bdScale += (target - _bdScale) * STRETCH_SMOOTH;
-  if (Math.abs(target - _bdScale) < 0.0008) _bdScale = target;
-
-  if (active && (st < 0 || _bdScale > 1.001)) {
-    backdrop.style.transition = 'none';
-    backdrop.style.opacity = '';
-    backdrop.style.transform = 'scale(' + _bdScale.toFixed(4) + ')';
-  }
-
-  if (_bdTouching || st < 0 || _bdScale !== 1) {
-    _bdRaf = requestAnimationFrame(backdropStretchFrame);
-  } else {
-    _bdRaf = 0;
-    updateBackdropParallax();
-  }
-}
-function kickStretch() { if (!_bdRaf) _bdRaf = requestAnimationFrame(backdropStretchFrame); }
-
 function onSummaryScroll() {
-  const scrollEl = document.getElementById('summaryScroll');
-  if (scrollEl.scrollTop >= 0) updateCloseAdaptation();
-  if (scrollEl.scrollTop < 0) kickStretch();
-  else updateBackdropParallax();
+  updateCloseAdaptation();
+  updateBackdropParallax();
 }
-
-(function initBackdropStretch() {
-  const scrollEl = document.getElementById('summaryScroll');
-  scrollEl.addEventListener('touchstart',  () => { _bdTouching = true; _bdHeight = 0; kickStretch(); }, { passive: true });
-  scrollEl.addEventListener('touchend',    () => { _bdTouching = false; kickStretch(); }, { passive: true });
-  scrollEl.addEventListener('touchcancel', () => { _bdTouching = false; kickStretch(); }, { passive: true });
-})();
 
 function ubDarken(rgb) {
   if (!rgb) return null;
@@ -1628,7 +1629,8 @@ function openSummary(forItem) {
   }
   const closeBtn = document.getElementById('summaryClose');
   closeBtn.classList.remove('on-light');
-  closeBtn._backdropIsLight = false;
+  _closeIsLight = false;
+  _closeSample.data = null;
 
   ['summaryRowYearRating','summaryRowDuration','summaryGenres',
    'summaryPersonal'].forEach(id => {
@@ -1681,7 +1683,6 @@ function openSummary(forItem) {
   bdEl.style.opacity = '';
   bdEl.style.transition = '';
   _bdHeight = 0;
-  _bdScale = 1;
   scrollEl.removeEventListener('scroll', onSummaryScroll);
   scrollEl.addEventListener('scroll', onSummaryScroll, { passive: true });
   if (!known) {
@@ -1833,12 +1834,8 @@ function openSummary(forItem) {
               curEl.classList.remove('bd-show');
             });
             _bdShownId = nextId;
-            sampleCornerBrightness(nextEl).then(light => {
-              if (summaryItem !== item) return;
-              const closeBtn = document.getElementById('summaryClose');
-              closeBtn._backdropIsLight = light;
-              updateCloseAdaptation();
-            });
+            setCloseSampleImage(nextEl);
+            updateCloseAdaptation();
           };
           nextEl.src = blobUrl;
           return;
@@ -1850,12 +1847,8 @@ function openSummary(forItem) {
           box.classList.remove('loading-backdrop');
           box.classList.add('has-backdrop');
           requestAnimationFrame(() => backdrop.classList.add('on'));
-          sampleCornerBrightness(backdropImg).then(light => {
-            if (summaryItem !== item) return;
-            const closeBtn = document.getElementById('summaryClose');
-            closeBtn._backdropIsLight = light;
-            updateCloseAdaptation();
-          });
+          setCloseSampleImage(backdropImg);
+          updateCloseAdaptation();
         };
         backdropImg.src = blobUrl;
       };
