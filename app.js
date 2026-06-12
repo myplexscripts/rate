@@ -517,6 +517,52 @@ function applyMerge() {
   preloadInfo();
 }
 
+let resyncing = false;
+async function resyncLibrary(silent) {
+  if (resyncing || loadingItems || !cfg.token || !cfg.url) return;
+  resyncing = true;
+  try {
+    const sd = await plexGet('/library/sections');
+    const libs = (sd.MediaContainer.Directory || []).filter(d => d.type === 'movie' || d.type === 'show');
+    const known = new Set();
+    allItems.forEach(it => known.add(it.ratingKey));
+    queue.forEach(it => known.add(it.ratingKey));
+    hist.forEach(h => known.add(h.item.ratingKey));
+    let added = 0;
+    await Promise.all(libs.map(async lib => {
+      const t = lib.type === 'movie' ? 1 : 2;
+      const d = await plexGet(`/library/sections/${lib.key}/all?type=${t}&sort=lastViewedAt%3Adesc&X-Plex-Container-Size=10000&X-Plex-Container-Start=0`);
+      const fresh = [];
+      for (const m of (d.MediaContainer.Metadata || [])) {
+        if (m.userRating || known.has(m.ratingKey) || snoozeMap[m.ratingKey]) continue;
+        if (t === 1) {
+          if (!(m.viewCount > 0)) continue;
+        } else {
+          const total = m.leafCount || 0;
+          const watched = m.viewedLeafCount || 0;
+          if (!total || watched / total <= 0.5) continue;
+        }
+        known.add(m.ratingKey);
+        fresh.push({ ...m, libType: lib.type });
+      }
+      if (fresh.length) {
+        added += fresh.length;
+        allItems.push(...fresh);
+      }
+    }));
+    if (added) {
+      applyMerge();
+      toast(added + ' new title' + (added !== 1 ? 's' : '') + ' found');
+    } else if (!silent) {
+      toast('Library is up to date');
+    }
+  } catch (e) {
+    if (!silent) toast('Couldn’t reach Plex');
+  } finally {
+    resyncing = false;
+  }
+}
+
 function rebuildQueueFromFilter() {
   chronological = sortItems((typeFilter === 'all')
     ? allItems
@@ -1938,10 +1984,11 @@ function openRecap() {
   }
   const snoozed = Object.keys(snoozeMap).length;
   if (snoozed) {
-    const body2 = document.getElementById('recapBody');
-    body2.insertAdjacentHTML('beforeend',
+    body.insertAdjacentHTML('beforeend',
       `<button class="state-btn recapUnsnooze" onclick="closeRecap();unsnoozeAll()">Bring back ${snoozed} skipped title${snoozed !== 1 ? 's' : ''}</button>`);
   }
+  body.insertAdjacentHTML('beforeend',
+    '<button class="state-btn recapUnsnooze" onclick="closeRecap();resyncLibrary(false)">Resync library</button>');
   recapOpener = document.activeElement;
   const popup = document.getElementById('recapPopup');
   popup.classList.add('on');
@@ -2147,10 +2194,16 @@ window.addEventListener('pagehide', () => {
   } catch {}
 });
 
+let hiddenAt = 0;
+const RESYNC_AWAY_MS = 5 * 60 * 1000;
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) return;
-  const v = document.getElementById('trailerVideo');
-  if (v && v.src && !v.paused) v.pause();
+  if (document.hidden) {
+    hiddenAt = Date.now();
+    const v = document.getElementById('trailerVideo');
+    if (v && v.src && !v.paused) v.pause();
+    return;
+  }
+  if (hiddenAt && Date.now() - hiddenAt > RESYNC_AWAY_MS) resyncLibrary(true);
 });
 
 window.addEventListener('offline', () => toast('You’re offline'));

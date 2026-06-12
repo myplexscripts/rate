@@ -816,6 +816,7 @@ img { -webkit-user-drag:none; user-drag:none; pointer-events:none; }
 }
 
 .recapUnsnooze { margin-top:22px; width:100%; }
+.recapUnsnooze + .recapUnsnooze { margin-top:10px; }
 
 #typeFilter {
   position:fixed;
