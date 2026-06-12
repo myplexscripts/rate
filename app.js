@@ -966,7 +966,12 @@ function updateCloseAdaptation() {
 const PARALLAX_FACTOR = 0.5;
 const STRETCH_GAIN = 1.22;
 const STRETCH_MAX = 3;
+const STRETCH_SMOOTH = 0.4;
 let _bdHeight = 0;
+let _bdScale = 1;
+let _bdRaf = 0;
+let _bdTouching = false;
+
 function updateBackdropParallax() {
   const backdrop = document.getElementById('summaryBackdrop');
   if (isDesktop() || !document.getElementById('summaryBox').classList.contains('has-backdrop')) {
@@ -976,46 +981,59 @@ function updateBackdropParallax() {
     return;
   }
   const st = document.getElementById('summaryScroll').scrollTop;
-  if (st < 0) {
+  if (st < 0 || _bdScale > 1.001) return;
+  if (st > 0) {
     const h = _bdHeight || (_bdHeight = backdrop.offsetHeight || 1);
-    const grow = Math.min((-st / h) * STRETCH_GAIN, STRETCH_MAX);
-    backdrop.style.transform = 'scale(' + (1 + grow) + ')';
-    backdrop.style.opacity = '';
-    backdrop.style.transition = '';
+    backdrop.style.transition = 'none';
+    backdrop.style.opacity = Math.max(0, 1 - st / (h * 0.75)).toFixed(3);
+    backdrop.style.transform = 'translate3d(0,' + (st * PARALLAX_FACTOR).toFixed(2) + 'px,0)';
   } else {
-    backdrop.style.transform = 'translate3d(0,' + (st * PARALLAX_FACTOR) + 'px,0)';
-    if (st > 0) {
-      const h = _bdHeight || (_bdHeight = backdrop.offsetHeight || 1);
-      backdrop.style.transition = 'none';
-      backdrop.style.opacity = Math.max(0, 1 - st / (h * 0.75)).toFixed(3);
-    } else {
-      backdrop.style.opacity = '';
-      backdrop.style.transition = '';
-    }
+    backdrop.style.opacity = '';
+    backdrop.style.transform = '';
+    backdrop.style.transition = '';
   }
 }
 
+function backdropStretchFrame() {
+  const backdrop = document.getElementById('summaryBackdrop');
+  const active = !isDesktop() && document.getElementById('summaryBox').classList.contains('has-backdrop');
+  const st = active ? document.getElementById('summaryScroll').scrollTop : 0;
+
+  let target = 1;
+  if (active && st < 0) {
+    const h = _bdHeight || (_bdHeight = backdrop.offsetHeight || 1);
+    target = 1 + Math.min((-st / h) * STRETCH_GAIN, STRETCH_MAX);
+  }
+  _bdScale += (target - _bdScale) * STRETCH_SMOOTH;
+  if (Math.abs(target - _bdScale) < 0.0008) _bdScale = target;
+
+  if (active && (st < 0 || _bdScale > 1.001)) {
+    backdrop.style.transition = 'none';
+    backdrop.style.opacity = '';
+    backdrop.style.transform = 'scale(' + _bdScale.toFixed(4) + ')';
+  }
+
+  if (_bdTouching || st < 0 || _bdScale !== 1) {
+    _bdRaf = requestAnimationFrame(backdropStretchFrame);
+  } else {
+    _bdRaf = 0;
+    updateBackdropParallax();
+  }
+}
+function kickStretch() { if (!_bdRaf) _bdRaf = requestAnimationFrame(backdropStretchFrame); }
+
 function onSummaryScroll() {
-  if (document.getElementById('summaryScroll').scrollTop >= 0) updateCloseAdaptation();
-  updateBackdropParallax();
+  const scrollEl = document.getElementById('summaryScroll');
+  if (scrollEl.scrollTop >= 0) updateCloseAdaptation();
+  if (scrollEl.scrollTop < 0) kickStretch();
+  else updateBackdropParallax();
 }
 
 (function initBackdropStretch() {
   const scrollEl = document.getElementById('summaryScroll');
-  let rafId = 0, touching = false;
-  const tick = () => {
-    updateBackdropParallax();
-    if (touching || scrollEl.scrollTop < 0) {
-      rafId = requestAnimationFrame(tick);
-    } else {
-      rafId = 0;
-    }
-  };
-  const start = () => { if (!rafId) rafId = requestAnimationFrame(tick); };
-  const end = () => { touching = false; start(); };
-  scrollEl.addEventListener('touchstart',  () => { touching = true; _bdHeight = 0; start(); }, { passive: true });
-  scrollEl.addEventListener('touchend',    end, { passive: true });
-  scrollEl.addEventListener('touchcancel', end, { passive: true });
+  scrollEl.addEventListener('touchstart',  () => { _bdTouching = true; _bdHeight = 0; kickStretch(); }, { passive: true });
+  scrollEl.addEventListener('touchend',    () => { _bdTouching = false; kickStretch(); }, { passive: true });
+  scrollEl.addEventListener('touchcancel', () => { _bdTouching = false; kickStretch(); }, { passive: true });
 })();
 
 function ubDarken(rgb) {
@@ -1663,6 +1681,7 @@ function openSummary(forItem) {
   bdEl.style.opacity = '';
   bdEl.style.transition = '';
   _bdHeight = 0;
+  _bdScale = 1;
   scrollEl.removeEventListener('scroll', onSummaryScroll);
   scrollEl.addEventListener('scroll', onSummaryScroll, { passive: true });
   if (!known) {
